@@ -1,0 +1,9 @@
+{
+  "name": "portfolio-homepage",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dowon portfolio homepage with admin CMS, analytics, comments, and Google login.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

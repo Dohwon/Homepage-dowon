@@ -1,0 +1,7 @@
+.env
+data/analytics.jsonl
+data/comments.json
+data/KakaoTalk_*.jpg
+manager_memory/
+PROJECT_ANALYSIS.md
+.DS_Store

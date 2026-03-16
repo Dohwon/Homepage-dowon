@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Portfolio Homepage
+Comment=Dowon portfolio homepage launcher
+Exec=/home/dowon/securedir/git/codex/portfolio-homepage/scripts/open_portfolio_homepage.sh
+Icon=/home/dowon/securedir/git/codex/portfolio-homepage/assets/portfolio-homepage-icon.svg
+Terminal=false
+Categories=Development;Office;
+StartupNotify=true

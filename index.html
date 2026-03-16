@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dowon Portfolio Atelier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="ambient-glow ambient-glow-a"></div>
+  <div class="ambient-glow ambient-glow-b"></div>
+
+  <div class="site-shell">
+    <aside class="side-rail">
+      <div class="rail-brand">D</div>
+      <nav class="rail-nav" aria-label="section navigation">
+        <a class="rail-button" href="#hero-section" aria-label="Hero">HO</a>
+        <a class="rail-button" href="#project-section" aria-label="Projects">PR</a>
+        <a class="rail-button" href="#career-section" aria-label="Career">CV</a>
+      </nav>
+      <div class="rail-foot">
+        <span class="rail-dot"></span>
+      </div>
+    </aside>
+
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="topbar-copy">
+          <p id="brand-label" class="micro-label"></p>
+          <div class="topbar-owner">
+            <strong id="owner-primary"></strong>
+            <span id="owner-headline"></span>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <a id="external-link" class="ghost-link hidden" href="#" target="_blank" rel="noreferrer noopener">외부 링크</a>
+          <button id="new-project-button" class="primary-button hidden" type="button">카드 추가</button>
+          <div id="auth-area" class="auth-area"></div>
+        </div>
+      </header>
+
+      <main class="page-content">
+        <section id="hero-section" class="hero-card">
+          <div class="hero-grid">
+            <div class="hero-copy">
+              <p id="hero-badge" class="hero-badge"></p>
+              <h1 id="hero-title"></h1>
+              <p id="hero-description" class="hero-description"></p>
+              <div id="focus-tags" class="hero-tags"></div>
+            </div>
+
+            <div class="hero-side">
+              <div id="hero-mini-stats" class="mini-stats"></div>
+              <article class="hero-note-card">
+                <p class="panel-kicker">Operation Note</p>
+                <p id="hero-note" class="hero-note"></p>
+              </article>
+            </div>
+          </div>
+
+          <div class="hero-searchbar">
+            <input id="search-input" type="search" aria-label="project search" />
+            <button id="search-reset" class="search-button" type="button">초기화</button>
+          </div>
+
+          <div class="filter-wrap">
+            <div id="status-filters" class="chip-row"></div>
+            <div id="category-filters" class="chip-row chip-row-muted"></div>
+          </div>
+        </section>
+
+        <section class="feature-grid">
+          <article class="glass-panel profile-panel">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">About</p>
+                <h2>실행형 PM 포지션</h2>
+              </div>
+            </div>
+            <p id="owner-summary" class="panel-summary"></p>
+            <div id="value-props" class="value-grid"></div>
+          </article>
+
+          <article id="admin-panel" class="glass-panel analytics-panel hidden"></article>
+
+          <article id="career-section" class="glass-panel timeline-panel">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">Career</p>
+                <h2>타임라인과 지표</h2>
+              </div>
+            </div>
+            <div id="career-timeline" class="timeline-list"></div>
+          </article>
+
+          <article class="glass-panel skill-panel">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">Capabilities</p>
+                <h2>핵심 스택과 강점</h2>
+              </div>
+            </div>
+            <div id="skill-groups" class="skill-groups"></div>
+          </article>
+
+          <article class="glass-panel case-panel">
+            <div class="panel-header">
+              <div>
+                <p class="panel-kicker">Casebook</p>
+                <h2>문제 해결 레코드</h2>
+              </div>
+            </div>
+            <div id="case-grid" class="case-grid"></div>
+          </article>
+        </section>
+
+        <section id="project-section" class="library-section">
+          <div class="section-heading">
+            <div>
+              <p class="panel-kicker">Library</p>
+              <h2>프로젝트 카드 컬렉션</h2>
+              <p class="section-copy">카드 호버 시 모션 프리뷰가 실행되고, 클릭하면 댓글/상세 흐름/관리 메뉴를 확인할 수 있습니다.</p>
+            </div>
+            <div id="collection-meta" class="collection-meta"></div>
+          </div>
+
+          <div id="project-grid" class="project-grid"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div id="detail-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close-modal></div>
+    <section class="modal-panel detail-modal-panel" role="dialog" aria-modal="true" aria-labelledby="detail-title-anchor">
+      <button class="modal-close" data-close-modal type="button" aria-label="닫기">×</button>
+      <div id="detail-modal-body"></div>
+    </section>
+  </div>
+
+  <div id="editor-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close-editor></div>
+    <section class="modal-panel editor-modal-panel" role="dialog" aria-modal="true" aria-labelledby="editor-heading">
+      <button class="modal-close" data-close-editor type="button" aria-label="닫기">×</button>
+      <div class="editor-header">
+        <div>
+          <p class="panel-kicker">Admin CMS</p>
+          <h2 id="editor-heading">프로젝트 카드 편집</h2>
+        </div>
+      </div>
+
+      <form id="project-editor-form" class="editor-form">
+        <div class="editor-grid">
+          <label>
+            카드 ID
+            <input name="id" type="text" required />
+          </label>
+          <label>
+            카드 제목
+            <input name="name" type="text" required />
+          </label>
+          <label>
+            카테고리
+            <input name="category" type="text" required />
+          </label>
+          <label>
+            상태
+            <select name="status">
+              <option value="active">완료/운영</option>
+              <option value="in-progress">진행중</option>
+            </select>
+          </label>
+          <label class="editor-span-2">
+            요약
+            <textarea name="summary" rows="3" required></textarea>
+          </label>
+          <label>
+            태그
+            <input name="tags" type="text" placeholder="LLM, Prompt, Analytics" />
+          </label>
+          <label>
+            스택
+            <input name="stack" type="text" placeholder="Python, OpenAI API" />
+          </label>
+          <label class="editor-span-2">
+            하이라이트
+            <textarea name="highlights" rows="4" placeholder="줄바꿈으로 구분"></textarea>
+          </label>
+          <label>
+            프로젝트 경로
+            <input name="path" type="text" />
+          </label>
+          <label>
+            README 경로
+            <input name="readme" type="text" />
+          </label>
+          <label>
+            프리뷰 비디오 경로
+            <input name="previewVideo" type="text" placeholder="/data/previews/project-id.mp4" />
+          </label>
+          <label>
+            프리뷰 포스터 경로
+            <input name="previewPoster" type="text" placeholder="/data/posters/project-id.jpg" />
+          </label>
+          <label>
+            프리뷰 라벨
+            <input name="previewEyebrow" type="text" />
+          </label>
+          <label class="editor-span-2">
+            프리뷰 캡션
+            <textarea name="previewCaption" rows="2"></textarea>
+          </label>
+          <label class="editor-span-2">
+            프리뷰 단계
+            <textarea name="previewSteps" rows="4" placeholder="label|value 형식, 줄바꿈으로 구분"></textarea>
+          </label>
+          <label class="editor-span-2">
+            상세 요약
+            <textarea name="readmeSummary" rows="4" placeholder="줄바꿈으로 구분"></textarea>
+          </label>
+          <label class="editor-span-2">
+            워크플로우
+            <textarea name="workflow" rows="5" placeholder="step|desc 형식, 줄바꿈으로 구분"></textarea>
+          </label>
+          <label class="editor-span-2">
+            핵심 파일
+            <textarea name="keyFiles" rows="4" placeholder="줄바꿈으로 구분"></textarea>
+          </label>
+          <label class="editor-span-2">
+            다이어그램 캡션
+            <input name="diagramCaption" type="text" />
+          </label>
+        </div>
+
+        <div class="editor-actions">
+          <button type="button" class="ghost-button" data-close-editor>취소</button>
+          <button type="submit" class="primary-button">저장</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>

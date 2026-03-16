@@ -1,0 +1,15 @@
+[Unit]
+Description=Portfolio Homepage
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/dowon/securedir/git/codex/portfolio-homepage
+EnvironmentFile=/home/dowon/securedir/git/codex/portfolio-homepage/.env
+ExecStart=/home/dowon/.nvm/versions/node/v20.20.0/bin/node /home/dowon/securedir/git/codex/portfolio-homepage/server.js
+Restart=always
+RestartSec=5
+User=dowon
+
+[Install]
+WantedBy=multi-user.target
