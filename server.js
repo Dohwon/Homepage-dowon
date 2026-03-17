@@ -659,6 +659,15 @@ async function handleApi(req, res, url) {
     return;
   }
 
+  if (req.method === "GET" && url.pathname === "/api/health") {
+    sendJson(res, 200, {
+      ok: true,
+      service: "portfolio-homepage",
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/api/auth/google") {
     try {
       const body = await readBody(req);
