@@ -69,6 +69,7 @@ const PROJECT_TITLE_OVERRIDES = {
   "prompt-auto-evaluation": "프롬프트 승자를 자동으로 가려내는 평가 파이프라인",
   "scripts": "반복 작업을 덜어주는 자동화 툴박스",
   "semantic-verb-schema": "한국어 동사를 기능 스키마로 재구성한 실험",
+  "260317-desktop-scheduler": "바탕화면에서 바로 쓰는 데스크 스케줄러",
   "todack": "토닥, 감정을 다루는 작은 회복 인터페이스",
   "work-summary-versions": "일의 흔적을 버전으로 축적한 아카이브",
   "utterance-similarity-notebook": "비슷한 발화의 차이를 잡아내는 분석 노트"
@@ -1573,6 +1574,7 @@ function renderPreviewMarkup(project, variant) {
   const isVideo = preview.mode === "video" && preview.video;
   const steps = arrayOrEmpty(preview.steps).slice(0, 3);
   const displayName = getProjectDisplayName(project);
+  const diagram = !isVideo ? inferPreviewDiagram(project, preview, variant) : null;
 
   return `
     <div class="preview-surface ${variant === "detail" ? "detail" : ""}">
@@ -1591,24 +1593,242 @@ function renderPreviewMarkup(project, variant) {
           <span class="preview-pill">${escapeHtml(preview.eyebrow || getProjectCategory(project))}</span>
           <span class="preview-pill subtle">${escapeHtml(project.status === "in-progress" ? "Build" : "Live")}</span>
         </div>
-        <div class="mock-screen ${isVideo ? "video-mode" : ""}">
-          <div class="mock-body">
-            ${steps
-              .map(
-                (step, index) => `
-                  <div class="mock-step step-${index + 1}">
-                    <small>${escapeHtml(step.label || "")}</small>
-                    <strong>${escapeHtml(step.value || "")}</strong>
-                  </div>
-                `
-              )
-              .join("")}
+        <div class="mock-screen ${isVideo ? "video-mode" : ""} ${diagram ? `diagram-screen diagram-${diagram.type}` : ""}">
+          <div class="mock-body ${diagram ? "diagram-body" : ""}">
+            ${
+              diagram
+                ? renderPreviewDiagram(diagram)
+                : steps
+                    .map(
+                      (step, index) => `
+                        <div class="mock-step step-${index + 1}">
+                          <small>${escapeHtml(step.label || "")}</small>
+                          <strong>${escapeHtml(step.value || "")}</strong>
+                        </div>
+                      `
+                    )
+                    .join("")
+            }
             <p class="mock-caption">${escapeHtml(truncate(preview.caption || project.summary, variant === "detail" ? 120 : 72))}</p>
           </div>
         </div>
       </div>
     </div>
   `;
+}
+
+function inferPreviewDiagram(project, preview, variant) {
+  const text = [
+    project.id,
+    project.name,
+    project.category,
+    project.summary,
+    ...arrayOrEmpty(project.tags),
+    ...arrayOrEmpty(project.highlights),
+    ...arrayOrEmpty(preview.steps).map((step) => (typeof step === "string" ? step : step.value))
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const labels = pickDiagramTokens(project, preview, variant === "detail" ? 4 : 3);
+
+  if (/(scheduler|desktop|calendar|달력|체크리스트|week|weekly)/.test(text)) {
+    return { type: "calendar", labels };
+  }
+  if (/(todack|mood|feeling|emotion|wellness|감정|회복)/.test(text)) {
+    return { type: "checklist", labels };
+  }
+  if (/(cer|stt|speech|voice|음성)/.test(text)) {
+    return { type: "metrics", labels };
+  }
+  if (/(routing|prompt|judge|moe|family classifier|expert)/.test(text)) {
+    return { type: "routing", labels };
+  }
+  if (/(log|ops|operation|analytics|failure|퍼널)/.test(text)) {
+    return { type: "pipeline", labels };
+  }
+  if (/(nlu|morph|schema|semantic|형태소|유사도|intent|corpus)/.test(text)) {
+    return { type: "nodes", labels };
+  }
+  if (/(gemini|tester|test|tool|script|summary|archive|version)/.test(text)) {
+    return { type: "console", labels };
+  }
+  return { type: "stack", labels };
+}
+
+function pickDiagramTokens(project, preview, count) {
+  const candidates = [
+    ...arrayOrEmpty(preview.steps).map((step) => (typeof step === "string" ? step : step.value)),
+    ...arrayOrEmpty(project.highlights),
+    ...arrayOrEmpty(project.tags),
+    project.summary
+  ]
+    .map((item) => compactDiagramLabel(item, 16))
+    .filter(Boolean);
+
+  return [...new Set(candidates)].slice(0, count);
+}
+
+function compactDiagramLabel(value, maxLength = 12) {
+  const text = String(value || "")
+    .replace(/[()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return "";
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
+}
+
+function previewMetricValue(projectId, index, min = 32, max = 92) {
+  let hash = 0;
+  const source = `${projectId}:${index}`;
+  for (let i = 0; i < source.length; i += 1) {
+    hash = (hash * 31 + source.charCodeAt(i)) % 9973;
+  }
+  return min + (hash % (max - min + 1));
+}
+
+function renderPreviewDiagram(diagram) {
+  const labels = diagram.labels.length ? diagram.labels : ["Output", "Flow", "Signal"];
+
+  switch (diagram.type) {
+    case "calendar":
+      return `
+        <div class="diagram-board calendar">
+          <div class="diagram-calendar-head">
+            <span>Mon</span>
+            <strong>DeskFlow</strong>
+            <span>Week</span>
+          </div>
+          <div class="diagram-calendar-grid">
+            ${Array.from({ length: 14 }, (_, index) => {
+              const classes = [
+                "diagram-day",
+                index === 3 || index === 8 ? "active" : "",
+                index === 10 ? "warning" : ""
+              ]
+                .filter(Boolean)
+                .join(" ");
+              return `<span class="${classes}">${escapeHtml(String((index % 7) + 1))}</span>`;
+            }).join("")}
+          </div>
+          <div class="diagram-agenda-row">
+            ${labels.map((label) => `<span class="diagram-agenda-chip">${escapeHtml(label)}</span>`).join("")}
+          </div>
+        </div>
+      `;
+    case "metrics":
+      return `
+        <div class="diagram-board metrics">
+          <div class="diagram-bars">
+            ${labels.map((label, index) => `
+              <div class="diagram-bar-col">
+                <span class="diagram-bar" style="height:${previewMetricValue(label, index)}%"></span>
+                <small>${escapeHtml(compactDiagramLabel(label, 8))}</small>
+              </div>
+            `).join("")}
+          </div>
+          <div class="diagram-baseline"></div>
+        </div>
+      `;
+    case "routing":
+      return `
+        <div class="diagram-board routing">
+          <div class="diagram-node source">Query</div>
+          <div class="diagram-route-line"></div>
+          <div class="diagram-route-row">
+            ${labels.map((label, index) => `
+              <span class="diagram-node route route-${index + 1}">${escapeHtml(compactDiagramLabel(label, 8))}</span>
+            `).join("")}
+          </div>
+          <div class="diagram-route-line short"></div>
+          <div class="diagram-output-row">
+            <span class="diagram-node output">Judge</span>
+            <span class="diagram-node output accent">Best Path</span>
+          </div>
+        </div>
+      `;
+    case "pipeline":
+      return `
+        <div class="diagram-board pipeline">
+          <div class="diagram-stage-row">
+            ${labels.map((label, index) => `
+              <span class="diagram-stage stage-${index + 1}">${escapeHtml(compactDiagramLabel(label, 9))}</span>
+            `).join("")}
+          </div>
+          <div class="diagram-stage-links">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="diagram-signal-row">
+            <i class="diagram-signal success"></i>
+            <i class="diagram-signal warning"></i>
+            <i class="diagram-signal neutral"></i>
+          </div>
+        </div>
+      `;
+    case "nodes":
+      return `
+        <div class="diagram-board nodes">
+          <div class="diagram-node-cloud">
+            <span class="diagram-node-chip anchor">${escapeHtml(compactDiagramLabel(labels[0], 10))}</span>
+            ${labels.slice(1).map((label, index) => `
+              <span class="diagram-node-chip orbit orbit-${index + 1}">${escapeHtml(compactDiagramLabel(label, 8))}</span>
+            `).join("")}
+          </div>
+          <div class="diagram-node-links">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      `;
+    case "checklist":
+      return `
+        <div class="diagram-board checklist">
+          <div class="diagram-checklist-card">
+            ${labels.map((label, index) => `
+              <div class="diagram-check-row ${index === 1 ? "done" : ""}">
+                <span class="diagram-check-box"></span>
+                <strong>${escapeHtml(compactDiagramLabel(label, 12))}</strong>
+              </div>
+            `).join("")}
+          </div>
+          <div class="diagram-checklist-rail">
+            <span class="rail-pill active">Now</span>
+            <span class="rail-pill">Later</span>
+            <span class="rail-pill muted">Someday</span>
+          </div>
+        </div>
+      `;
+    case "console":
+      return `
+        <div class="diagram-board console">
+          <div class="diagram-console-head">
+            <i></i><i></i><i></i>
+          </div>
+          <div class="diagram-console-lines">
+            ${labels.map((label, index) => `
+              <div class="diagram-console-line line-${index + 1}">
+                <span></span>
+                <strong>${escapeHtml(compactDiagramLabel(label, 12))}</strong>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    default:
+      return `
+        <div class="diagram-board stack">
+          ${labels.map((label, index) => `
+            <div class="diagram-stack-layer layer-${index + 1}">
+              <small>Layer ${escapeHtml(String(index + 1).padStart(2, "0"))}</small>
+              <strong>${escapeHtml(compactDiagramLabel(label, 14))}</strong>
+            </div>
+          `).join("")}
+        </div>
+      `;
+  }
 }
 
 function renderDisplayTitle(project, variant) {
