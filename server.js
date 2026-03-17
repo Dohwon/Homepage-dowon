@@ -879,7 +879,7 @@ function findAssetPath(folder, fileBase, exts) {
 function defaultSite(owner, links) {
   return {
     brandLabel: "Portfolio Intelligence Atelier",
-    heroBadge: "Kakao-style Reference Applied",
+    heroBadge: "",
     heroTitle: "실무형 AI 프로젝트를 카드 라이브러리처럼 탐색하는 개인 홈페이지",
     heroDescription:
       "넓은 캔버스, 둥근 검색 바, 떠 있는 카드, 블러 모달을 중심으로 구성된 포트폴리오 허브입니다. 비로그인 방문자는 읽기, 로그인 사용자는 댓글, 관리자만 카드 관리 권한을 가집니다.",
@@ -1186,6 +1186,10 @@ async function loadContent() {
 
   return {
     ...content,
+    site: {
+      ...(content.site || {}),
+      heroBadge: ""
+    },
     projects: mergeProjectsByStatus(content.projects || [], visibleGenerated, statusOverrides).map((project, index) =>
       normalizeProject(project, index)
     ),

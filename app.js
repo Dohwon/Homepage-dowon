@@ -14,6 +14,7 @@ const state = {
 };
 
 const elements = {
+  cursorHalo: document.getElementById("cursor-halo"),
   brandLabel: document.getElementById("brand-label"),
   ownerPrimary: document.getElementById("owner-primary"),
   ownerHeadline: document.getElementById("owner-headline"),
@@ -152,6 +153,8 @@ async function init() {
 }
 
 function bindEvents() {
+  bindDecorativeMotion();
+
   elements.searchInput.addEventListener("input", () => {
     state.filters.query = elements.searchInput.value.trim().toLowerCase();
     renderProjects();
@@ -357,6 +360,26 @@ function bindEvents() {
   });
 }
 
+function bindDecorativeMotion() {
+  if (!elements.cursorHalo || !window.matchMedia("(pointer:fine)").matches) return;
+
+  let fadeTimer = null;
+  document.addEventListener("pointermove", (event) => {
+    elements.cursorHalo.style.opacity = "1";
+    elements.cursorHalo.style.transform = `translate3d(${event.clientX}px, ${event.clientY}px, 0)`;
+    if (fadeTimer) {
+      window.clearTimeout(fadeTimer);
+    }
+    fadeTimer = window.setTimeout(() => {
+      elements.cursorHalo.style.opacity = "0.28";
+    }, 180);
+  });
+
+  document.addEventListener("pointerleave", () => {
+    elements.cursorHalo.style.opacity = "0";
+  });
+}
+
 async function refreshApp() {
   state.bootstrap = await api("/api/bootstrap");
   const timelineProjects = getTimelineProjects();
@@ -414,7 +437,7 @@ function renderHero() {
   const { site, owner, projects } = state.bootstrap;
   const stats = computeStats(projects);
 
-  elements.heroBadge.textContent = site.heroBadge || "";
+  elements.heroBadge.textContent = "";
   elements.heroTitle.textContent = "프로젝트 라이브러리";
   elements.heroDescription.textContent = "";
   if (elements.heroNote) {

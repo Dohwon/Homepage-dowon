@@ -1,7 +1,7 @@
 {
   "site": {
     "brandLabel": "Portfolio Intelligence Atelier",
-    "heroBadge": "Kakao-style Reference Applied",
+    "heroBadge": "",
     "heroTitle": "실무형 AI 프로젝트를 카드 라이브러리처럼 탐색하는 개인 홈페이지",
     "heroDescription": "넓은 캔버스, 둥근 검색 바, 떠 있는 카드, 블러 모달을 중심으로 구성된 포트폴리오 허브입니다. 비로그인 방문자는 읽기, 로그인 사용자는 댓글, 관리자만 카드 관리 권한을 가집니다.",
     "heroNote": "관리자 전용 기능: 카드 생성/수정/삭제, 방문자 집계, 댓글 운영, 실제 영상 또는 모션 목업 프리뷰 연결",
