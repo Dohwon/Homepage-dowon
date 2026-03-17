@@ -6,6 +6,7 @@ const crypto = require("crypto");
 
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, "data");
+const SEED_DATA_DIR = path.join(ROOT, "seed-data");
 const SITE_CONTENT_PATH = path.join(DATA_DIR, "site-content.json");
 const COMMENTS_PATH = path.join(DATA_DIR, "comments.json");
 const ANALYTICS_PATH = path.join(DATA_DIR, "analytics.jsonl");
@@ -48,9 +49,8 @@ const MIME_TYPES = {
 async function ensureStorage() {
   await fsp.mkdir(DATA_DIR, { recursive: true });
 
-  try {
-    await fsp.access(SITE_CONTENT_PATH);
-  } catch {
+  const existingContent = await readJson(SITE_CONTENT_PATH, null);
+  if (!existingContent || isPlaceholderContent(existingContent)) {
     const seeded = await buildSeedContent();
     await writeJsonAtomic(SITE_CONTENT_PATH, seeded);
   }
@@ -69,8 +69,8 @@ async function ensureStorage() {
 }
 
 async function buildSeedContent() {
-  const generated = await readJson(path.join(DATA_DIR, "projects.generated.json"), null);
-  const manual = await readJson(path.join(DATA_DIR, "projects.json"), null);
+  const generated = await readJsonWithFallback("projects.generated.json", null);
+  const manual = await readJsonWithFallback("projects.json", null);
   const primary = generated || manual || {};
   const secondary = manual || {};
 
@@ -90,6 +90,14 @@ async function buildSeedContent() {
       source: generated ? "projects.generated.json" : "projects.json"
     }
   };
+}
+
+function isPlaceholderContent(content) {
+  if (!content) return true;
+  const ownerName = String(content.owner?.name || "");
+  const projects = Array.isArray(content.projects) ? content.projects : [];
+  const hasProfile = Boolean(content.profile && Object.keys(content.profile).length);
+  return ownerName === "Dowon" && projects.length === 0 && !hasProfile;
 }
 
 function mergeProjects(primaryProjects, secondaryProjects) {
@@ -501,6 +509,14 @@ async function readJson(filePath, fallback) {
   }
 }
 
+async function readJsonWithFallback(fileName, fallback) {
+  const primaryPath = path.join(DATA_DIR, fileName);
+  const fallbackPath = path.join(SEED_DATA_DIR, fileName);
+  const primary = await readJson(primaryPath, null);
+  if (primary) return primary;
+  return readJson(fallbackPath, fallback);
+}
+
 async function writeJsonAtomic(filePath, data) {
   const tempPath = `${filePath}.${process.pid}.tmp`;
   await fsp.writeFile(tempPath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
@@ -729,9 +745,9 @@ function slugify(value) {
 
 async function loadContent() {
   const content = await readJson(SITE_CONTENT_PATH, null);
-  const generated = await readJson(path.join(DATA_DIR, "projects.generated.json"), { projects: [] });
+  const generated = await readJsonWithFallback("projects.generated.json", { projects: [] });
 
-  if (!content) {
+  if (!content || isPlaceholderContent(content)) {
     return buildSeedContent();
   }
 
@@ -764,7 +780,7 @@ async function saveComments(comments) {
 }
 
 async function loadCases() {
-  const data = await readJson(path.join(DATA_DIR, "work_cases.json"), { cases: [] });
+  const data = await readJsonWithFallback("work_cases.json", { cases: [] });
   return Array.isArray(data.cases) ? data : { cases: [] };
 }
 
@@ -1115,7 +1131,7 @@ async function handleApi(req, res, url) {
     const content = await loadContent();
     const nextProjects = content.projects.filter((project) => project.id !== projectId);
     const hiddenIds = new Set(arrayify(content.meta?.hiddenProjectIds));
-    const existedInGenerated = await readJson(path.join(DATA_DIR, "projects.generated.json"), { projects: [] });
+    const existedInGenerated = await readJsonWithFallback("projects.generated.json", { projects: [] });
     const inGenerated = (existedInGenerated.projects || []).some((project) => project.id === projectId);
     if (nextProjects.length === content.projects.length && !inGenerated) {
       sendJson(res, 404, { error: "project_not_found" });

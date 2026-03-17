@@ -1,0 +1,920 @@
+{
+  "owner": {
+    "name": "김도원 (Dowon Kim)",
+    "headline": "On-device/Cloud LLM Agent PM | 음성인식·품질자동화·제품기획",
+    "careerSummary": "생성형 AI 기반 음성인식 시스템과 LLM Agent를 기획-설계-평가-운영까지 End-to-End로 리드해온 PM. 모델 성능, 운영 비용, 사용자 경험을 동시에 개선하는 실행형 문제해결에 강함.",
+    "focusAreas": [
+      "On-device AI",
+      "LLM Agent Design",
+      "Prompt Engineering",
+      "Quality Automation",
+      "Speech UX"
+    ]
+  },
+  "profile": {
+    "valueProposition": [
+      "기술/비즈니스 사이를 번역해 제품 의사결정을 빠르게 수렴시킴",
+      "문제 정의를 조건-관측-가설-검증 구조로 쪼개 재현 가능한 개선안 제시",
+      "품질 지표(CER, Accuracy)와 자동 평가 파이프라인을 직접 설계/운영"
+    ],
+    "coreMetrics": [
+      {
+        "label": "STT 성공률 개선",
+        "value": "+30% (95% 수준 유지)"
+      },
+      {
+        "label": "공간명 추출 정확도",
+        "value": "100%"
+      },
+      {
+        "label": "프롬프트 비용 절감",
+        "value": "-30% (6500 -> 4500 tokens)"
+      },
+      {
+        "label": "챗봇 정답률",
+        "value": "91.1% (문서 1,500개 연동)"
+      }
+    ],
+    "careerTimeline": [
+      {
+        "period": "2024.09 - 현재",
+        "company": "SK인텔릭스",
+        "role": "Project Manager",
+        "summary": "AI 이동형 로봇 음성인식 모듈 기획/PM. State Machine 기반 Agent 설계, On-device/Cloud chaining, 전사 평가 체계 구축."
+      },
+      {
+        "period": "2023.11 - 2024.04",
+        "company": "올거나이즈코리아",
+        "role": "Project Manager",
+        "summary": "RAG 기반 생성형 AI 챗봇/앱 기획 및 성능 개선. 산업별 PoC와 상용 정확도 개선 프로젝트 리드."
+      },
+      {
+        "period": "2023.05 - 2023.10",
+        "company": "와이즈버즈",
+        "role": "서비스 기획",
+        "summary": "DSP 광고 플랫폼 기획 및 정책 정비, 운영 프로세스 개선."
+      },
+      {
+        "period": "2019.10 - 2022.10",
+        "company": "와이즈넛",
+        "role": "지식 컨설턴트",
+        "summary": "공공기관 챗봇/음성 서비스 구축과 QA. 다국어 대화 시나리오 및 품질 개선 수행."
+      }
+    ],
+    "skillMatrix": {
+      "Product & PM": [
+        "서비스 기획",
+        "요구사항/정책 설계",
+        "상태기반 대화 설계",
+        "로드맵/우선순위"
+      ],
+      "AI/LLM": [
+        "Prompt Engineering",
+        "RAG",
+        "Cloud-Device Chaining",
+        "Finetuning/Quantization 이해"
+      ],
+      "Data & Quality": [
+        "CER/Accuracy 지표 설계",
+        "평가 자동화",
+        "로그 분석",
+        "실험 설계"
+      ],
+      "Tools": [
+        "Python",
+        "Kotlin",
+        "Jupyter",
+        "Excel",
+        "PowerPoint",
+        "Visio",
+        "Notion",
+        "Jira/Confluence",
+        "WSL/VS Code"
+      ]
+    },
+    "softSkills": [
+      "커뮤니케이션",
+      "Teamwork",
+      "문제해결",
+      "꼼꼼한 문서화",
+      "창의적 사고"
+    ],
+    "certifications": [
+      "AWS Certified Cloud Practitioner (2024.06)",
+      "SQLD (2023.10)",
+      "ADsP (2022.03)",
+      "TOEIC Speaking AL (2023.03)"
+    ],
+    "highlights": [
+      "음성인식 관련 임시 출원 5건 (2025.05)",
+      "빅데이터 청년인재 양성사업 프로젝트 장려상"
+    ]
+  },
+  "links": {
+    "notion": "https://do-won.notion.site/Doh-Won-Kim-6e8c929ee98941798064f3397d75fe7b",
+    "resumeSource": "profile_sources/김도원_경력기술서_자기소개서_통합(2025).docx"
+  },
+  "projects": [
+    {
+      "id": "calc-stt-cer-colab",
+      "name": "(SKM) Calc STT CER Notebook",
+      "status": "active",
+      "category": "Speech Quality Metrics",
+      "summary": "STT CER 계산 및 음성 인식 품질 점검을 위한 Colab 노트북.",
+      "highlights": [
+        "CER 계산 실험",
+        "음성 인식 품질 지표 점검"
+      ],
+      "stack": [
+        "Jupyter",
+        "Python"
+      ],
+      "tags": [
+        "STT",
+        "CER",
+        "Speech",
+        "Notebook"
+      ],
+      "path": "projects/(SKM)Calc_STT_CER_ipynb의_사본.ipynb",
+      "readme": null,
+      "detail": {
+        "readmeSummary": [
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
+        ],
+        "workflow": [
+          {
+            "step": "데이터 로드",
+            "desc": "노트북에서 입력 데이터/로그를 불러옴"
+          },
+          {
+            "step": "전처리/특징화",
+            "desc": "분석 목적에 맞게 텍스트/지표를 가공"
+          },
+          {
+            "step": "실험 실행",
+            "desc": "유사도/오류율/분류 등 핵심 실험을 수행"
+          },
+          {
+            "step": "결과 해석",
+            "desc": "지표와 사례를 바탕으로 개선 포인트를 정리"
+          }
+        ],
+        "keyFiles": [
+          "projects/(SKM)Calc_STT_CER_ipynb의_사본.ipynb"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "morpheme-analysis-notebook",
+      "name": "학습데이터 형태소 분석기 노트북",
+      "status": "active",
+      "category": "NLU Data Analysis",
+      "summary": "학습 데이터에 대한 형태소 분석 실험 노트북으로, 토큰 기반 분석과 품질 점검 흐름을 담고 있음.",
+      "highlights": [
+        "형태소 단위 데이터 관찰",
+        "학습 데이터 품질 체크",
+        "탐색형 분석 워크플로우"
+      ],
+      "stack": [
+        "Jupyter",
+        "Python",
+        "NLP"
+      ],
+      "tags": [
+        "NLU",
+        "Morphology",
+        "Notebook",
+        "Data"
+      ],
+      "path": "projects/250731_학습데이터_형태소분석기.ipynb",
+      "readme": null,
+      "detail": {
+        "readmeSummary": [
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
+        ],
+        "workflow": [
+          {
+            "step": "데이터 로드",
+            "desc": "노트북에서 입력 데이터/로그를 불러옴"
+          },
+          {
+            "step": "전처리/특징화",
+            "desc": "분석 목적에 맞게 텍스트/지표를 가공"
+          },
+          {
+            "step": "실험 실행",
+            "desc": "유사도/오류율/분류 등 핵심 실험을 수행"
+          },
+          {
+            "step": "결과 해석",
+            "desc": "지표와 사례를 바탕으로 개선 포인트를 정리"
+          }
+        ],
+        "keyFiles": [
+          "projects/250731_학습데이터_형태소분석기.ipynb"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "mood-tracker",
+      "name": "260212_feeling_traker (기분추적기)",
+      "status": "in-progress",
+      "category": "Wellness Product",
+      "summary": "하루 감정 카드 체크와 코멘트 기반 이력 요약/알림을 제공하는 기분 기록 앱.",
+      "highlights": [
+        "웹/데스크톱 위젯 데이터 동기화",
+        "최근 7일 누락 알림 정책",
+        "분노 진정 페르소나 챗봇 + 대화로그"
+      ],
+      "stack": [
+        "Python",
+        "SQLite",
+        "HTML",
+        "CSS",
+        "JavaScript",
+        "Tkinter"
+      ],
+      "tags": [
+        "Mood",
+        "Tracker",
+        "MVP",
+        "In-Progress"
+      ],
+      "path": "projects/260212_feeling_traker",
+      "readme": "projects/260212_feeling_traker/README.md",
+      "detail": {
+        "readmeSummary": [
+          "진행중 프로젝트. 웹앱 + 데스크톱 플로팅 위젯이 같은 데이터(SQLite)를 공유한다.",
+          "1. 앱/컴퓨터 연동: 공용 API 서버(`server.py`) + SQLite 저장",
+          "2. 컴퓨터 화면 앱: 웹 관리화면(`index.html`)과 플로팅 위젯(`desktop_widget.py`)",
+          "3. 통계 그래프: 최근 기록 점수 추세 캔버스 그래프"
+        ],
+        "workflow": [
+          {
+            "step": "입력 준비",
+            "desc": "README 기준 입력 파일/파라미터를 준비"
+          },
+          {
+            "step": "핵심 실행",
+            "desc": "메인 스크립트 또는 엔트리포인트를 실행"
+          },
+          {
+            "step": "결과 저장",
+            "desc": "산출물 파일(JSON/CSV/로그 등) 생성"
+          },
+          {
+            "step": "검토",
+            "desc": "결과를 검토해 다음 개선 작업으로 연결"
+          }
+        ],
+        "keyFiles": [
+          "projects/260212_feeling_traker/README.md",
+          "projects/260212_feeling_traker/branding/icon_candidates_2026-02-15/README.md",
+          "projects/260212_feeling_traker/branding/squishy_pet_blob_2026-02-15/README.md",
+          "projects/260212_feeling_traker/branding/calm_slime_candidates_2026-02-15/README.md",
+          "projects/260212_feeling_traker/branding/calm_slime_favicon_final_2026-02-15/README.md",
+          "projects/260212_feeling_traker/server.py"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "260218-ope-log-anlayze",
+      "name": "260218_ope_log_anlayze",
+      "status": "active",
+      "category": "Operational Analytics",
+      "summary": "260218_ope_log_anlayze 프로젝트 자산.",
+      "highlights": [
+        "프로젝트 스캔 기반 기본 요약"
+      ],
+      "stack": [
+        "XLSX",
+        "CSV"
+      ],
+      "tags": [
+        "Ops",
+        "Log",
+        "Analytics"
+      ],
+      "path": "projects/260218_ope_log_anlayze",
+      "readme": null,
+      "detail": {
+        "readmeSummary": [
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
+        ],
+        "workflow": [
+          {
+            "step": "입력 확인",
+            "desc": "프로젝트 입력 데이터/의존성을 확인"
+          },
+          {
+            "step": "처리 실행",
+            "desc": "주요 코드 또는 노트북 셀을 실행"
+          },
+          {
+            "step": "결과 확인",
+            "desc": "산출물/로그를 점검해 품질을 판단"
+          },
+          {
+            "step": "개선 반영",
+            "desc": "문제점 기반으로 다음 수정안을 도출"
+          }
+        ],
+        "keyFiles": [
+          "projects/260218_ope_log_anlayze/ope_log_handoff_to_codex.md",
+          "projects/260218_ope_log_anlayze/docs/A1_llm_conversation_dashboard_sql.md",
+          "projects/260218_ope_log_anlayze/docs/worklogs/2026-02-18_a1-llm-dashboard-analysis.md",
+          "projects/260218_ope_log_anlayze/260130-운영계-대화기록-01월.csv",
+          "projects/260218_ope_log_anlayze/dynamodb_테이블정의서 (2).xlsx",
+          "projects/260218_ope_log_anlayze/250107-운영계-대화기록-1월_7일.csv"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "260315-moe-prompt-routing",
+      "name": "260315_MoE_Prompt_Routing",
+      "status": "active",
+      "category": "Prompt Evaluation",
+      "summary": "260315_MoE_Prompt_Routing 프로젝트 자산.",
+      "highlights": [
+        "프로젝트 스캔 기반 기본 요약"
+      ],
+      "stack": [
+        "Python",
+        "XLSX",
+        "CSV"
+      ],
+      "tags": [
+        "Prompt",
+        "Eval",
+        "Automation"
+      ],
+      "path": "projects/260315_MoE_Prompt_Routing",
+      "readme": "projects/260315_MoE_Prompt_Routing/README.md",
+      "detail": {
+        "readmeSummary": [
+          "이 폴더는 `음성 클라우드 라우팅 설계`, `실행 프롬프트`, `평가용 judge`, `엑셀 기반 테스트`를 한곳에서 관리하는 작업 폴더다.",
+          "가장 중요한 기준 파일은 아래 4개다.",
+          "구조 설명: docs/architecture/routing-blueprint.current.md",
+          "실제 runtime 프롬프트: prompts/runtime"
+        ],
+        "workflow": [
+          {
+            "step": "입력 준비",
+            "desc": "README 기준 입력 파일/파라미터를 준비"
+          },
+          {
+            "step": "핵심 실행",
+            "desc": "메인 스크립트 또는 엔트리포인트를 실행"
+          },
+          {
+            "step": "결과 저장",
+            "desc": "산출물 파일(JSON/CSV/로그 등) 생성"
+          },
+          {
+            "step": "검토",
+            "desc": "결과를 검토해 다음 개선 작업으로 연결"
+          }
+        ],
+        "keyFiles": [
+          "projects/260315_MoE_Prompt_Routing/README.md",
+          "projects/260315_MoE_Prompt_Routing/tools/__init__.py",
+          "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/cli.py",
+          "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/common.py",
+          "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/harness.py",
+          "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/workbook.py"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "dowon-codex-manager-memory-work-summary-v4",
+      "name": "dowon_codex_manager_memory_work_summary.v4",
+      "status": "active",
+      "category": "General",
+      "summary": "단일 파일 실험/분석 자산.",
+      "highlights": [
+        "파일 기반 실험"
+      ],
+      "stack": [
+        "Unknown"
+      ],
+      "tags": [
+        "Project"
+      ],
+      "path": "projects/dowon_codex_manager_memory_work_summary.v4.md",
+      "readme": null,
+      "detail": {
+        "readmeSummary": [
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
+        ],
+        "workflow": [
+          {
+            "step": "입력 확인",
+            "desc": "프로젝트 입력 데이터/의존성을 확인"
+          },
+          {
+            "step": "처리 실행",
+            "desc": "주요 코드 또는 노트북 셀을 실행"
+          },
+          {
+            "step": "결과 확인",
+            "desc": "산출물/로그를 점검해 품질을 판단"
+          },
+          {
+            "step": "개선 반영",
+            "desc": "문제점 기반으로 다음 수정안을 도출"
+          }
+        ],
+        "keyFiles": [
+          "projects/dowon_codex_manager_memory_work_summary.v4.md"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "gemini-multiturn-tester-v3",
+      "name": "Gemini Multi-turn Tester v3",
+      "status": "in-progress",
+      "category": "LLM Evaluation Tooling",
+      "summary": "Gemini 멀티턴 시나리오를 REPL/JSON/XLSX로 테스트하고 로그(JSONL)까지 남기는 테스트 스캐폴드.",
+      "highlights": [
+        "멀티턴 대화 히스토리 기반 테스트",
+        "Excel 기반 배치 실행",
+        "요청/응답 로그 저장"
+      ],
+      "stack": [
+        "Python",
+        "Gemini API",
+        "XLSX",
+        "JSONL"
+      ],
+      "tags": [
+        "LLM",
+        "Testing",
+        "Multiturn",
+        "Evaluation"
+      ],
+      "path": "projects/gemini_multiturn_tester_v3",
+      "readme": "projects/gemini_multiturn_tester_v3/README.md",
+      "detail": {
+        "readmeSummary": [
+          "Postman 대신 **멀티턴(대화 히스토리 포함)** 테스트를 쉽게 돌리기 위한 스캐폴드입니다.",
+          "✅ Gemini v1beta의 responseSchema는 `additionalProperties`를 지원하지 않습니다.",
+          "그래서 스키마에서 `additionalProperties`를 완전히 제거했습니다.",
+          "✅ 엑셀 기반 테스트 실행 추가: `python run.py excel ...`"
+        ],
+        "workflow": [
+          {
+            "step": "입력 준비",
+            "desc": "prompt/env/scenario 또는 excel 테스트 케이스를 준비"
+          },
+          {
+            "step": "멀티턴 실행",
+            "desc": "run.py에서 turn 히스토리를 포함해 모델 호출"
+          },
+          {
+            "step": "응답 기록",
+            "desc": "요청/응답을 JSONL 또는 결과 파일로 저장"
+          },
+          {
+            "step": "결과 분석",
+            "desc": "턴별 품질/정합성을 검토해 프롬프트/정책 개선"
+          }
+        ],
+        "keyFiles": [
+          "projects/gemini_multiturn_tester_v3/README.md",
+          "projects/gemini_multiturn_tester_v3/run.py",
+          "projects/gemini_multiturn_tester_v3/app/utils.py",
+          "projects/gemini_multiturn_tester_v3/app/agent.py",
+          "projects/gemini_multiturn_tester_v3/app/logger.py",
+          "projects/gemini_multiturn_tester_v3/app/client.py"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "operation-log-analyzer",
+      "name": "Operation Log Analyzer",
+      "status": "active",
+      "category": "Operational Analytics",
+      "summary": "운영 대화 로그 CSV/XLSX를 처리해 마스터 요약과 검색용 데이터로 정리하는 분석 도구 세트.",
+      "highlights": [
+        "운영 로그 전처리/분할",
+        "요약 리포트 엑셀 산출",
+        "키워드/판정 보조 스크립트"
+      ],
+      "stack": [
+        "Python",
+        "Pandas",
+        "CSV",
+        "XLSX"
+      ],
+      "tags": [
+        "Ops",
+        "Log",
+        "Analytics",
+        "ETL"
+      ],
+      "path": "projects/Operation_log_analayzer",
+      "readme": null,
+      "detail": {
+        "readmeSummary": [
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
+        ],
+        "workflow": [
+          {
+            "step": "운영 로그 수집",
+            "desc": "CSV/XLSX 대화 로그를 입력 데이터로 적재"
+          },
+          {
+            "step": "전처리/분할",
+            "desc": "process_logs 계열 스크립트로 정규화 및 분류"
+          },
+          {
+            "step": "검색/판정",
+            "desc": "judge_search 등으로 키워드/조건 기반 분석"
+          },
+          {
+            "step": "요약 리포트",
+            "desc": "엑셀/요약 파일로 운영 인사이트를 산출"
+          }
+        ],
+        "keyFiles": [
+          "projects/Operation_log_analayzer/judge_search.py",
+          "projects/Operation_log_analayzer/process_logs.py",
+          "projects/Operation_log_analayzer/process_logs_v3.py",
+          "projects/Operation_log_analayzer/analyze_business_insights.py",
+          "projects/Operation_log_analayzer/manager_memory/short-term/active-tasks.md",
+          "projects/Operation_log_analayzer/manager_memory/long-term/strategy-roadmap.md"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "project-naming-rule",
+      "name": "PROJECT_NAMING_RULE",
+      "status": "active",
+      "category": "General",
+      "summary": "단일 파일 실험/분석 자산.",
+      "highlights": [
+        "파일 기반 실험"
+      ],
+      "stack": [
+        "Unknown"
+      ],
+      "tags": [
+        "Project"
+      ],
+      "path": "projects/PROJECT_NAMING_RULE.md",
+      "readme": null,
+      "detail": {
+        "readmeSummary": [
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
+        ],
+        "workflow": [
+          {
+            "step": "입력 확인",
+            "desc": "프로젝트 입력 데이터/의존성을 확인"
+          },
+          {
+            "step": "처리 실행",
+            "desc": "주요 코드 또는 노트북 셀을 실행"
+          },
+          {
+            "step": "결과 확인",
+            "desc": "산출물/로그를 점검해 품질을 판단"
+          },
+          {
+            "step": "개선 반영",
+            "desc": "문제점 기반으로 다음 수정안을 도출"
+          }
+        ],
+        "keyFiles": [
+          "projects/PROJECT_NAMING_RULE.md"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "prompt-auto-evaluation",
+      "name": "Prompt Auto Evaluation",
+      "status": "active",
+      "category": "Prompt Evaluation",
+      "summary": "두 모델(A/B)의 응답을 Judge 모델로 비교 평가해 winner/confidence/case를 산출하는 자동 평가 파이프라인.",
+      "highlights": [
+        "A/B 모델 비교 + Judge JSON 판정",
+        "CSV 테스트 입력, CSV/JSONL 결과 출력",
+        "운영형 프롬프트 품질 점검"
+      ],
+      "stack": [
+        "Python",
+        "OpenAI API",
+        "CSV",
+        "JSONL"
+      ],
+      "tags": [
+        "Prompt",
+        "Eval",
+        "Automation",
+        "LLM"
+      ],
+      "path": "projects/Prompt_Auto_Evaluation",
+      "readme": "projects/Prompt_Auto_Evaluation/README.md",
+      "detail": {
+        "readmeSummary": [
+          "환경: Window + VS Code",
+          "폴더 전체 내 로컬에 다운로드",
+          "폴더 내 파일 수정",
+          "**judge_prompt.txt**: 비교할 프롬프트"
+        ],
+        "workflow": [
+          {
+            "step": "테스트 세트 로드",
+            "desc": "sample_tests.csv와 A/B 프롬프트를 입력"
+          },
+          {
+            "step": "A/B 응답 생성",
+            "desc": "각 모델 응답을 병렬 생성"
+          },
+          {
+            "step": "Judge 판정",
+            "desc": "winner/confidence/case를 JSON 스키마로 평가"
+          },
+          {
+            "step": "리포트 산출",
+            "desc": "CSV/JSONL 결과를 저장해 비교/회귀 분석"
+          }
+        ],
+        "keyFiles": [
+          "projects/Prompt_Auto_Evaluation/README.md",
+          "projects/Prompt_Auto_Evaluation/judge_runner.py",
+          "projects/Prompt_Auto_Evaluation/judge_runner(old, 모델 정해진경우).py",
+          "projects/Prompt_Auto_Evaluation/.env",
+          "projects/Prompt_Auto_Evaluation/env.template",
+          "projects/Prompt_Auto_Evaluation/judge_prompt.txt"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "scripts",
+      "name": "scripts",
+      "status": "active",
+      "category": "General",
+      "summary": "scripts 프로젝트 자산.",
+      "highlights": [
+        "프로젝트 스캔 기반 기본 요약"
+      ],
+      "stack": [
+        "Unknown"
+      ],
+      "tags": [
+        "Project"
+      ],
+      "path": "projects/scripts",
+      "readme": null,
+      "detail": {
+        "readmeSummary": [
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
+        ],
+        "workflow": [
+          {
+            "step": "입력 확인",
+            "desc": "프로젝트 입력 데이터/의존성을 확인"
+          },
+          {
+            "step": "처리 실행",
+            "desc": "주요 코드 또는 노트북 셀을 실행"
+          },
+          {
+            "step": "결과 확인",
+            "desc": "산출물/로그를 점검해 품질을 판단"
+          },
+          {
+            "step": "개선 반영",
+            "desc": "문제점 기반으로 다음 수정안을 도출"
+          }
+        ],
+        "keyFiles": [
+          "projects/scripts/create_project.sh",
+          "projects/scripts/version_work_summary.sh"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "semantic-verb-schema",
+      "name": "Semantic Verb Schema",
+      "status": "active",
+      "category": "NLU Schema Engineering",
+      "summary": "동사/기능 토큰 중심의 의미 스키마(YAML)와 코퍼스 처리 스크립트로 의도 분류용 자산을 구축하는 프로젝트.",
+      "highlights": [
+        "스키마 기반 토큰 체계화",
+        "코퍼스 확장/필터/병합 파이프라인",
+        "사전(verb inventory) 구축"
+      ],
+      "stack": [
+        "Python",
+        "YAML",
+        "Corpus"
+      ],
+      "tags": [
+        "NLU",
+        "Schema",
+        "Korean",
+        "Corpus"
+      ],
+      "path": "projects/Semantic_Verb_Schema",
+      "readme": null,
+      "detail": {
+        "readmeSummary": [
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
+        ],
+        "workflow": [
+          {
+            "step": "코퍼스 로드",
+            "desc": "원천 텍스트/사전을 읽어 토큰 후보를 구성"
+          },
+          {
+            "step": "정제/필터",
+            "desc": "품사·의미 규칙으로 후보를 필터링"
+          },
+          {
+            "step": "스키마 매핑",
+            "desc": "function token/semantic schema에 맞게 구조화"
+          },
+          {
+            "step": "산출/검증",
+            "desc": "tsv/yaml 결과를 생성하고 사전 품질을 점검"
+          }
+        ],
+        "keyFiles": [
+          "projects/Semantic_Verb_Schema/file_sets/README.md",
+          "projects/Semantic_Verb_Schema/fc_dict.py",
+          "projects/Semantic_Verb_Schema/split_corpus.py",
+          "projects/Semantic_Verb_Schema/mcp_build_spec.md",
+          "projects/Semantic_Verb_Schema/fc_json_to_tsv.py",
+          "projects/Semantic_Verb_Schema/retag_with_kiwi.py"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "todack",
+      "name": "Todack",
+      "status": "in-progress",
+      "category": "General",
+      "summary": "Todack 프로젝트 자산.",
+      "highlights": [
+        "프로젝트 스캔 기반 기본 요약"
+      ],
+      "stack": [
+        "Python",
+        "YAML",
+        "JSON"
+      ],
+      "tags": [
+        "Project"
+      ],
+      "path": "projects/Todack",
+      "readme": "projects/Todack/README.md",
+      "detail": {
+        "readmeSummary": [
+          "진행중 프로젝트. Web API를 기준으로 Web/Windows/Android/iOS 클라이언트를 연계한다.",
+          "1. 앱/컴퓨터 연동: 공용 API 서버(`server.py`) + SQLite 저장",
+          "2. 컴퓨터 화면 앱: 웹 관리화면(`index.html`)과 플로팅 위젯(`desktop_widget.py`)",
+          "3. 통계 그래프: 최근 기록 점수 추세 캔버스 그래프"
+        ],
+        "workflow": [
+          {
+            "step": "입력 준비",
+            "desc": "README 기준 입력 파일/파라미터를 준비"
+          },
+          {
+            "step": "핵심 실행",
+            "desc": "메인 스크립트 또는 엔트리포인트를 실행"
+          },
+          {
+            "step": "결과 저장",
+            "desc": "산출물 파일(JSON/CSV/로그 등) 생성"
+          },
+          {
+            "step": "검토",
+            "desc": "결과를 검토해 다음 개선 작업으로 연결"
+          }
+        ],
+        "keyFiles": [
+          "projects/Todack/README.md",
+          "projects/Todack/windows/README.md",
+          "projects/Todack/design/figma/README.md",
+          "projects/Todack/mobile/expo-feeling-app/README.md",
+          "projects/Todack/calm_slime_favicon_final_2026-02-15/README.md",
+          "projects/Todack/branding/calm_slime_favicon_final_2026-02-15/README.md"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "work-summary-versions",
+      "name": "work_summary_versions",
+      "status": "active",
+      "category": "General",
+      "summary": "work_summary_versions 프로젝트 자산.",
+      "highlights": [
+        "프로젝트 스캔 기반 기본 요약"
+      ],
+      "stack": [
+        "Unknown"
+      ],
+      "tags": [
+        "Project"
+      ],
+      "path": "projects/work_summary_versions",
+      "readme": null,
+      "detail": {
+        "readmeSummary": [
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
+        ],
+        "workflow": [
+          {
+            "step": "입력 확인",
+            "desc": "프로젝트 입력 데이터/의존성을 확인"
+          },
+          {
+            "step": "처리 실행",
+            "desc": "주요 코드 또는 노트북 셀을 실행"
+          },
+          {
+            "step": "결과 확인",
+            "desc": "산출물/로그를 점검해 품질을 판단"
+          },
+          {
+            "step": "개선 반영",
+            "desc": "문제점 기반으로 다음 수정안을 도출"
+          }
+        ],
+        "keyFiles": [
+          "projects/work_summary_versions/dowon_codex_manager_memory_work_summary.v6.md",
+          "projects/work_summary_versions/dowon_codex_manager_memory_work_summary.v5.md"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "utterance-similarity-notebook",
+      "name": "형태소 기반 사용자 발화 유사도 분석 노트북",
+      "status": "active",
+      "category": "NLU Similarity Analysis",
+      "summary": "형태소 기반 특징을 이용해 사용자 발화 유사도를 분석하는 실험 노트북.",
+      "highlights": [
+        "발화 간 유사도 분석",
+        "형태소 특징 실험",
+        "인텐트 분류 보조 지표 탐색"
+      ],
+      "stack": [
+        "Jupyter",
+        "Python",
+        "Cosine Similarity"
+      ],
+      "tags": [
+        "NLU",
+        "Similarity",
+        "Intent",
+        "Notebook"
+      ],
+      "path": "projects/형태소분석기_기반_사용자_발화_유사도_분석(2).ipynb",
+      "readme": null,
+      "detail": {
+        "readmeSummary": [
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
+        ],
+        "workflow": [
+          {
+            "step": "데이터 로드",
+            "desc": "노트북에서 입력 데이터/로그를 불러옴"
+          },
+          {
+            "step": "전처리/특징화",
+            "desc": "분석 목적에 맞게 텍스트/지표를 가공"
+          },
+          {
+            "step": "실험 실행",
+            "desc": "유사도/오류율/분류 등 핵심 실험을 수행"
+          },
+          {
+            "step": "결과 해석",
+            "desc": "지표와 사례를 바탕으로 개선 포인트를 정리"
+          }
+        ],
+        "keyFiles": [
+          "projects/형태소분석기_기반_사용자_발화_유사도_분석(2).ipynb"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    }
+  ]
+}
