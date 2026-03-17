@@ -35,6 +35,11 @@ const elements = {
   categoryFilters: document.getElementById("category-filters"),
   collectionMeta: document.getElementById("collection-meta"),
   projectGrid: document.getElementById("project-grid"),
+  inProgressCount: document.getElementById("in-progress-count"),
+  activeCount: document.getElementById("active-count"),
+  inProgressBoard: document.getElementById("in-progress-board"),
+  activeBoard: document.getElementById("active-board"),
+  categoryOverview: document.getElementById("category-overview"),
   adminPanel: document.getElementById("admin-panel"),
   detailModal: document.getElementById("detail-modal"),
   detailModalBody: document.getElementById("detail-modal-body"),
@@ -108,6 +113,21 @@ function bindEvents() {
     if (!card) return;
     event.preventDefault();
     openDetail(card.dataset.projectId);
+  });
+
+  [elements.inProgressBoard, elements.activeBoard, elements.categoryOverview].forEach((container) => {
+    container.addEventListener("click", (event) => {
+      const item = event.target.closest("[data-project-id]");
+      if (!item) return;
+      openDetail(item.dataset.projectId);
+    });
+    container.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const item = event.target.closest("[data-project-id]");
+      if (!item) return;
+      event.preventDefault();
+      openDetail(item.dataset.projectId);
+    });
   });
 
   elements.projectGrid.addEventListener("mouseover", handlePreviewHover);
@@ -193,6 +213,7 @@ function renderAll() {
   renderTimeline();
   renderSkills();
   renderCases();
+  renderProjectSnapshot();
   renderAdminPanel();
   renderProjects();
   renderAuthArea();
@@ -486,6 +507,82 @@ function renderAdminPanel() {
         </ul>
       </article>
     </div>
+  `;
+}
+
+function renderProjectSnapshot() {
+  const projects = state.bootstrap.projects.slice();
+  const inProgressProjects = projects.filter((project) => project.status === "in-progress");
+  const activeProjects = projects.filter((project) => project.status === "active");
+
+  elements.inProgressCount.textContent = `${inProgressProjects.length} cards`;
+  elements.activeCount.textContent = `${activeProjects.length} cards`;
+
+  elements.inProgressBoard.innerHTML = inProgressProjects.length
+    ? inProgressProjects.map((project) => renderSnapshotItem(project, "warning")).join("")
+    : `<article class="empty-state small">진행중 프로젝트가 없습니다.</article>`;
+
+  elements.activeBoard.innerHTML = activeProjects.length
+    ? activeProjects.map((project) => renderSnapshotItem(project, "success")).join("")
+    : `<article class="empty-state small">완료/운영 프로젝트가 없습니다.</article>`;
+
+  const categoryMap = new Map();
+  for (const project of projects) {
+    if (!categoryMap.has(project.category)) {
+      categoryMap.set(project.category, []);
+    }
+    categoryMap.get(project.category).push(project);
+  }
+
+  elements.categoryOverview.innerHTML = [...categoryMap.entries()]
+    .sort((left, right) => right[1].length - left[1].length || left[0].localeCompare(right[0]))
+    .map(([category, items]) => {
+      return `
+        <article class="category-cluster">
+          <div class="category-cluster-head">
+            <div>
+              <h3>${escapeHtml(category)}</h3>
+              <p>${escapeHtml(String(items.length))}개 프로젝트</p>
+            </div>
+          </div>
+          <div class="category-link-list">
+            ${items
+              .map(
+                (project) => `
+                  <button type="button" class="category-link" data-project-id="${escapeHtml(project.id)}">
+                    <span>${escapeHtml(project.name)}</span>
+                    <small>${project.status === "in-progress" ? "진행중" : "완료/운영"}</small>
+                  </button>
+                `
+              )
+              .join("")}
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function renderSnapshotItem(project, tone) {
+  const badgeText = project.status === "in-progress" ? "진행중" : "완료/운영";
+  const supportCopy =
+    arrayOrEmpty(project.highlights)[0] ||
+    arrayOrEmpty(project.tags).slice(0, 2).join(" · ") ||
+    project.summary;
+
+  return `
+    <article class="snapshot-item ${tone}" tabindex="0" data-project-id="${escapeHtml(project.id)}">
+      <div class="snapshot-top">
+        <span class="badge ${tone}">${escapeHtml(badgeText)}</span>
+        <span class="snapshot-category">${escapeHtml(project.category)}</span>
+      </div>
+      <h3>${escapeHtml(project.name)}</h3>
+      <p>${escapeHtml(project.summary)}</p>
+      <div class="snapshot-tags">
+        ${arrayOrEmpty(project.tags).slice(0, 3).map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")}
+      </div>
+      <div class="snapshot-foot">${escapeHtml(supportCopy)}</div>
+    </article>
   `;
 }
 
