@@ -1024,6 +1024,20 @@ function encodeSession(viewer) {
   return `${payload}.${signPayload(payload)}`;
 }
 
+function isLoopbackAddress(value = "") {
+  const normalized = String(value || "").replace(/^::ffff:/, "");
+  return normalized === "127.0.0.1" || normalized === "::1" || normalized === "localhost";
+}
+
+function isLocalRequest(req) {
+  const hostHeader = String(req.headers.host || "").split(":")[0].toLowerCase();
+  return isLoopbackAddress(hostHeader) || isLoopbackAddress(req.socket?.remoteAddress || "");
+}
+
+function isDevLoginAllowed(req) {
+  return DEV_ALLOW_LOCAL_LOGIN && isLocalRequest(req) && Boolean(DEV_ADMIN_EMAIL || ADMIN_EMAILS.size);
+}
+
 function decodeSession(token) {
   if (!token || !token.includes(".")) return null;
   const [payload, signature] = token.split(".");
@@ -1444,7 +1458,7 @@ async function handleApi(req, res, url) {
         : null,
       config: {
         googleClientId: GOOGLE_CLIENT_ID,
-        devLoginEnabled: DEV_ALLOW_LOCAL_LOGIN
+        devLoginEnabled: isDevLoginAllowed(req)
       }
     };
     sendJson(res, 200, response);
@@ -1486,7 +1500,7 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/auth/dev") {
-    if (!DEV_ALLOW_LOCAL_LOGIN) {
+    if (!isDevLoginAllowed(req)) {
       sendJson(res, 403, { error: "dev_login_disabled" });
       return;
     }
