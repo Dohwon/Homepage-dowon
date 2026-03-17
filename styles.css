@@ -4106,6 +4106,7 @@ a {
 
 .about-contact-card {
   min-width: 0;
+  position: relative;
   padding: 12px 14px;
   border-radius: 18px;
   border: 1px solid rgba(103, 132, 205, 0.14);
@@ -4124,6 +4125,13 @@ a {
   outline: none;
 }
 
+.about-contact-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .about-contact-card small {
   color: #6a80ba;
   font-family: "Sora", sans-serif;
@@ -4138,10 +4146,53 @@ a {
   line-height: 1.45;
 }
 
+.about-contact-card.is-link {
+  cursor: pointer;
+}
+
+.about-contact-card.is-link strong {
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.16em;
+  transition: color 180ms ease, text-decoration-color 180ms ease;
+}
+
+.about-contact-card.is-link:hover strong,
+.about-contact-card.is-link:focus-visible strong {
+  color: #335cc8;
+  text-decoration-color: rgba(51, 92, 200, 0.34);
+}
+
 .about-contact-card span {
   color: var(--ink-soft);
   font-size: 0.74rem;
   line-height: 1.5;
+}
+
+.about-contact-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(238, 244, 255, 0.96);
+  border: 1px solid rgba(101, 135, 223, 0.12);
+  color: #5470bd;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.about-contact-open::after {
+  content: ">";
+  display: inline-block;
+  transition: transform 180ms ease;
+}
+
+.about-contact-card.is-link:hover .about-contact-open::after,
+.about-contact-card.is-link:focus-visible .about-contact-open::after {
+  transform: translate(1px, -1px);
 }
 
 #home-section .project-grid {

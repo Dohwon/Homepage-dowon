@@ -1096,13 +1096,17 @@ function buildAboutContacts(owner = {}, links = {}) {
 
 function renderAboutContactCard(item) {
   const tagName = item.href ? "a" : "article";
+  const isLink = Boolean(item.href);
   const attrs = item.href
-    ? ` class="about-contact-card" href="${escapeHtml(item.href)}" target="_blank" rel="noreferrer noopener"`
+    ? ` class="about-contact-card is-link" href="${escapeHtml(item.href)}" target="_blank" rel="noreferrer noopener"`
     : ` class="about-contact-card"`;
 
   return `
     <${tagName}${attrs}>
-      <small>${escapeHtml(item.label || "")}</small>
+      <div class="about-contact-top">
+        <small>${escapeHtml(item.label || "")}</small>
+        ${isLink ? `<span class="about-contact-open">LINK</span>` : ""}
+      </div>
       <strong>${escapeHtml(item.value || "")}</strong>
       ${item.note ? `<span>${escapeHtml(item.note)}</span>` : ""}
     </${tagName}>
