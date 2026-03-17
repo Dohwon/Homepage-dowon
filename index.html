@@ -15,14 +15,16 @@
 
   <div class="site-shell">
     <aside class="side-rail">
-      <div class="rail-brand">D</div>
+      <div class="rail-brand">DW</div>
       <nav class="rail-nav" aria-label="section navigation">
-        <a class="rail-button" href="#hero-section" aria-label="Hero">HO</a>
-        <a class="rail-button" href="#project-section" aria-label="Projects">PR</a>
-        <a class="rail-button" href="#career-section" aria-label="Career">CV</a>
+        <a class="rail-button" href="#home-section" aria-label="Home">HOME</a>
+        <a class="rail-button" href="#about-section" aria-label="About">About</a>
+        <a class="rail-button" href="#timeline-section" aria-label="Timeline">Timeline</a>
+        <a class="rail-button" href="#blog-section" aria-label="Blog">Blog</a>
       </nav>
       <div class="rail-foot">
         <span class="rail-dot"></span>
+        <span class="rail-foot-label">Open</span>
       </div>
     </aside>
 
@@ -44,73 +46,175 @@
       </header>
 
       <main class="page-content">
-        <section id="hero-section" class="hero-card">
-          <div class="hero-grid">
-            <div class="hero-copy">
-              <p id="hero-badge" class="hero-badge"></p>
-              <h1 id="hero-title"></h1>
-              <p id="hero-description" class="hero-description"></p>
-              <div id="focus-tags" class="hero-tags"></div>
+        <section id="home-section" class="section-stack">
+          <section id="hero-section" class="hero-card">
+            <div class="hero-grid">
+              <div class="hero-copy">
+                <p id="hero-badge" class="hero-badge"></p>
+                <h1 id="hero-title"></h1>
+                <p id="hero-description" class="hero-description"></p>
+                <div id="focus-tags" class="hero-tags"></div>
+              </div>
+
+              <div class="hero-side">
+                <div id="hero-mini-stats" class="mini-stats"></div>
+              </div>
             </div>
 
-            <div class="hero-side">
-              <div id="hero-mini-stats" class="mini-stats"></div>
-              <article class="hero-note-card">
-                <p class="panel-kicker">Operation Note</p>
-                <p id="hero-note" class="hero-note"></p>
+            <div class="hero-searchbar">
+              <input id="search-input" type="search" aria-label="project search" />
+              <button id="search-reset" class="search-button" type="button">초기화</button>
+            </div>
+
+            <div class="filter-wrap">
+              <div id="status-filters" class="chip-row"></div>
+              <div id="category-filters" class="chip-row chip-row-muted"></div>
+            </div>
+          </section>
+
+          <section id="project-section" class="library-section">
+            <div class="section-heading">
+              <div>
+                <p class="panel-kicker">Portfolio Home</p>
+                <h2>프로젝트 카드 라이브러리</h2>
+                <p class="section-copy">카드 호버는 살아 있고, 클릭하면 프로젝트 설명보다 실제로 부딪혔던 이슈와 풀어낸 과정이 먼저 보입니다.</p>
+              </div>
+              <div id="collection-meta" class="collection-meta"></div>
+            </div>
+
+            <div id="project-grid" class="project-grid"></div>
+          </section>
+
+          <section class="status-board-section">
+            <div class="section-heading">
+              <div>
+                <p class="panel-kicker">Home Snapshot</p>
+                <h2>진행 흐름과 분류를 한눈에</h2>
+                <p class="section-copy">프로젝트는 지금처럼 카드로 탐색하고, 클릭 후에는 내가 겪은 어려움과 해결 과정을 중심으로 보이게 구성합니다.</p>
+              </div>
+            </div>
+
+            <div class="status-board-grid">
+              <article class="glass-panel board-panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="panel-kicker">In Progress</p>
+                    <h2>진행중</h2>
+                  </div>
+                  <span id="in-progress-count" class="collection-pill"></span>
+                </div>
+                <div id="in-progress-board" class="board-list"></div>
+              </article>
+
+              <article class="glass-panel board-panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="panel-kicker">Live / Archive</p>
+                    <h2>완료 · 운영</h2>
+                  </div>
+                  <span id="active-count" class="collection-pill"></span>
+                </div>
+                <div id="active-board" class="board-list"></div>
               </article>
             </div>
+
+            <article class="glass-panel category-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="panel-kicker">Category View</p>
+                  <h2>카테고리별 묶음</h2>
+                </div>
+              </div>
+              <div id="category-overview" class="category-overview"></div>
+            </article>
+          </section>
+        </section>
+
+        <section id="about-section" class="section-stack">
+          <div class="section-heading">
+            <div>
+              <p class="panel-kicker">About</p>
+              <h2>나를 설명하는 정보와 스킬</h2>
+              <p class="section-copy">사진 대신 분위기에 맞는 사람형 이모티콘을 두고, 커리어 흐름과 강점을 정리합니다.</p>
+            </div>
           </div>
 
-          <div class="hero-searchbar">
-            <input id="search-input" type="search" aria-label="project search" />
-            <button id="search-reset" class="search-button" type="button">초기화</button>
+          <div class="about-layout">
+            <article class="glass-panel about-intro-panel">
+              <div class="about-portrait-wrap">
+                <div class="emoji-avatar" aria-hidden="true">🧑🏻</div>
+                <div class="about-headline-copy">
+                  <p class="panel-kicker">About Me</p>
+                  <h2 id="about-title">실행형 PM 포지션</h2>
+                  <p id="owner-summary" class="panel-summary"></p>
+                </div>
+              </div>
+              <div id="value-props" class="value-grid"></div>
+            </article>
+
+            <article class="glass-panel about-proof-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="panel-kicker">Proof</p>
+                  <h2>핵심 지표와 연결 정보</h2>
+                </div>
+              </div>
+              <div id="about-metrics" class="metric-strip"></div>
+              <div id="about-links" class="about-link-list"></div>
+            </article>
           </div>
 
-          <div class="filter-wrap">
-            <div id="status-filters" class="chip-row"></div>
-            <div id="category-filters" class="chip-row chip-row-muted"></div>
+          <div class="about-lower-grid">
+            <article class="glass-panel about-career-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="panel-kicker">Career</p>
+                  <h2>커리어 타임라인</h2>
+                </div>
+              </div>
+              <div id="career-timeline" class="timeline-list"></div>
+            </article>
+
+            <article class="glass-panel skill-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="panel-kicker">Capabilities</p>
+                  <h2>핵심 스택과 강점</h2>
+                </div>
+              </div>
+              <div id="skill-groups" class="skill-groups"></div>
+            </article>
           </div>
         </section>
 
-        <section class="feature-grid">
-          <article class="glass-panel profile-panel">
-            <div class="panel-header">
-              <div>
-                <p class="panel-kicker">About</p>
-                <h2>실행형 PM 포지션</h2>
-              </div>
+        <section id="timeline-section" class="section-stack">
+          <div class="section-heading">
+            <div>
+              <p class="panel-kicker">Timeline</p>
+              <h2>전체 프로젝트 타임라인과 난관 구간</h2>
+              <p class="section-copy">모든 프로젝트를 기간 축에 올리고, 어려움이 있었던 구간과 해결 흐름을 따로 읽을 수 있게 만듭니다. 수정 권한은 관리자에게만 열립니다.</p>
             </div>
-            <p id="owner-summary" class="panel-summary"></p>
-            <div id="value-props" class="value-grid"></div>
-          </article>
+          </div>
+
+          <div class="timeline-layout">
+            <article class="glass-panel project-journey-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="panel-kicker">Project Timeline</p>
+                  <h2>프로젝트 흐름 지도</h2>
+                </div>
+              </div>
+              <div id="timeline-legend" class="timeline-legend"></div>
+              <div id="project-timeline-map" class="project-timeline-map"></div>
+            </article>
+          </div>
 
           <article id="admin-panel" class="glass-panel analytics-panel hidden"></article>
-
-          <article id="career-section" class="glass-panel timeline-panel">
-            <div class="panel-header">
-              <div>
-                <p class="panel-kicker">Career</p>
-                <h2>타임라인과 지표</h2>
-              </div>
-            </div>
-            <div id="career-timeline" class="timeline-list"></div>
-          </article>
-
-          <article class="glass-panel skill-panel">
-            <div class="panel-header">
-              <div>
-                <p class="panel-kicker">Capabilities</p>
-                <h2>핵심 스택과 강점</h2>
-              </div>
-            </div>
-            <div id="skill-groups" class="skill-groups"></div>
-          </article>
 
           <article class="glass-panel case-panel">
             <div class="panel-header">
               <div>
-                <p class="panel-kicker">Casebook</p>
+                <p class="panel-kicker">Memory Atlas</p>
                 <h2>문제 해결 레코드</h2>
               </div>
             </div>
@@ -118,61 +222,17 @@
           </article>
         </section>
 
-        <section class="status-board-section">
+        <section id="blog-section" class="section-stack">
           <div class="section-heading">
             <div>
-              <p class="panel-kicker">Project Snapshot</p>
-              <h2>프로젝트 현황판</h2>
-              <p class="section-copy">예전 홈페이지에서 보이던 상태별 프로젝트 흐름을 다시 바로 보이게 붙였습니다.</p>
+              <p class="panel-kicker">Blog</p>
+              <h2>작업 로그와 생각 정리</h2>
+              <p class="section-copy">글은 관리자만 작성하고, 방문자는 모두 읽을 수 있습니다. 마크다운 형식으로 기록과 회고를 남깁니다.</p>
             </div>
+            <button id="new-blog-button" class="primary-button hidden" type="button">글 작성</button>
           </div>
 
-          <div class="status-board-grid">
-            <article class="glass-panel board-panel">
-              <div class="panel-header">
-                <div>
-                  <p class="panel-kicker">In Progress</p>
-                  <h2>진행중</h2>
-                </div>
-                <span id="in-progress-count" class="collection-pill"></span>
-              </div>
-              <div id="in-progress-board" class="board-list"></div>
-            </article>
-
-            <article class="glass-panel board-panel">
-              <div class="panel-header">
-                <div>
-                  <p class="panel-kicker">Live / Archive</p>
-                  <h2>완료 · 운영</h2>
-                </div>
-                <span id="active-count" class="collection-pill"></span>
-              </div>
-              <div id="active-board" class="board-list"></div>
-            </article>
-          </div>
-
-          <article class="glass-panel category-panel">
-            <div class="panel-header">
-              <div>
-                <p class="panel-kicker">Category View</p>
-                <h2>카테고리별 묶음</h2>
-              </div>
-            </div>
-            <div id="category-overview" class="category-overview"></div>
-          </article>
-        </section>
-
-        <section id="project-section" class="library-section">
-          <div class="section-heading">
-            <div>
-              <p class="panel-kicker">Library</p>
-              <h2>프로젝트 카드 컬렉션</h2>
-              <p class="section-copy">카드 호버 시 모션 프리뷰가 실행되고, 클릭하면 댓글/상세 흐름/관리 메뉴를 확인할 수 있습니다.</p>
-            </div>
-            <div id="collection-meta" class="collection-meta"></div>
-          </div>
-
-          <div id="project-grid" class="project-grid"></div>
+          <div id="blog-grid" class="blog-grid"></div>
         </section>
       </main>
     </div>
@@ -267,6 +327,50 @@
             <textarea name="readmeSummary" rows="4" placeholder="줄바꿈으로 구분"></textarea>
           </label>
           <label class="editor-span-2">
+            프로젝트 서사
+            <textarea name="storyNarrative" rows="3" placeholder="프로젝트를 한 문단으로 설명"></textarea>
+          </label>
+          <label class="editor-span-2">
+            핵심 어려움
+            <textarea name="storyChallenge" rows="3" placeholder="어떤 문제를 겪었는지"></textarea>
+          </label>
+          <label class="editor-span-2">
+            해결 시도
+            <textarea name="storyAttempts" rows="4" placeholder="줄바꿈으로 구분"></textarea>
+          </label>
+          <label class="editor-span-2">
+            해결 결과
+            <textarea name="storyResolution" rows="3" placeholder="문제가 어떻게 해소됐는지"></textarea>
+          </label>
+          <label class="editor-span-2">
+            임팩트
+            <textarea name="storyImpact" rows="3" placeholder="줄바꿈으로 구분"></textarea>
+          </label>
+          <label>
+            메모리 Case ID
+            <input name="storyCaseIds" type="text" placeholder="case-id, case-id" />
+          </label>
+          <label>
+            타임라인 시작
+            <input name="timelineStart" type="date" />
+          </label>
+          <label>
+            타임라인 종료
+            <input name="timelineEnd" type="date" />
+          </label>
+          <label>
+            기간 라벨
+            <input name="timelineLabel" type="text" placeholder="2025.07 - 2025.09" />
+          </label>
+          <label class="editor-span-2">
+            난관 구간
+            <textarea name="timelineDifficulty" rows="4" placeholder="label|start|end|severity 형식, 줄바꿈으로 구분"></textarea>
+          </label>
+          <label class="editor-span-2">
+            타임라인 마일스톤
+            <textarea name="timelineMilestones" rows="4" placeholder="label|date|tone 형식, 줄바꿈으로 구분"></textarea>
+          </label>
+          <label class="editor-span-2">
             워크플로우
             <textarea name="workflow" rows="5" placeholder="step|desc 형식, 줄바꿈으로 구분"></textarea>
           </label>
@@ -282,6 +386,64 @@
 
         <div class="editor-actions">
           <button type="button" class="ghost-button" data-close-editor>취소</button>
+          <button type="submit" class="primary-button">저장</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div id="blog-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close-blog></div>
+    <section class="modal-panel blog-modal-panel" role="dialog" aria-modal="true" aria-labelledby="blog-detail-title">
+      <button class="modal-close" data-close-blog type="button" aria-label="닫기">×</button>
+      <div id="blog-modal-body"></div>
+    </section>
+  </div>
+
+  <div id="blog-editor-modal" class="modal hidden">
+    <div class="modal-backdrop" data-close-blog-editor></div>
+    <section class="modal-panel editor-modal-panel" role="dialog" aria-modal="true" aria-labelledby="blog-editor-heading">
+      <button class="modal-close" data-close-blog-editor type="button" aria-label="닫기">×</button>
+      <div class="editor-header">
+        <div>
+          <p class="panel-kicker">Admin CMS</p>
+          <h2 id="blog-editor-heading">블로그 글 편집</h2>
+        </div>
+      </div>
+
+      <form id="blog-editor-form" class="editor-form">
+        <div class="editor-grid">
+          <label>
+            글 ID
+            <input name="id" type="text" required />
+          </label>
+          <label class="editor-span-2">
+            제목
+            <input name="title" type="text" required />
+          </label>
+          <label class="editor-span-2">
+            요약
+            <textarea name="excerpt" rows="3" required></textarea>
+          </label>
+          <label>
+            상태
+            <select name="status">
+              <option value="published">공개</option>
+              <option value="draft">임시저장</option>
+            </select>
+          </label>
+          <label>
+            태그
+            <input name="tags" type="text" placeholder="LLM, Routing, PM" />
+          </label>
+          <label class="editor-span-2">
+            마크다운 본문
+            <textarea name="markdown" rows="16" placeholder="# 제목&#10;&#10;회고나 작업 로그를 마크다운으로 작성"></textarea>
+          </label>
+        </div>
+
+        <div class="editor-actions">
+          <button type="button" class="ghost-button" data-close-blog-editor>취소</button>
           <button type="submit" class="primary-button">저장</button>
         </div>
       </form>

@@ -10,6 +10,7 @@ const SEED_DATA_DIR = path.join(ROOT, "seed-data");
 const SITE_CONTENT_PATH = path.join(DATA_DIR, "site-content.json");
 const STATUS_OVERRIDES_PATH = path.join(DATA_DIR, "status_overrides.json");
 const COMMENTS_PATH = path.join(DATA_DIR, "comments.json");
+const BLOG_POSTS_PATH = path.join(DATA_DIR, "blog-posts.json");
 const ANALYTICS_PATH = path.join(DATA_DIR, "analytics.jsonl");
 const ENV_PATH = path.join(ROOT, ".env");
 
@@ -32,6 +33,7 @@ const SESSION_COOKIE = "portfolio_session";
 const VISITOR_COOKIE = "portfolio_visitor";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const MAX_COMMENT_LENGTH = 1000;
+const MAX_BLOG_MARKDOWN_LENGTH = 50000;
 
 const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
@@ -47,6 +49,161 @@ const MIME_TYPES = {
   ".webm": "video/webm"
 };
 
+const PROJECT_CONTENT_OVERRIDES = {
+  "260218-ope-log-anlayze": {
+    summary: "운영계 대화 로그를 읽고 끝내지 않고, 실제 기능 우선순위와 품질 개선 backlog로 바꿔내는 분석 프로젝트.",
+    highlights: [
+      "실패 응답을 제품 개선 과제로 번역",
+      "클라우드 동의 퍼널과 미디어 수요를 분리 추출",
+      "후속 라벨링과 실험 설계를 위한 failure 샘플 구조화"
+    ],
+    detail: {
+      readmeSummary: [
+        "README는 없었지만 산출물과 메모리 기준으로 보면, 원시 운영 로그를 제품 의사결정용 인사이트로 바꾸는 흐름이 핵심이다.",
+        "대화 실패를 단순 집계로 끝내지 않고 기능 수요, 전환 퍼널, 품질 이슈 backlog로 재구성했다.",
+        "대표 산출물은 business insights 리포트, media feature demand 리포트, failure_by_category/request_failures 데이터셋이다."
+      ]
+    },
+    story: {
+      challenge: "운영 로그는 쌓이는데도 무엇을 먼저 고쳐야 하는지, 사용자 불만이 어디에 몰리는지가 한눈에 보이지 않았다.",
+      attempts: [
+        "CSV/XLSX 로그를 정제해 실패 응답과 요청 유형을 다시 묶었다.",
+        "카테고리별 실패와 수요를 분리해 기능 우선순위로 연결했다.",
+        "리포트를 바로 backlog와 실험 설계로 이어질 수 있는 형태로 정리했다."
+      ],
+      resolution: "원시 로그를 읽기 쉬운 보고서가 아니라, 실제 제품 우선순위와 개선 실험으로 연결되는 입력값으로 바꿨다.",
+      impact: [
+        "클라우드 동의 전환 개선 포인트 식별",
+        "미디어 재생 unmet demand 가시화",
+        "후속 수동 라벨링과 라우팅 개선 기준 확보"
+      ]
+    }
+  },
+  "260315-moe-prompt-routing": {
+    summary: "질문 성격에 따라 다른 프롬프트와 실행 경로를 고르는 음성 라우팅 구조를 설계하고, 엑셀 기반 회귀 평가로 검증하는 프로젝트.",
+    highlights: [
+      "1차 family classifier와 2차 expert-system 분리",
+      "632행 회귀 테스트와 judge 평가 체계",
+      "latency와 유지보수 공수를 함께 줄이는 라우팅 구조"
+    ],
+    detail: {
+      readmeSummary: [
+        "이 프로젝트의 핵심은 음성 요청을 하나의 거대한 시스템 프롬프트로 처리하지 않고, family classifier와 expert prompt로 나눠 다루는 구조다.",
+        "라우팅 시트, route_only 모드, judge prompt 분리, retry/에러 격리까지 갖춰서 구조 변경 영향도 추적할 수 있게 만들었다.",
+        "manager_memory 기준으로 가장 큰 초점은 schedule/search/default가 섞이며 커지던 복잡도와 latency를 줄이는 것이었다."
+      ]
+    },
+    story: {
+      challenge: "검색, 스케줄, 일반 대화가 한 덩어리 프롬프트에 섞일수록 수정할수록 느려지고, 회귀 포인트도 계속 늘어났다.",
+      attempts: [
+        "1차 family classifier와 2차 expert prompt를 분리해 책임을 쪼갰다.",
+        "judge prompt와 routing 결과 시트를 분리해 변경 영향이 어디서 나는지 추적 가능하게 만들었다.",
+        "retry, row 단위 에러 격리, route_only 모드까지 넣어 긴 실험도 중단 없이 돌릴 수 있게 했다."
+      ],
+      resolution: "최종적으로 full pipeline을 분리형 라우팅 구조로 옮겨, 어떤 질문이 왜 그 경로로 갔는지 엑셀과 로그에서 바로 읽히게 만들었다.",
+      impact: [
+        "신규 기능 추가 시 라우터 수정 최소화",
+        "분류만 빠르게 확인하는 검증 루프 확보",
+        "routing 결과를 행 단위로 추적하는 운영형 평가 구조 완성"
+      ]
+    }
+  },
+  "operation-log-analyzer": {
+    summary: "운영 대화 로그를 정제하고 쪼개고 판정해서, 검색 가능한 형태와 요약 리포트로 다시 만드는 로그 분석 워크벤치.",
+    highlights: [
+      "운영 로그 전처리와 분할 자동화",
+      "judge/search 보조 스크립트로 원인 후보 압축",
+      "엑셀 기반 리포트와 분석 산출물 생성"
+    ],
+    detail: {
+      readmeSummary: [
+        "README는 없지만 파일 구성을 보면 로그 전처리, 판정 보조, 요약 리포트 생성이 이어지는 분석 툴체인에 가깝다.",
+        "한 번성 분석이 아니라 반복적으로 로그를 쌓아 비교하고 다시 해석할 수 있게 스크립트를 나눠둔 것이 특징이다."
+      ]
+    },
+    story: {
+      challenge: "운영 이슈를 매번 눈으로 찾다 보니 원인 논쟁은 길어지고, 같은 질문도 다시 처음부터 분석하게 됐다.",
+      attempts: [
+        "로그를 여러 단계로 분할하고 정규화하는 스크립트를 정리했다.",
+        "검색/판정 보조 도구로 문제 후보를 빠르게 좁히게 만들었다.",
+        "요약 산출물을 다시 사람 손으로 읽을 수 있는 리포트 형태로 묶었다."
+      ],
+      resolution: "로그를 raw data가 아니라 반복 가능한 분석 루틴으로 바꿔, 같은 문제를 더 빠르게 재현하고 설명할 수 있게 만들었다.",
+      impact: [
+        "운영 로그 분석 리드타임 단축",
+        "반복 가능한 디버깅 입력 데이터 확보",
+        "리포트 재사용성과 비교 가능성 향상"
+      ]
+    }
+  },
+  "semantic-verb-schema": {
+    summary: "흔들리던 한국어 기능 발화를 동사와 엔티티 기준으로 다시 태깅해, 분류 기준 자체를 정비한 스키마 프로젝트.",
+    highlights: [
+      "entity/verb 자동 태깅과 정합성 보강",
+      "non-19 fail 패턴 재판정과 룰 튜닝",
+      "weak label 의심 샘플 분리로 검수 포인트 명확화"
+    ],
+    detail: {
+      readmeSummary: [
+        "README는 없지만 manager_memory를 보면, 학습데이터의 동사/엔티티 라벨이 흔들리던 문제를 정비하는 작업이 핵심이다.",
+        "자동 태깅, strict rule 추가, 재판정 실험, weak label 분리까지 이어지며 데이터 품질을 점진적으로 끌어올렸다."
+      ]
+    },
+    story: {
+      challenge: "같은 의도라도 어미와 표현이 조금만 달라지면 기능 분류 기준이 흔들리고, 학습데이터 라벨도 일관되지 않았다.",
+      attempts: [
+        "핵심 entity와 동사를 자동 태깅해 반복 검수 비용을 줄였다.",
+        "strict 룰과 매핑 규칙을 추가해 오매칭 패턴을 다시 잡았다.",
+        "weak label 의심 샘플을 따로 분리해 사람이 봐야 할 지점을 줄였다."
+      ],
+      resolution: "스키마, 규칙, 검수 포인트를 한 번에 정리해서 데이터 정합성을 올리고 이후 튜닝 기준도 더 분명하게 만들었다.",
+      impact: [
+        "학습데이터 검수 효율 향상",
+        "비-19 실패 패턴 재분류 기준 확보",
+        "예외 사전 고도화의 기반 마련"
+      ]
+    }
+  },
+  "gemini-multiturn-tester-v3": {
+    story: {
+      challenge: "Postman 같은 단발 테스트만으로는 멀티턴 상태, 응답 스키마 문제, 배치 회귀를 제대로 재현하기 어려웠다.",
+      attempts: [
+        "대화 히스토리를 포함한 REPL/JSON/XLSX 실행 흐름을 하나로 묶었다.",
+        "response schema 제약을 반영해 additionalProperties 문제를 제거했다.",
+        "요청/응답 로그를 남겨 턴별 품질 흔들림을 다시 읽을 수 있게 했다."
+      ],
+      resolution: "단발 확인 도구가 아니라, 멀티턴 시나리오를 반복 검증할 수 있는 테스트 스캐폴드로 바꿨다.",
+      impact: [
+        "멀티턴 회귀 테스트 가능",
+        "엑셀 배치 실행 지원",
+        "로그 기반 원인 추적 용이"
+      ]
+    }
+  },
+  "todack": {
+    summary: "웹, 데스크톱, 모바일이 같은 감정 데이터를 공유하면서도 가볍고 다정한 사용감을 유지하려는 회복 인터페이스 프로젝트.",
+    highlights: [
+      "여러 클라이언트가 같은 감정 데이터를 공유",
+      "작은 입력으로도 계속 남길 수 있는 기록 경험",
+      "브랜딩과 제품 경험을 함께 다듬는 진행형 서비스"
+    ],
+    story: {
+      challenge: "감정 기록은 귀찮아지면 바로 끊기기 때문에, 기능을 늘리면서도 입력 부담은 가볍게 유지해야 했다.",
+      attempts: [
+        "웹/위젯/모바일이 같은 데이터를 보도록 구조를 단순화했다.",
+        "브랜딩과 캐릭터 톤을 함께 실험해 기록 진입장벽을 낮췄다.",
+        "기록, 요약, 알림 흐름이 끊기지 않게 화면 역할을 분리했다."
+      ],
+      resolution: "무거운 일기 앱이 아니라, 짧게 남겨도 계속 이어지는 감정 기록 인터페이스 방향을 잡았다.",
+      impact: [
+        "여러 접점에서 이어지는 감정 기록 경험",
+        "브랜드 톤과 제품 기능의 결합",
+        "진행중이지만 방향성이 명확한 회복 서비스"
+      ]
+    }
+  }
+};
+
 async function ensureStorage() {
   await fsp.mkdir(DATA_DIR, { recursive: true });
 
@@ -60,6 +217,13 @@ async function ensureStorage() {
     await fsp.access(COMMENTS_PATH);
   } catch {
     await writeJsonAtomic(COMMENTS_PATH, { comments: [] });
+  }
+
+  try {
+    await fsp.access(BLOG_POSTS_PATH);
+  } catch {
+    const seededPosts = await readJsonWithFallback("blog-posts.json", { posts: [] });
+    await writeJsonAtomic(BLOG_POSTS_PATH, seededPosts || { posts: [] });
   }
 
   try {
@@ -182,30 +346,120 @@ function resolveProjectStatus(projectId, generatedStatus, fallbackStatus, status
   return generatedStatus || fallbackStatus || "active";
 }
 
+function applyProjectOverride(projectId, project) {
+  const override = PROJECT_CONTENT_OVERRIDES[projectId];
+  if (!override) return project;
+
+  return {
+    ...project,
+    ...override,
+    detail: {
+      ...(project.detail || {}),
+      ...(override.detail || {})
+    },
+    preview: {
+      ...(project.preview || {}),
+      ...(override.preview || {})
+    },
+    story: {
+      ...(project.story || {}),
+      ...(override.story || {})
+    },
+    timeline: {
+      ...(project.timeline || {}),
+      ...(override.timeline || {})
+    }
+  };
+}
+
+function isGenericSummary(summary) {
+  const text = String(summary || "");
+  return text.includes("프로젝트 자산") || text.includes("단일 파일 실험/분석 자산");
+}
+
+function hasWeakHighlights(highlights) {
+  const items = arrayify(highlights);
+  return !items.length || (items.length === 1 && items[0].includes("기본 요약")) || (items.length === 1 && items[0].includes("파일 기반 실험"));
+}
+
+function buildHumanSummary(project) {
+  const category = String(project.category || "");
+  const pathText = `${project.path || ""} ${project.name || ""}`.toLowerCase();
+
+  if (category === "Speech Quality Metrics") {
+    return "음성 인식 결과를 오류율 기준으로 다시 읽어보며 품질 흔들림을 수치로 확인하는 실험 노트.";
+  }
+  if (category === "NLU Data Analysis") {
+    return "학습데이터를 형태소 단위로 분해해 품질과 패턴을 점검하는 분석 노트.";
+  }
+  if (category === "NLU Similarity Analysis") {
+    return "비슷해 보이는 사용자 발화의 차이를 형태소와 유사도로 비교하는 실험 노트.";
+  }
+  if (category === "General" && pathText.includes("scripts")) {
+    return "반복 작업을 줄이기 위해 자주 쓰는 생성/정리 스크립트를 모아둔 자동화 도구 모음.";
+  }
+  if (category === "General" && pathText.includes("naming")) {
+    return "프로젝트 이름이 첫인상을 망치지 않도록 규칙을 정리한 네이밍 실험 문서.";
+  }
+  if (category === "General" && pathText.includes("work_summary")) {
+    return "작업 기록과 판단 근거를 버전별로 남기며 개선 흐름을 축적한 아카이브.";
+  }
+  if (category === "General" && pathText.includes("manager_memory")) {
+    return "에이전트 작업 메모리를 한 장의 요약 구조로 압축해보는 실험 문서.";
+  }
+  return "파일과 산출물을 바탕으로 실제 작업 흐름을 다시 읽을 수 있게 정리한 프로젝트 자산.";
+}
+
+function buildHumanHighlights(project) {
+  const category = String(project.category || "");
+
+  if (category === "Speech Quality Metrics") {
+    return ["CER 기준 품질 점검", "음성 인식 오류 패턴 확인", "실험 결과 수치화"];
+  }
+  if (category === "NLU Data Analysis") {
+    return ["형태소 단위 데이터 관찰", "학습데이터 품질 점검", "분석 노트 기반 실험"];
+  }
+  if (category === "NLU Similarity Analysis") {
+    return ["발화 간 유사도 비교", "형태소 특징 실험", "분류 보조 지표 탐색"];
+  }
+  if (category === "General") {
+    return ["핵심 파일과 산출물 정리", "작업 흐름 복기", "다음 개선 포인트 추적"];
+  }
+  return arrayify(project.tags).slice(0, 3);
+}
+
 function normalizeProject(project, index) {
   const id = project.id || slugify(project.name || `project-${index + 1}`);
+  const enriched = applyProjectOverride(id, project);
+  const summary = isGenericSummary(enriched.summary) ? buildHumanSummary(enriched) : enriched.summary;
+  const highlights = hasWeakHighlights(enriched.highlights) ? buildHumanHighlights(enriched) : enriched.highlights;
   const previewAssets = inferPreviewAssets(id);
-  const detail = normalizeDetail(project.detail, project);
-  const preview = normalizePreview(project.preview, project, previewAssets);
-  const story = normalizeStory(project.story, project);
-  const timeline = normalizeTimeline(project.timeline, project);
+  const normalizedSource = {
+    ...enriched,
+    summary,
+    highlights
+  };
+  const detail = normalizeDetail(normalizedSource.detail, normalizedSource);
+  const preview = normalizePreview(normalizedSource.preview, normalizedSource, previewAssets);
+  const story = normalizeStory(normalizedSource.story, normalizedSource);
+  const timeline = normalizeTimeline(normalizedSource.timeline, normalizedSource);
 
   return {
     id,
-    name: String(project.name || `Project ${index + 1}`),
-    status: project.status === "in-progress" ? "in-progress" : "active",
-    category: String(project.category || "General"),
-    summary: String(project.summary || "요약 정보가 아직 없습니다."),
-    highlights: arrayify(project.highlights),
-    stack: arrayify(project.stack),
-    tags: arrayify(project.tags),
-    path: String(project.path || ""),
-    readme: project.readme ? String(project.readme) : "",
+    name: String(normalizedSource.name || `Project ${index + 1}`),
+    status: normalizedSource.status === "in-progress" ? "in-progress" : "active",
+    category: String(normalizedSource.category || "General"),
+    summary: String(normalizedSource.summary || "요약 정보가 아직 없습니다."),
+    highlights: arrayify(normalizedSource.highlights),
+    stack: arrayify(normalizedSource.stack),
+    tags: arrayify(normalizedSource.tags),
+    path: String(normalizedSource.path || ""),
+    readme: normalizedSource.readme ? String(normalizedSource.readme) : "",
     detail,
     preview,
     story,
     timeline,
-    createdAt: project.createdAt || new Date().toISOString(),
+    createdAt: normalizedSource.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
 }
@@ -739,6 +993,28 @@ function sanitizeProjectInput(input, existingProject) {
   return base;
 }
 
+function sanitizeBlogPostInput(input, existingPost, refreshUpdatedAt = true) {
+  const explicitId = String(input.id || existingPost?.id || "").trim();
+  const createdAt = existingPost?.createdAt || input.createdAt || new Date().toISOString();
+  const updatedAt = refreshUpdatedAt
+    ? new Date().toISOString()
+    : input.updatedAt || existingPost?.updatedAt || createdAt;
+  return {
+    id: slugify(explicitId || input.title || "blog-post"),
+    title: String(input.title || existingPost?.title || "").trim() || "제목 없는 글",
+    excerpt: String(input.excerpt || existingPost?.excerpt || "").trim(),
+    markdown: String(input.markdown || existingPost?.markdown || ""),
+    status: String(input.status || existingPost?.status || "published") === "draft" ? "draft" : "published",
+    tags: Array.isArray(input.tags)
+      ? arrayify(input.tags)
+      : typeof input.tags === "string"
+        ? splitByComma(input.tags)
+        : arrayify(existingPost?.tags),
+    createdAt,
+    updatedAt
+  };
+}
+
 function splitByComma(value) {
   return String(value)
     .split(",")
@@ -796,6 +1072,18 @@ async function loadComments() {
 
 async function saveComments(comments) {
   await writeJsonAtomic(COMMENTS_PATH, { comments });
+}
+
+async function loadBlogPosts() {
+  const data = await readJson(BLOG_POSTS_PATH, { posts: [] });
+  const posts = Array.isArray(data.posts) ? data.posts : [];
+  return posts
+    .map((post) => sanitizeBlogPostInput(post, post, false))
+    .sort((left, right) => String(right.updatedAt || "").localeCompare(String(left.updatedAt || "")));
+}
+
+async function saveBlogPosts(posts) {
+  await writeJsonAtomic(BLOG_POSTS_PATH, { posts });
 }
 
 async function loadCases() {
@@ -939,7 +1227,12 @@ async function handleApi(req, res, url) {
   const viewer = getViewer(req);
 
   if (req.method === "GET" && url.pathname === "/api/bootstrap") {
-    const [content, comments, cases] = await Promise.all([loadContent(), loadComments(), loadCases()]);
+    const [content, comments, cases, blogPosts] = await Promise.all([
+      loadContent(),
+      loadComments(),
+      loadCases(),
+      loadBlogPosts()
+    ]);
     const response = {
       site: content.site,
       owner: content.owner,
@@ -947,6 +1240,7 @@ async function handleApi(req, res, url) {
       links: content.links,
       projects: content.projects,
       cases: cases.cases || [],
+      blogPosts,
       commentCounts: commentCounts(comments),
       viewer: viewer
         ? {
@@ -1165,6 +1459,59 @@ async function handleApi(req, res, url) {
     await saveContent(content);
     const comments = await loadComments();
     await saveComments(comments.filter((comment) => comment.projectId !== projectId));
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/blog") {
+    if (!requireAdmin(viewer, res)) return;
+    const body = await readBody(req);
+    const input = body.blogPost || {};
+    const posts = await loadBlogPosts();
+    const targetId = slugify(input.id || input.title || "");
+    const existingIndex = posts.findIndex((post) => post.id === targetId);
+    const existingPost = existingIndex >= 0 ? posts[existingIndex] : null;
+    const blogPost = sanitizeBlogPostInput(input, existingPost, true);
+
+    if (!blogPost.title.trim()) {
+      sendJson(res, 400, { error: "title_required" });
+      return;
+    }
+    if (!blogPost.excerpt.trim()) {
+      sendJson(res, 400, { error: "excerpt_required" });
+      return;
+    }
+    if (blogPost.markdown.length > MAX_BLOG_MARKDOWN_LENGTH) {
+      sendJson(res, 400, { error: "markdown_too_long" });
+      return;
+    }
+
+    const duplicate = posts.find((post) => post.id === blogPost.id && (!existingPost || post.id !== existingPost.id));
+    if (duplicate) {
+      sendJson(res, 400, { error: "duplicate_blog_id" });
+      return;
+    }
+
+    if (existingIndex >= 0) {
+      posts[existingIndex] = blogPost;
+    } else {
+      posts.unshift(blogPost);
+    }
+    await saveBlogPosts(posts);
+    sendJson(res, 200, { blogPost });
+    return;
+  }
+
+  if (req.method === "DELETE" && url.pathname.startsWith("/api/blog/")) {
+    if (!requireAdmin(viewer, res)) return;
+    const blogId = decodeURIComponent(url.pathname.replace("/api/blog/", ""));
+    const posts = await loadBlogPosts();
+    const nextPosts = posts.filter((post) => post.id !== blogId);
+    if (nextPosts.length === posts.length) {
+      sendJson(res, 404, { error: "blog_not_found" });
+      return;
+    }
+    await saveBlogPosts(nextPosts);
     sendJson(res, 200, { ok: true });
     return;
   }
