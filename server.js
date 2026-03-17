@@ -8,6 +8,7 @@ const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, "data");
 const SEED_DATA_DIR = path.join(ROOT, "seed-data");
 const SITE_CONTENT_PATH = path.join(DATA_DIR, "site-content.json");
+const STATUS_OVERRIDES_PATH = path.join(DATA_DIR, "status_overrides.json");
 const COMMENTS_PATH = path.join(DATA_DIR, "comments.json");
 const ANALYTICS_PATH = path.join(DATA_DIR, "analytics.jsonl");
 const ENV_PATH = path.join(ROOT, ".env");
@@ -59,6 +60,13 @@ async function ensureStorage() {
     await fsp.access(COMMENTS_PATH);
   } catch {
     await writeJsonAtomic(COMMENTS_PATH, { comments: [] });
+  }
+
+  try {
+    await fsp.access(STATUS_OVERRIDES_PATH);
+  } catch {
+    const overrides = await readJsonWithFallback("status_overrides.json", {});
+    await writeJsonAtomic(STATUS_OVERRIDES_PATH, overrides || {});
   }
 
   try {
@@ -122,7 +130,7 @@ function mergeProjects(primaryProjects, secondaryProjects) {
   return merged;
 }
 
-function mergeProjectsByStatus(existingProjects, generatedProjects) {
+function mergeProjectsByStatus(existingProjects, generatedProjects, statusOverrides = {}) {
   const generatedMap = new Map(
     generatedProjects.map((project) => [project.id || slugify(project.name || "project"), project])
   );
@@ -134,7 +142,7 @@ function mergeProjectsByStatus(existingProjects, generatedProjects) {
     generatedMap.delete(id);
     return {
       ...project,
-      status: generated.status || project.status,
+      status: resolveProjectStatus(id, generated.status, project.status, statusOverrides),
       path: project.path || generated.path || "",
       readme: project.readme || generated.readme || ""
     };
@@ -144,10 +152,12 @@ function mergeProjectsByStatus(existingProjects, generatedProjects) {
     merged.push({
       id: generated.id,
       name: generated.name,
-      status: generated.status,
+      status: resolveProjectStatus(generated.id, generated.status, generated.status, statusOverrides),
       category: generated.category || "Imported Project",
       summary: "원본 프로젝트에서 상태만 복사한 항목입니다.",
-      highlights: [`상태: ${generated.status === "in-progress" ? "진행중" : "완료/운영"}`],
+      highlights: [
+        `상태: ${resolveProjectStatus(generated.id, generated.status, generated.status, statusOverrides) === "in-progress" ? "진행중" : "완료/운영"}`
+      ],
       stack: [],
       tags: ["Imported", "Status Sync"],
       path: generated.path || "",
@@ -162,6 +172,14 @@ function mergeProjectsByStatus(existingProjects, generatedProjects) {
   }
 
   return merged;
+}
+
+function resolveProjectStatus(projectId, generatedStatus, fallbackStatus, statusOverrides) {
+  const override = String(statusOverrides?.[projectId] || "").trim();
+  if (override === "in-progress" || override === "active") {
+    return override;
+  }
+  return generatedStatus || fallbackStatus || "active";
 }
 
 function normalizeProject(project, index) {
@@ -746,6 +764,7 @@ function slugify(value) {
 async function loadContent() {
   const content = await readJson(SITE_CONTENT_PATH, null);
   const generated = await readJsonWithFallback("projects.generated.json", { projects: [] });
+  const statusOverrides = await readJsonWithFallback("status_overrides.json", {});
 
   if (!content || isPlaceholderContent(content)) {
     return buildSeedContent();
@@ -756,7 +775,7 @@ async function loadContent() {
 
   return {
     ...content,
-    projects: mergeProjectsByStatus(content.projects || [], visibleGenerated).map((project, index) =>
+    projects: mergeProjectsByStatus(content.projects || [], visibleGenerated, statusOverrides).map((project, index) =>
       normalizeProject(project, index)
     ),
     meta: {
