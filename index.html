@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dowon Portfolio Atelier</title>
+  <link rel="icon" href="assets/portfolio-homepage-icon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet" />
@@ -84,41 +85,6 @@
 
             <div id="project-grid" class="project-grid"></div>
           </section>
-
-          <section class="status-board-section">
-            <div class="section-heading">
-              <div>
-                <p class="panel-kicker">Home Snapshot</p>
-                <h2>진행 흐름과 분류를 한눈에</h2>
-                <p class="section-copy">프로젝트는 지금처럼 카드로 탐색하고, 클릭 후에는 내가 겪은 어려움과 해결 과정을 중심으로 보이게 구성합니다.</p>
-              </div>
-            </div>
-
-            <div class="status-board-grid">
-              <article class="glass-panel board-panel">
-                <div class="panel-header">
-                  <div>
-                    <p class="panel-kicker">In Progress</p>
-                    <h2>진행중</h2>
-                  </div>
-                  <span id="in-progress-count" class="collection-pill"></span>
-                </div>
-                <div id="in-progress-board" class="board-list"></div>
-              </article>
-
-              <article class="glass-panel board-panel">
-                <div class="panel-header">
-                  <div>
-                    <p class="panel-kicker">Live / Archive</p>
-                    <h2>완료 · 운영</h2>
-                  </div>
-                  <span id="active-count" class="collection-pill"></span>
-                </div>
-                <div id="active-board" class="board-list"></div>
-              </article>
-            </div>
-
-          </section>
         </section>
 
         <section id="about-section" class="section-stack">
@@ -133,7 +99,9 @@
           <div class="about-layout">
             <article class="glass-panel about-intro-panel">
               <div class="about-portrait-wrap">
-                <div class="emoji-avatar" aria-hidden="true">🧑🏻</div>
+                <div class="about-avatar-shell">
+                  <img class="about-avatar-image" src="assets/about-memoji.png" alt="김도원 미모티콘" />
+                </div>
                 <div class="about-headline-copy">
                   <p class="panel-kicker">About Me</p>
                   <h2 id="about-title">실행형 PM 포지션</h2>
@@ -151,7 +119,6 @@
                 </div>
               </div>
               <div id="about-metrics" class="metric-strip"></div>
-              <div id="about-links" class="about-link-list"></div>
             </article>
           </div>
 

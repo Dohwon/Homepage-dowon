@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -57,6 +58,7 @@ class Entry:
     path: str
     readme: Optional[str]
     detail: Dict[str, Any]
+    timeline: Dict[str, Any]
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -71,6 +73,7 @@ class Entry:
             "path": self.path,
             "readme": self.readme,
             "detail": self.detail,
+            "timeline": self.timeline,
         }
 
 
@@ -262,6 +265,36 @@ def build_detail(name: str, files: List[Path], readme_text: str, is_notebook: bo
     }
 
 
+def format_timeline_label(start: date, end: date) -> str:
+    if start.year == end.year and start.month == end.month:
+        return f"{start.year}.{start.month:02d}"
+    return f"{start.year}.{start.month:02d} - {end.year}.{end.month:02d}"
+
+
+def infer_timeline(files: List[Path], status: str) -> Dict[str, Any]:
+    existing_files = [path for path in files if path.exists()]
+    if not existing_files:
+        today = date.today().isoformat()
+        return {
+            "start": "",
+            "end": today if status == "in-progress" else "",
+            "label": "기간 추적중",
+            "difficultyWindows": [],
+            "milestones": [],
+        }
+
+    timestamps = sorted(datetime.fromtimestamp(path.stat().st_mtime).date() for path in existing_files)
+    start = timestamps[0]
+    end = date.today() if status == "in-progress" else timestamps[-1]
+    return {
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "label": format_timeline_label(start, end),
+        "difficultyWindows": [],
+        "milestones": [],
+    }
+
+
 def build_projects() -> List[Entry]:
     base_data = read_json(BASE_DATA_FILE, {"projects": []})
     existing_by_path = {p["path"]: p for p in base_data.get("projects", [])}
@@ -297,6 +330,7 @@ def build_projects() -> List[Entry]:
                 path=rel_path,
                 readme=None,
                 detail=detail,
+                timeline=infer_timeline(files, existing["status"] if existing else "active"),
             )
             items.append(entry)
             continue
@@ -327,6 +361,7 @@ def build_projects() -> List[Entry]:
             path=rel_path,
             readme=str(readme.relative_to(ROOT)) if readme else None,
             detail=detail,
+            timeline=infer_timeline(files, status),
         )
         items.append(entry)
 

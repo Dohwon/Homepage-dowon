@@ -28,7 +28,6 @@ const elements = {
   aboutTitle: document.getElementById("about-title"),
   ownerSummary: document.getElementById("owner-summary"),
   aboutMetrics: document.getElementById("about-metrics"),
-  aboutLinks: document.getElementById("about-links"),
   focusTags: document.getElementById("focus-tags"),
   valueProps: document.getElementById("value-props"),
   careerTimeline: document.getElementById("career-timeline"),
@@ -40,14 +39,8 @@ const elements = {
   categoryFilters: document.getElementById("category-filters"),
   collectionMeta: document.getElementById("collection-meta"),
   projectGrid: document.getElementById("project-grid"),
-  inProgressCount: document.getElementById("in-progress-count"),
-  activeCount: document.getElementById("active-count"),
-  inProgressBoard: document.getElementById("in-progress-board"),
-  activeBoard: document.getElementById("active-board"),
-  categoryOverview: document.getElementById("category-overview"),
   timelineLegend: document.getElementById("timeline-legend"),
   projectTimelineMap: document.getElementById("project-timeline-map"),
-  timelineFocus: document.getElementById("timeline-focus"),
   adminPanel: document.getElementById("admin-panel"),
   newBlogButton: document.getElementById("new-blog-button"),
   blogGrid: document.getElementById("blog-grid"),
@@ -78,6 +71,17 @@ const PROJECT_TITLE_OVERRIDES = {
   "work-summary-versions": "일의 흔적을 버전으로 축적한 아카이브",
   "utterance-similarity-notebook": "비슷한 발화의 차이를 잡아내는 분석 노트"
 };
+
+const PROJECT_LINK_OVERRIDES = {
+  "calc-stt-cer-colab": [
+    {
+      label: "Colab",
+      url: "https://colab.research.google.com/drive/1OHqEr4OaIbO67_xJQc8KYXb91wwUoDIz"
+    }
+  ]
+};
+
+const DEFAULT_PROJECT_GITHUB_ROOT = "https://github.com/Dohwon/AI-Agent-Project";
 
 const ABOUT_VALUE_PROPS = [
   "기획에서 끝내지 않고 로그, 지표, 룰, 운영정책까지 연결해 실제 개선으로 닫습니다.",
@@ -200,21 +204,6 @@ function bindEvents() {
     if (!card) return;
     event.preventDefault();
     openDetail(card.dataset.projectId);
-  });
-
-  [elements.inProgressBoard, elements.activeBoard, elements.categoryOverview].filter(Boolean).forEach((container) => {
-    container.addEventListener("click", (event) => {
-      const item = event.target.closest("[data-project-id]");
-      if (!item) return;
-      openDetail(item.dataset.projectId);
-    });
-    container.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      const item = event.target.closest("[data-project-id]");
-      if (!item) return;
-      event.preventDefault();
-      openDetail(item.dataset.projectId);
-    });
   });
 
   elements.projectTimelineMap.addEventListener("click", (event) => {
@@ -394,7 +383,6 @@ function renderAll() {
   renderCareerTimeline();
   renderSkills();
   renderCases();
-  renderProjectSnapshot();
   renderProjectTimeline();
   renderAdminPanel();
   renderProjects();
@@ -501,8 +489,6 @@ function renderFilters() {
 
 function renderProfile() {
   const profile = state.bootstrap.profile || {};
-  const links = state.bootstrap.links || {};
-  const site = state.bootstrap.site || {};
   const aboutSignature = buildAboutSignature();
   const valueProps = getAboutValueProps(profile);
   const aboutMetrics = getAboutMetrics(profile);
@@ -524,27 +510,6 @@ function renderProfile() {
       `
     )
     .join("");
-
-  const linkItems = [
-    links.notion
-      ? `<a class="about-link-card" href="${escapeHtml(links.notion)}" target="_blank" rel="noreferrer noopener">
-          <strong>Notion</strong>
-          <span>프로젝트/문서 모음 열기</span>
-        </a>`
-      : "",
-    site.externalLink
-      ? `<a class="about-link-card" href="${escapeHtml(site.externalLink)}" target="_blank" rel="noreferrer noopener">
-          <strong>External</strong>
-          <span>외부 포트폴리오 링크</span>
-        </a>`
-      : "",
-    `<article class="about-link-card muted">
-        <strong>Persona</strong>
-        <span>문제를 수치로 설명하고 팀을 움직이는 실행형 AI PM</span>
-      </article>`
-  ].filter(Boolean);
-
-  elements.aboutLinks.innerHTML = linkItems.join("");
 }
 
 function renderCareerTimeline() {
@@ -552,17 +517,21 @@ function renderCareerTimeline() {
   const timeline = arrayOrEmpty(profile.careerTimeline)
     .map(
       (item) => `
-        <article class="career-line-item">
-          <span class="career-line-dot"></span>
-          <div class="career-period-pill">${escapeHtml(item.period || "")}</div>
-          <div class="career-line-card">
+        <article class="career-wide-item">
+          <span class="career-wide-dot"></span>
+          <div class="career-wide-period">${escapeHtml(item.period || "")}</div>
+          <div class="career-wide-card">
             <div class="career-title-row">
               <div>
                 <h3>${escapeHtml(item.company || "")}</h3>
                 <p class="career-role">${escapeHtml(item.role || "")}</p>
               </div>
+              <span class="career-index">${escapeHtml(buildCareerIndexLabel(item))}</span>
             </div>
             <p class="timeline-copy">${escapeHtml(item.summary || "")}</p>
+            <div class="career-proof-row">
+              ${buildCareerHighlights(item).map((tag) => `<span class="career-proof-pill">${escapeHtml(tag)}</span>`).join("")}
+            </div>
           </div>
         </article>
       `
@@ -570,9 +539,7 @@ function renderCareerTimeline() {
     .join("");
 
   elements.careerTimeline.innerHTML = `
-    <div class="career-line-scroll">
-      <div class="career-line-track">${timeline}</div>
-    </div>
+    <div class="career-wide-track">${timeline}</div>
   `;
 }
 
@@ -589,49 +556,184 @@ function renderProjectTimeline() {
     .sort((left, right) => left.start.getTime() - right.start.getTime());
 
   elements.timelineLegend.innerHTML = `
-    <span class="timeline-legend-pill"><i class="legend-dot active"></i>프로젝트 진행</span>
-    <span class="timeline-legend-pill"><i class="legend-dot difficulty"></i>난관 구간</span>
-    <span class="timeline-legend-pill"><i class="legend-dot milestone"></i>해결 힌트</span>
+    <span class="timeline-legend-pill"><i class="legend-dot active"></i>프로젝트 시점</span>
+    <span class="timeline-legend-pill"><i class="legend-dot difficulty"></i>난관 피크</span>
+    <span class="timeline-legend-pill"><i class="legend-dot milestone"></i>해결 전환점</span>
   `;
 
   elements.projectTimelineMap.innerHTML = renderTimelineChronicle(enriched);
 }
 
 function renderTimelineChronicle(entries) {
+  const range = buildTimelineRange(entries);
+  const width = Math.max(1480, entries.length * 164);
+  const height = 430;
+  const wavePoints = buildTimelineWavePoints(entries, range, width, height);
+  const wavePath = buildSmoothPath(wavePoints);
+  const areaPath = `${wavePath} L ${width - 52} ${height - 50} L 52 ${height - 50} Z`;
+  const labelIndexes = range.labels
+    .map((label, index) => ({ label, index }))
+    .filter(({ index }) => index === 0 || index === range.labels.length - 1 || index % 2 === 0);
+
   return `
-    <div class="timeline-chronicle-shell">
-      <div class="timeline-chronicle-track">
-        ${entries.map((entry) => renderChronicleItem(entry)).join("")}
+    <div class="timeline-wave-shell">
+      <div class="timeline-wave-scroll">
+        <div class="timeline-wave-board" style="width:${width}px; height:${height}px;">
+          <svg class="timeline-wave-bg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+            <path class="timeline-wave-axis-line" d="M 52 ${height - 50} H ${width - 52}"></path>
+            <path class="timeline-wave-area" d="${areaPath}"></path>
+            <path class="timeline-wave-line" d="${wavePath}"></path>
+          </svg>
+          <div class="timeline-wave-axis">
+            ${labelIndexes
+              .map(({ label }) => {
+                const ratio = graphRatio(label, range.start, range.end, 0.08, 0.92);
+                return `<span style="left:${(ratio * width).toFixed(1)}px;">${escapeHtml(label.toISOString().slice(0, 7).replace("-", "."))}</span>`;
+              })
+              .join("")}
+          </div>
+          <div class="timeline-wave-events">
+            ${entries.map((entry, index) => renderTimelineWaveEvent(entry, index, entries, range, width, height)).join("")}
+          </div>
+        </div>
       </div>
     </div>
   `;
 }
 
-function renderChronicleItem(entry) {
-  const story = entry.story;
-  const difficultyCopy = entry.difficulties[0]?.label || "핵심 이슈 정리";
-  const impactCopy = arrayOrEmpty(story.impact)[0] || arrayOrEmpty(entry.project.highlights)[0] || entry.project.summary;
+function renderTimelineWaveEvent(entry, index, entries, range, width, height) {
+  const ratio = graphRatio(entry.start, range.start, range.end, 0.08, 0.92);
+  const x = ratio * width;
+  const y = computeTimelineWaveY(ratio, entries, range, height);
+  const direction = index % 2 === 0 ? "above" : "below";
+  const cardTop = clampNumber(direction === "above" ? y - 150 : y + 36, 22, height - 148);
+  const difficultyCopy = entry.difficulties[0]?.label || "핵심 이슈";
+  const summaryCopy = arrayOrEmpty(entry.story.impact)[0] || entry.story.challenge || entry.project.summary;
   return `
-    <article class="chronicle-item ${entry.project.status === "in-progress" ? "warning" : "success"}" tabindex="0" data-timeline-project="${escapeHtml(entry.project.id)}">
-      <span class="chronicle-stem"></span>
-      <span class="chronicle-node ${entry.project.status === "in-progress" ? "warning" : "success"}"></span>
-      <div class="chronicle-date">${escapeHtml(entry.label)}</div>
-      <div class="chronicle-card">
-        <div class="chronicle-head">
-          <span class="badge ${entry.project.status === "in-progress" ? "warning" : "success"}">
-            ${entry.project.status === "in-progress" ? "진행중" : "완료/운영"}
-          </span>
-          <span class="chronicle-category">${escapeHtml(getProjectCategory(entry.project))}</span>
-        </div>
-        <h3>${escapeHtml(getProjectDisplayName(entry.project))}</h3>
-        <p>${escapeHtml(story.challenge || entry.project.summary)}</p>
-        <div class="chronicle-meta">
-          <span class="chronicle-pill difficulty">${escapeHtml(truncate(difficultyCopy, 42))}</span>
-          <span class="chronicle-pill">${escapeHtml(truncate(impactCopy, 42))}</span>
-        </div>
-      </div>
-    </article>
+    <button
+      type="button"
+      class="timeline-wave-event ${direction} ${entry.project.status === "in-progress" ? "warning" : "success"}"
+      style="left:${x.toFixed(1)}px; top:${cardTop.toFixed(1)}px;"
+      data-timeline-project="${escapeHtml(entry.project.id)}"
+    >
+      <span class="timeline-wave-date">${escapeHtml(entry.label)}</span>
+      <strong>${escapeHtml(getProjectDisplayName(entry.project))}</strong>
+      <span class="timeline-wave-copy">${escapeHtml(truncate(summaryCopy, 54))}</span>
+      <span class="timeline-wave-foot">
+        <span class="timeline-wave-chip ${entry.project.status === "in-progress" ? "warning" : "success"}">
+          ${entry.project.status === "in-progress" ? "진행중" : "완료/운영"}
+        </span>
+        <span class="timeline-wave-chip subtle">${escapeHtml(truncate(difficultyCopy, 20))}</span>
+      </span>
+      <span class="timeline-wave-node"></span>
+    </button>
   `;
+}
+
+function buildTimelineWavePoints(entries, range, width, height) {
+  const points = [];
+  for (let index = 0; index <= 72; index += 1) {
+    const ratio = 0.08 + 0.84 * (index / 72);
+    points.push({
+      x: ratio * width,
+      y: computeTimelineWaveY(ratio, entries, range, height)
+    });
+  }
+  return points;
+}
+
+function computeTimelineWaveY(ratio, entries, range, height) {
+  const baseY = height * 0.57;
+  let y = baseY + Math.sin(ratio * Math.PI * 3.4) * 18;
+
+  entries.forEach((entry, index) => {
+    const entryRatio = graphRatio(entry.start, range.start, range.end, 0.08, 0.92);
+    const distance = Math.abs(ratio - entryRatio);
+    const severity =
+      entry.difficulties.some((item) => item.severity === "high")
+        ? 1.45
+        : entry.difficulties.length
+          ? 1.08
+          : 0.82;
+    const influence = Math.exp(-((distance * distance) / 0.0017));
+    y -= influence * (22 * severity);
+    y += Math.sin((ratio + index * 0.06) * Math.PI * 4.2) * influence * 4;
+  });
+
+  return clampNumber(y, height * 0.3, height * 0.74);
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function renderJourneyGraph(entry) {
+  const width = 320;
+  const height = 132;
+  const points = buildJourneyGraphPoints(entry, width, height);
+  const linePath = buildSmoothPath(points);
+  const areaPath = `${linePath} L ${width - 14} ${height - 14} L 14 ${height - 14} Z`;
+  const milestones = entry.milestones
+    .slice(0, 3)
+    .map((item) => {
+      const x = graphRatio(item.date, entry.start, entry.end, 0.14, 0.9) * width;
+      return `<circle class="journey-graph-marker ${escapeHtml(item.tone)}" cx="${x.toFixed(1)}" cy="102" r="5"></circle>`;
+    })
+    .join("");
+
+  return `
+    <svg class="journey-graph" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+      <path class="journey-graph-baseline" d="M 14 ${height - 14} H ${width - 14}"></path>
+      <path class="journey-graph-area" d="${areaPath}"></path>
+      <path class="journey-graph-line" d="${linePath}"></path>
+      ${points
+        .slice(1, -1)
+        .map((point) => `<circle class="journey-graph-peak" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="5"></circle>`)
+        .join("")}
+      ${milestones}
+    </svg>
+  `;
+}
+
+function buildJourneyGraphPoints(entry, width, height) {
+  const baseY = height - 30;
+  const points = [{ x: 14, y: baseY - 6 }];
+
+  arrayOrEmpty(entry.difficulties).forEach((item, index) => {
+    const severityDepth = item.severity === "high" ? 58 : item.severity === "low" ? 24 : 40;
+    const midpoint = new Date((item.start.getTime() + item.end.getTime()) / 2);
+    const x = graphRatio(midpoint, entry.start, entry.end, 0.18, 0.86) * width;
+    const y = Math.max(18, baseY - severityDepth - index * 4);
+    points.push({ x, y });
+  });
+
+  if (points.length === 1) {
+    points.push({ x: width * 0.42, y: baseY - (entry.project.status === "in-progress" ? 42 : 28) });
+    points.push({ x: width * 0.72, y: baseY - 18 });
+  }
+
+  points.push({ x: width - 14, y: entry.project.status === "in-progress" ? baseY - 18 : baseY - 10 });
+  return points.sort((left, right) => left.x - right.x);
+}
+
+function buildSmoothPath(points) {
+  if (!points.length) return "";
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  let pathData = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  for (let index = 1; index < points.length; index += 1) {
+    const prev = points[index - 1];
+    const curr = points[index];
+    const midX = ((prev.x + curr.x) / 2).toFixed(1);
+    pathData += ` Q ${midX} ${prev.y.toFixed(1)} ${curr.x.toFixed(1)} ${curr.y.toFixed(1)}`;
+  }
+  return pathData;
+}
+
+function graphRatio(date, start, end, min = 0, max = 1) {
+  const total = Math.max(1, end.getTime() - start.getTime());
+  const raw = (date.getTime() - start.getTime()) / total;
+  const clamped = Math.min(1, Math.max(0, raw));
+  return min + (max - min) * clamped;
 }
 
 function renderSkills() {
@@ -902,7 +1004,7 @@ function renderTimelineFocus(entry) {
               .join("")}
             <article class="resolution-node result">
               <small>Resolve</small>
-              <strong>${escapeHtml(truncate(story.resolution || project.detail?.readmeSummary?.[0] || project.summary, 70))}</strong>
+              <strong>${escapeHtml(truncate(story.resolution || buildDerivedResolution(project) || project.summary, 70))}</strong>
             </article>
           </div>
         </section>
@@ -959,11 +1061,75 @@ function buildProjectStory(project) {
     narrative: explicitStory.narrative || project.summary,
     challenge: explicitStory.challenge || primaryCase?.problem || project.summary,
     attempts: arrayOrEmpty(explicitStory.attempts).length ? explicitStory.attempts : fallbackAttempts.slice(0, 4),
-    resolution: explicitStory.resolution || primaryCase?.result || arrayOrEmpty(project.detail?.readmeSummary)[0] || project.summary,
+    resolution: explicitStory.resolution || primaryCase?.result || buildDerivedResolution(project) || project.summary,
     impact: arrayOrEmpty(explicitStory.impact).length ? explicitStory.impact : arrayOrEmpty(project.highlights),
     caseIds: arrayOrEmpty(explicitStory.caseIds),
     relatedCases
   };
+}
+
+function buildDerivedResolution(project) {
+  const notes = buildProjectNotes(project, null, null);
+  return notes[notes.length - 1] || project.summary;
+}
+
+function buildProjectNotes(project, story = null, timelineEntry = null) {
+  const resolvedStory = story || {
+    challenge: project.story?.challenge || project.summary,
+    resolution: project.story?.resolution || project.summary
+  };
+  const resolvedTimeline = timelineEntry || {
+    label: project.timeline?.label || ""
+  };
+  const explicitNotes = arrayOrEmpty(project.detail?.readmeSummary).filter((line) => !isBoilerplateNote(line));
+  const derivedNotes = [
+    `이 프로젝트는 ${project.summary}`,
+    buildEvidenceNote(project),
+    resolvedStory.challenge ? `실제로 가장 크게 걸렸던 지점은 ${resolvedStory.challenge}` : "",
+    resolvedStory.resolution ? `결과적으로 ${resolvedStory.resolution}` : "",
+    resolvedTimeline?.label && !resolvedTimeline.label.includes("기간 입력 필요")
+      ? `작업 흐름은 ${resolvedTimeline.label} 사이클로 이어졌고, 난관과 해결 시점을 타임라인에서 함께 읽을 수 있게 정리했다.`
+      : ""
+  ].filter(Boolean);
+
+  return [...new Set([...explicitNotes, ...derivedNotes])].slice(0, 4);
+}
+
+function buildEvidenceNote(project) {
+  const files = arrayOrEmpty(project.detail?.keyFiles).map((item) => item.toLowerCase());
+  if (!files.length) {
+    return "아이디어를 던지고 끝낸 작업이 아니라, 실제로 굴러가는 흐름과 결과물을 남기기 위해 끝까지 밀어붙인 프로젝트다.";
+  }
+  if (files.some((item) => item.endsWith(".ipynb"))) {
+    return "탐색형 실험을 여러 번 돌리며 패턴을 찾고, 그 결과를 바로 개선 포인트와 판단 근거로 연결한 프로젝트다.";
+  }
+  if (files.some((item) => item.includes("judge") || item.includes("eval") || item.includes("workbook") || item.includes("xlsx"))) {
+    return "한 번 데모로 끝낸 게 아니라, 회귀 검증과 비교 실험까지 돌려서 정답률과 품질을 계속 밀어올리려 한 프로젝트다.";
+  }
+  if (files.some((item) => item.includes("schema") || item.includes("corpus") || item.endsWith(".yaml") || item.endsWith(".yml"))) {
+    return "기능을 감으로 붙인 게 아니라, 스키마와 사전 수준부터 다시 설계해서 규칙과 품질 기준을 함께 세운 프로젝트다.";
+  }
+  if (files.some((item) => item.includes("log") || item.includes("analytics") || item.includes("report"))) {
+    return "로그를 읽고 끝낸 분석이 아니라, raw 데이터를 바로 개선 backlog와 운영 판단으로 이어붙이기 위해 만든 작업이다.";
+  }
+  if (files.some((item) => item.includes("server") || item.includes("app") || item.includes("run") || item.includes("cli"))) {
+    return "실행과 운영까지 닿게 만드는 데 초점이 있어서, 아이디어 설명보다 실제 반복 실행과 유지 흐름이 더 강하게 남는 프로젝트다.";
+  }
+  return "핵심 흐름을 작은 단계로 쪼개 검증하면서 결과를 쌓아 올린, 시행착오가 그대로 자산으로 남는 프로젝트다.";
+}
+
+function isBoilerplateNote(line) {
+  const text = String(line || "").trim();
+  return (
+    !text ||
+    text.includes("README가 없어 파일/코드 구조 기반으로 요약했습니다.") ||
+    text.includes("원본 프로젝트 폴더는 수정하지 않고 상태만 동기화했습니다.") ||
+    text.includes("README 핵심 문장을 추출하지 못해 기본 요약으로 대체했습니다.") ||
+    text.includes("README는 없지만") ||
+    text.includes("파일 구성을 보면") ||
+    text.includes("manager_memory를 보면") ||
+    text.includes("산출물과 메모리 기준으로 보면")
+  );
 }
 
 function getRelatedCases(project) {
@@ -1190,86 +1356,6 @@ function renderAdminPanel() {
   `;
 }
 
-function renderProjectSnapshot() {
-  const projects = state.bootstrap.projects.slice();
-  const inProgressProjects = projects.filter((project) => project.status === "in-progress");
-  const activeProjects = projects.filter((project) => project.status === "active");
-
-  elements.inProgressCount.textContent = `${inProgressProjects.length}개`;
-  elements.activeCount.textContent = `${activeProjects.length}개`;
-
-  elements.inProgressBoard.innerHTML = inProgressProjects.length
-    ? inProgressProjects.map((project) => renderSnapshotItem(project, "warning")).join("")
-    : `<article class="empty-state small">진행중 프로젝트가 없습니다.</article>`;
-
-  elements.activeBoard.innerHTML = activeProjects.length
-    ? activeProjects.map((project) => renderSnapshotItem(project, "success")).join("")
-    : `<article class="empty-state small">완료/운영 프로젝트가 없습니다.</article>`;
-
-  const categoryMap = new Map();
-  for (const project of projects) {
-    const category = getProjectCategory(project);
-    if (!categoryMap.has(category)) {
-      categoryMap.set(category, []);
-    }
-    categoryMap.get(category).push(project);
-  }
-
-  if (elements.categoryOverview) {
-    elements.categoryOverview.innerHTML = [...categoryMap.entries()]
-      .sort((left, right) => right[1].length - left[1].length || left[0].localeCompare(right[0]))
-      .map(([category, items]) => {
-        return `
-          <article class="category-cluster">
-            <div class="category-cluster-head">
-              <div>
-                <h3>${escapeHtml(category)}</h3>
-                <p>${escapeHtml(String(items.length))}개 프로젝트</p>
-              </div>
-            </div>
-            <div class="category-link-list">
-              ${items
-                .map(
-                  (project) => `
-                    <button type="button" class="category-link" data-project-id="${escapeHtml(project.id)}">
-                      <span>${escapeHtml(getProjectDisplayName(project))}</span>
-                      <small>${project.status === "in-progress" ? "진행중" : "완료/운영"}</small>
-                    </button>
-                  `
-                )
-                .join("")}
-            </div>
-          </article>
-        `;
-      })
-      .join("");
-  }
-}
-
-function renderSnapshotItem(project, tone) {
-  const displayName = getProjectDisplayName(project);
-  const badgeText = project.status === "in-progress" ? "진행중" : "완료/운영";
-  const supportCopy =
-    arrayOrEmpty(project.highlights)[0] ||
-    arrayOrEmpty(project.tags).slice(0, 2).join(" · ") ||
-    project.summary;
-
-  return `
-    <article class="snapshot-item ${tone}" tabindex="0" data-project-id="${escapeHtml(project.id)}">
-      <div class="snapshot-top">
-        <span class="badge ${tone}">${escapeHtml(badgeText)}</span>
-        <span class="snapshot-category">${escapeHtml(getProjectCategory(project))}</span>
-      </div>
-      <h3>${escapeHtml(displayName)}</h3>
-      <p>${escapeHtml(project.summary)}</p>
-      <div class="snapshot-tags">
-        ${arrayOrEmpty(project.tags).slice(0, 3).map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")}
-      </div>
-      <div class="snapshot-foot">${escapeHtml(supportCopy)}</div>
-    </article>
-  `;
-}
-
 function renderProjects() {
   const projects = getVisibleProjects();
   const total = state.bootstrap.projects.length;
@@ -1296,18 +1382,38 @@ function renderBlog() {
     return;
   }
 
-  elements.blogGrid.innerHTML = posts.map(renderBlogCard).join("");
+  elements.blogGrid.innerHTML = `
+    <div class="blog-board">
+      <div class="blog-board-head">
+        <span>No</span>
+        <span>제목 / 요약</span>
+        <span>태그</span>
+        <span>업데이트</span>
+      </div>
+      <div class="blog-board-body">
+        ${posts.map((post, index) => renderBlogCard(post, index)).join("")}
+      </div>
+    </div>
+  `;
 }
 
-function renderBlogCard(post) {
+function renderBlogCard(post, index) {
   const viewer = state.bootstrap.viewer;
   return `
-    <article class="blog-card" tabindex="0" data-blog-id="${escapeHtml(post.id)}">
-      <div class="blog-card-head">
+    <article class="blog-row" tabindex="0" data-blog-id="${escapeHtml(post.id)}">
+      <div class="blog-row-index">${escapeHtml(String(index + 1).padStart(2, "0"))}</div>
+      <div class="blog-row-main">
         <div class="blog-card-meta">
           <span class="badge category">${escapeHtml(post.status === "draft" ? "Draft" : "Published")}</span>
-          <span class="blog-date">${escapeHtml(formatBlogDate(post.updatedAt || post.createdAt))}</span>
         </div>
+        <h3>${escapeHtml(post.title)}</h3>
+        <p class="blog-excerpt">${escapeHtml(post.excerpt || "")}</p>
+      </div>
+      <div class="blog-row-tags">
+        ${arrayOrEmpty(post.tags).map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")}
+      </div>
+      <div class="blog-row-side">
+        <span class="blog-date">${escapeHtml(formatBlogDate(post.updatedAt || post.createdAt))}</span>
         ${
           viewer?.role === "admin"
             ? `
@@ -1318,11 +1424,6 @@ function renderBlogCard(post) {
             `
             : ""
         }
-      </div>
-      <h3>${escapeHtml(post.title)}</h3>
-      <p class="blog-excerpt">${escapeHtml(post.excerpt || "")}</p>
-      <div class="tag-row">
-        ${arrayOrEmpty(post.tags).map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")}
       </div>
     </article>
   `;
@@ -1346,12 +1447,13 @@ function renderProjectCard(project) {
         </span>
       </div>
 
+      <div class="card-heading card-heading-raised">
+        ${renderDisplayTitle(project, "card")}
+      </div>
+
       ${renderPreviewMarkup(project, "card")}
 
       <div class="card-body">
-        <div class="card-heading">
-          ${renderDisplayTitle(project, "card")}
-        </div>
         <p class="card-summary">${escapeHtml(project.summary)}</p>
         <div class="card-proof-line">
           <strong>이 프로젝트가 한 일</strong>
@@ -1404,11 +1506,6 @@ function renderPreviewMarkup(project, variant) {
           <span class="preview-pill subtle">${escapeHtml(project.status === "in-progress" ? "Build" : "Live")}</span>
         </div>
         <div class="mock-screen ${isVideo ? "video-mode" : ""}">
-          <div class="mock-header">
-            <span class="mock-dot"></span>
-            <span class="mock-dot"></span>
-            <span class="mock-dot"></span>
-          </div>
           <div class="mock-body">
             ${steps
               .map(
@@ -1420,11 +1517,7 @@ function renderPreviewMarkup(project, variant) {
                 `
               )
               .join("")}
-            <div class="mock-bars">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
+            <p class="mock-caption">${escapeHtml(truncate(preview.caption || project.summary, variant === "detail" ? 120 : 72))}</p>
           </div>
         </div>
       </div>
@@ -1495,6 +1588,34 @@ function getProjectDisplayName(project) {
   return prettifyProjectName(project.name || project.id || "Project");
 }
 
+function getProjectExternalLinks(project) {
+  const links = [];
+  const overrides = PROJECT_LINK_OVERRIDES[project.id] || [];
+
+  overrides.forEach((item) => {
+    links.push({
+      label: item.label,
+      text: item.text || item.url.replace(/^https?:\/\//, ""),
+      url: item.url
+    });
+  });
+
+  if (project.path) {
+    const mode = /\.[^/]+$/.test(String(project.path)) ? "blob" : "tree";
+    const encodedPath = String(project.path)
+      .split("/")
+      .map((part) => encodeURIComponent(part))
+      .join("/");
+    links.push({
+      label: "GitHub",
+      text: `AI-Agent-Project/${prettifyProjectName(project.name || project.id)}`,
+      url: `${DEFAULT_PROJECT_GITHUB_ROOT}/${mode}/main/${encodedPath}`
+    });
+  }
+
+  return links.filter((item, index, array) => array.findIndex((candidate) => candidate.url === item.url) === index);
+}
+
 function prettifyProjectName(name) {
   const clean = String(name || "")
     .replace(/\.[a-z0-9]+$/i, "")
@@ -1543,13 +1664,14 @@ function renderOpenDetail() {
   const story = buildProjectStory(project);
   const timelineEntry = buildTimelineEntry(project);
   const comments = state.commentsByProject.get(project.id) || [];
+  const externalLinks = getProjectExternalLinks(project);
   const viewer = state.bootstrap.viewer;
 
   elements.detailModalBody.innerHTML = `
     <div class="detail-layout">
       <div class="detail-preview-column">
         ${renderPreviewMarkup(project, "detail")}
-        <div class="detail-chip-wrap">
+        <div class="detail-chip-wrap compact">
           ${arrayOrEmpty(project.tags).map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")}
         </div>
         <div class="detail-meta-card">
@@ -1561,9 +1683,18 @@ function renderOpenDetail() {
           <div class="memory-chip-row">
             ${story.relatedCases.map((item) => `<span class="memory-chip">${escapeHtml(item.title)}</span>`).join("")}
           </div>
-          <p class="panel-kicker detail-file-kicker">Files</p>
-          <div class="file-chip-wrap">
-            ${arrayOrEmpty(detail.keyFiles).map((file) => `<code>${escapeHtml(file)}</code>`).join("")}
+          <p class="panel-kicker detail-file-kicker">Links</p>
+          <div class="detail-link-grid">
+            ${externalLinks
+              .map(
+                (item) => `
+                  <a class="detail-link-card" href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer noopener">
+                    <small>${escapeHtml(item.label)}</small>
+                    <strong>${escapeHtml(item.text)}</strong>
+                  </a>
+                `
+              )
+              .join("")}
           </div>
           <p class="detail-caption">${escapeHtml(detail.diagramCaption || "")}</p>
           ${
@@ -1650,9 +1781,18 @@ function renderOpenDetail() {
 
         <section class="detail-section">
           <p class="panel-kicker">Project Notes</p>
-          <ul class="support-list">
-            ${arrayOrEmpty(detail.readmeSummary).map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
-          </ul>
+          <div class="detail-note-grid">
+            ${buildProjectNotes(project, story, timelineEntry)
+              .map(
+                (line, index) => `
+                  <article class="detail-note-card">
+                    <small>Note ${escapeHtml(String(index + 1).padStart(2, "0"))}</small>
+                    <p>${escapeHtml(line)}</p>
+                  </article>
+                `
+              )
+              .join("")}
+          </div>
         </section>
 
         <section class="detail-section">
@@ -1667,13 +1807,17 @@ function renderOpenDetail() {
               ? `
                 <form id="comment-form" class="comment-form">
                   <textarea name="message" rows="3" maxlength="1000" placeholder="프로젝트를 보고 느낀 점이나 질문을 남겨보세요"></textarea>
-                  <button type="submit" class="primary-button">댓글 등록</button>
+                  <div class="comment-form-row">
+                    <input name="commentPassword" type="text" maxlength="32" placeholder="댓글 비밀번호 (선택)" />
+                    <button type="submit" class="primary-button">댓글 등록</button>
+                  </div>
+                  <p class="comment-form-hint">원하면 댓글용 비밀번호를 남길 수 있고, 관리자는 그 값도 확인할 수 있습니다.</p>
                 </form>
               `
               : `
                 <article class="comment-locked">
-                  <strong>댓글은 구글 로그인 후 작성할 수 있습니다.</strong>
-                  <p>비로그인 방문자는 읽기만 가능하고, 로그인 사용자는 댓글 권한이 열립니다.</p>
+                  <strong>구글 로그인 후 댓글을 남길 수 있습니다.</strong>
+                  <p>비로그인 방문자는 읽기만 가능합니다.</p>
                 </article>
               `
           }
@@ -1691,6 +1835,11 @@ function renderOpenDetail() {
                               <span>${formatDate(comment.createdAt)}</span>
                             </div>
                           </div>
+                          ${
+                            viewer?.role === "admin" && comment.password
+                              ? `<div class="comment-password-pill">PW ${escapeHtml(comment.password)}</div>`
+                              : ""
+                          }
                           <p>${escapeHtml(comment.message || "")}</p>
                         </article>
                       `
@@ -2132,8 +2281,10 @@ async function deleteBlogPost(blogId) {
 async function submitComment() {
   const form = elements.detailModalBody.querySelector("#comment-form");
   const textarea = form?.elements.namedItem("message");
+  const passwordInput = form?.elements.namedItem("commentPassword");
   if (!textarea) return;
   const message = textarea.value.trim();
+  const password = String(passwordInput?.value || "").trim();
   if (!message) return;
 
   try {
@@ -2141,10 +2292,14 @@ async function submitComment() {
       method: "POST",
       body: {
         projectId: state.currentProjectId,
-        message
+        message,
+        password
       }
     });
     textarea.value = "";
+    if (passwordInput) {
+      passwordInput.value = "";
+    }
     await loadComments(state.currentProjectId);
     await refreshCommentCounts();
   } catch (error) {

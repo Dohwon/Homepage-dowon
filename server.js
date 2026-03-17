@@ -33,6 +33,7 @@ const SESSION_COOKIE = "portfolio_session";
 const VISITOR_COOKIE = "portfolio_visitor";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const MAX_COMMENT_LENGTH = 1000;
+const MAX_COMMENT_PASSWORD_LENGTH = 32;
 const MAX_BLOG_MARKDOWN_LENGTH = 50000;
 
 const MIME_TYPES = {
@@ -103,7 +104,7 @@ const PROJECT_CONTENT_OVERRIDES = {
     ],
     detail: {
       readmeSummary: [
-        "README는 없었지만 산출물과 메모리 기준으로 보면, 원시 운영 로그를 제품 의사결정용 인사이트로 바꾸는 흐름이 핵심이다.",
+        "원시 운영 로그를 단순 모니터링 자료가 아니라, 제품 의사결정용 인사이트로 바꾸는 흐름이 핵심인 프로젝트다.",
         "대화 실패를 단순 집계로 끝내지 않고 기능 수요, 전환 퍼널, 품질 이슈 backlog로 재구성했다.",
         "대표 산출물은 business insights 리포트, media feature demand 리포트, failure_by_category/request_failures 데이터셋이다."
       ]
@@ -161,7 +162,7 @@ const PROJECT_CONTENT_OVERRIDES = {
     ],
     detail: {
       readmeSummary: [
-        "README는 없지만 파일 구성을 보면 로그 전처리, 판정 보조, 요약 리포트 생성이 이어지는 분석 툴체인에 가깝다.",
+        "로그 전처리, 판정 보조, 요약 리포트 생성이 끊기지 않게 이어지는 분석 툴체인 성격이 강한 프로젝트다.",
         "한 번성 분석이 아니라 반복적으로 로그를 쌓아 비교하고 다시 해석할 수 있게 스크립트를 나눠둔 것이 특징이다."
       ]
     },
@@ -189,7 +190,7 @@ const PROJECT_CONTENT_OVERRIDES = {
     ],
     detail: {
       readmeSummary: [
-        "README는 없지만 manager_memory를 보면, 학습데이터의 동사/엔티티 라벨이 흔들리던 문제를 정비하는 작업이 핵심이다.",
+        "학습데이터의 동사/엔티티 라벨이 흔들리던 문제를 정비하고, 분류 기준 자체를 다시 세우는 작업이 핵심이다.",
         "자동 태깅, strict rule 추가, 재판정 실험, weak label 분리까지 이어지며 데이터 품질을 점진적으로 끌어올렸다."
       ]
     },
@@ -272,6 +273,7 @@ const PROJECT_CONTENT_OVERRIDES = {
 
 async function ensureStorage() {
   await fsp.mkdir(DATA_DIR, { recursive: true });
+  await syncSeedFile("projects.generated.json");
 
   const existingContent = await readJson(SITE_CONTENT_PATH, null);
   if (!existingContent || isPlaceholderContent(existingContent)) {
@@ -304,6 +306,13 @@ async function ensureStorage() {
   } catch {
     await fsp.writeFile(ANALYTICS_PATH, "", "utf8");
   }
+}
+
+async function syncSeedFile(fileName) {
+  const seedPath = path.join(SEED_DATA_DIR, fileName);
+  const seedData = await readJson(seedPath, null);
+  if (!seedData) return;
+  await writeJsonAtomic(path.join(DATA_DIR, fileName), seedData);
 }
 
 async function buildSeedContent() {
@@ -374,7 +383,8 @@ function mergeProjectsByStatus(existingProjects, generatedProjects, statusOverri
       ...project,
       status: resolveProjectStatus(id, generated.status, project.status, statusOverrides),
       path: project.path || generated.path || "",
-      readme: project.readme || generated.readme || ""
+      readme: project.readme || generated.readme || "",
+      timeline: mergeProjectTimeline(project.timeline, generated.timeline)
     };
   });
 
@@ -410,6 +420,65 @@ function resolveProjectStatus(projectId, generatedStatus, fallbackStatus, status
     return override;
   }
   return generatedStatus || fallbackStatus || "active";
+}
+
+function mergeProjectTimeline(existingTimeline, generatedTimeline) {
+  if (!generatedTimeline) return existingTimeline;
+  if (!existingTimeline) return generatedTimeline;
+
+  const start = preferEarlierDate(existingTimeline.start, generatedTimeline.start) || existingTimeline.start || generatedTimeline.start || "";
+  const end = preferLaterDate(existingTimeline.end, generatedTimeline.end) || generatedTimeline.end || existingTimeline.end || start || "";
+  const hasUsableLabel = String(existingTimeline.label || "").trim() && !String(existingTimeline.label || "").includes("기간 입력 필요");
+  return {
+    ...generatedTimeline,
+    ...existingTimeline,
+    start,
+    end,
+    label: buildTimelineLabel(start, end, hasUsableLabel ? existingTimeline.label : (generatedTimeline.label || existingTimeline.label || "")),
+    difficultyWindows: Array.isArray(existingTimeline.difficultyWindows) && existingTimeline.difficultyWindows.length
+      ? existingTimeline.difficultyWindows
+      : (generatedTimeline.difficultyWindows || []),
+    milestones: Array.isArray(existingTimeline.milestones) && existingTimeline.milestones.length
+      ? existingTimeline.milestones
+      : (generatedTimeline.milestones || [])
+  };
+}
+
+function preferEarlierDate(left, right) {
+  const leftDate = toTimelineDate(left);
+  const rightDate = toTimelineDate(right);
+  if (leftDate && rightDate) {
+    return leftDate <= rightDate ? formatDateOnly(leftDate) : formatDateOnly(rightDate);
+  }
+  return left || right || "";
+}
+
+function preferLaterDate(left, right) {
+  const leftDate = toTimelineDate(left);
+  const rightDate = toTimelineDate(right);
+  if (leftDate && rightDate) {
+    return leftDate >= rightDate ? formatDateOnly(leftDate) : formatDateOnly(rightDate);
+  }
+  return right || left || "";
+}
+
+function toTimelineDate(value) {
+  if (!value) return null;
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDateOnly(value) {
+  return value.toISOString().slice(0, 10);
+}
+
+function buildTimelineLabel(start, end, fallback = "") {
+  const startDate = toTimelineDate(start);
+  const endDate = toTimelineDate(end);
+  if (!startDate || !endDate) return fallback;
+  const left = `${startDate.getUTCFullYear()}.${String(startDate.getUTCMonth() + 1).padStart(2, "0")}`;
+  const right = `${endDate.getUTCFullYear()}.${String(endDate.getUTCMonth() + 1).padStart(2, "0")}`;
+  return left === right ? left : `${left} - ${right}`;
 }
 
 function applyProjectOverride(projectId, project) {
@@ -1404,7 +1473,11 @@ async function handleApi(req, res, url) {
     const comments = await loadComments();
     const items = comments
       .filter((comment) => comment.projectId === projectId)
-      .sort((left, right) => (left.createdAt < right.createdAt ? 1 : -1));
+      .sort((left, right) => (left.createdAt < right.createdAt ? 1 : -1))
+      .map((comment) => ({
+        ...comment,
+        password: viewer?.role === "admin" ? String(comment.password || "") : ""
+      }));
     sendJson(res, 200, { comments: items });
     return;
   }
@@ -1414,6 +1487,7 @@ async function handleApi(req, res, url) {
     const body = await readBody(req);
     const projectId = String(body.projectId || "");
     const message = String(body.message || "").trim();
+    const password = String(body.password || "").trim();
     if (!projectId) {
       sendJson(res, 400, { error: "projectId_required" });
       return;
@@ -1424,6 +1498,10 @@ async function handleApi(req, res, url) {
     }
     if (message.length > MAX_COMMENT_LENGTH) {
       sendJson(res, 400, { error: "message_too_long" });
+      return;
+    }
+    if (password.length > MAX_COMMENT_PASSWORD_LENGTH) {
+      sendJson(res, 400, { error: "password_too_long" });
       return;
     }
     const content = await loadContent();
@@ -1440,6 +1518,7 @@ async function handleApi(req, res, url) {
       authorEmail: viewer.email,
       authorImage: viewer.picture || "",
       authorRole: viewer.role,
+      password,
       createdAt: new Date().toISOString()
     };
     comments.push(comment);

@@ -163,6 +163,13 @@
           "projects/(SKM)Calc_STT_CER_ipynb의_사본.ipynb"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2026-02-12",
+        "end": "2026-02-12",
+        "label": "2026.02",
+        "difficultyWindows": [],
+        "milestones": []
       }
     },
     {
@@ -215,6 +222,13 @@
           "projects/250731_학습데이터_형태소분석기.ipynb"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2025-11-09",
+        "end": "2025-11-09",
+        "label": "2025.11",
+        "difficultyWindows": [],
+        "milestones": []
       }
     },
     {
@@ -278,6 +292,13 @@
           "projects/260212_feeling_traker/server.py"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2026-02-12",
+        "end": "2026-03-17",
+        "label": "2026.02 - 2026.03",
+        "difficultyWindows": [],
+        "milestones": []
       }
     },
     {
@@ -331,6 +352,13 @@
           "projects/260218_ope_log_anlayze/250107-운영계-대화기록-1월_7일.csv"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2026-01-07",
+        "end": "2026-02-18",
+        "label": "2026.01 - 2026.02",
+        "difficultyWindows": [],
+        "milestones": []
       }
     },
     {
@@ -388,6 +416,73 @@
           "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/workbook.py"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2025-10-28",
+        "end": "2026-03-17",
+        "label": "2025.10 - 2026.03",
+        "difficultyWindows": [],
+        "milestones": []
+      }
+    },
+    {
+      "id": "260317-desktop-scheduler",
+      "name": "260317_desktop_scheduler",
+      "status": "in-progress",
+      "category": "General",
+      "summary": "260317_desktop_scheduler 프로젝트 자산.",
+      "highlights": [
+        "프로젝트 스캔 기반 기본 요약"
+      ],
+      "stack": [
+        "Python"
+      ],
+      "tags": [
+        "Project"
+      ],
+      "path": "projects/260317_desktop_scheduler",
+      "readme": "projects/260317_desktop_scheduler/README.md",
+      "detail": {
+        "readmeSummary": [
+          "진행중 프로젝트. Windows 바탕화면에서 아이콘을 눌러 바로 실행할 수 있는 월간 체크리스트 스케줄러다.",
+          "월별 달력에서 날짜별 일정 수와 주간 흐름을 한눈에 확인",
+          "매일 체크리스트를 추가, 수정, 조회, 삭제하고 완료 체크 가능",
+          "일정 연기와 `미루기 / 보류 / 언젠가` 같은 상태 관리 지원"
+        ],
+        "workflow": [
+          {
+            "step": "입력 준비",
+            "desc": "README 기준 입력 파일/파라미터를 준비"
+          },
+          {
+            "step": "핵심 실행",
+            "desc": "메인 스크립트 또는 엔트리포인트를 실행"
+          },
+          {
+            "step": "결과 저장",
+            "desc": "산출물 파일(JSON/CSV/로그 등) 생성"
+          },
+          {
+            "step": "검토",
+            "desc": "결과를 검토해 다음 개선 작업으로 연결"
+          }
+        ],
+        "keyFiles": [
+          "projects/260317_desktop_scheduler/README.md",
+          "projects/260317_desktop_scheduler/AGENTS.md",
+          "projects/260317_desktop_scheduler/src/app.py",
+          "projects/260317_desktop_scheduler/src/storage.py",
+          "projects/260317_desktop_scheduler/src/__init__.py",
+          "projects/260317_desktop_scheduler/src/reminders.py"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2026-03-17",
+        "end": "2026-03-17",
+        "label": "2026.03",
+        "difficultyWindows": [],
+        "milestones": []
       }
     },
     {
@@ -433,6 +528,13 @@
           "projects/dowon_codex_manager_memory_work_summary.v4.md"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2026-02-12",
+        "end": "2026-02-12",
+        "label": "2026.02",
+        "difficultyWindows": [],
+        "milestones": []
       }
     },
     {
@@ -494,6 +596,13 @@
           "projects/gemini_multiturn_tester_v3/app/client.py"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2026-02-10",
+        "end": "2026-03-17",
+        "label": "2026.02 - 2026.03",
+        "difficultyWindows": [],
+        "milestones": []
       }
     },
     {
@@ -552,6 +661,13 @@
           "projects/Operation_log_analayzer/manager_memory/long-term/strategy-roadmap.md"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2025-12-31",
+        "end": "2026-03-09",
+        "label": "2025.12 - 2026.03",
+        "difficultyWindows": [],
+        "milestones": []
       }
     },
     {
@@ -597,6 +713,13 @@
           "projects/PROJECT_NAMING_RULE.md"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2026-02-12",
+        "end": "2026-02-12",
+        "label": "2026.02",
+        "difficultyWindows": [],
+        "milestones": []
       }
     },
     {
@@ -658,6 +781,13 @@
           "projects/Prompt_Auto_Evaluation/judge_prompt.txt"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2025-11-04",
+        "end": "2025-12-12",
+        "label": "2025.11 - 2025.12",
+        "difficultyWindows": [],
+        "milestones": []
       }
     },
     {
@@ -704,6 +834,13 @@
           "projects/scripts/version_work_summary.sh"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2026-02-12",
+        "end": "2026-02-12",
+        "label": "2026.02",
+        "difficultyWindows": [],
+        "milestones": []
       }
     },
     {
@@ -761,6 +898,13 @@
           "projects/Semantic_Verb_Schema/retag_with_kiwi.py"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2025-10-28",
+        "end": "2026-03-10",
+        "label": "2025.10 - 2026.03",
+        "difficultyWindows": [],
+        "milestones": []
       }
     },
     {
@@ -816,6 +960,13 @@
           "projects/Todack/branding/calm_slime_favicon_final_2026-02-15/README.md"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2026-02-15",
+        "end": "2026-03-17",
+        "label": "2026.02 - 2026.03",
+        "difficultyWindows": [],
+        "milestones": []
       }
     },
     {
@@ -862,6 +1013,13 @@
           "projects/work_summary_versions/dowon_codex_manager_memory_work_summary.v5.md"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2026-02-12",
+        "end": "2026-02-12",
+        "label": "2026.02",
+        "difficultyWindows": [],
+        "milestones": []
       }
     },
     {
@@ -914,6 +1072,13 @@
           "projects/형태소분석기_기반_사용자_발화_유사도_분석(2).ipynb"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2025-11-09",
+        "end": "2025-11-09",
+        "label": "2025.11",
+        "difficultyWindows": [],
+        "milestones": []
       }
     }
   ]
