@@ -28,6 +28,7 @@ const elements = {
   heroMiniStats: document.getElementById("hero-mini-stats"),
   aboutTitle: document.getElementById("about-title"),
   ownerSummary: document.getElementById("owner-summary"),
+  aboutContactList: document.getElementById("about-contact-list"),
   aboutMetrics: document.getElementById("about-metrics"),
   focusTags: document.getElementById("focus-tags"),
   valueProps: document.getElementById("value-props"),
@@ -83,6 +84,8 @@ const PROJECT_LINK_OVERRIDES = {
 };
 
 const DEFAULT_PROJECT_GITHUB_ROOT = "https://github.com/Dohwon/AI-Agent-Project";
+const DEFAULT_PUBLIC_EMAIL = "dowonkim0612@naver.com";
+const DEFAULT_PROFILE_GITHUB = "https://github.com/Dohwon";
 
 const ABOUT_VALUE_PROPS = [
   "기획에서 끝내지 않고 로그, 지표, 룰, 운영정책까지 연결해 실제 개선으로 닫습니다.",
@@ -511,16 +514,22 @@ function renderFilters() {
 }
 
 function renderProfile() {
+  const owner = state.bootstrap.owner || {};
+  const links = state.bootstrap.links || {};
   const profile = state.bootstrap.profile || {};
   const aboutSignature = buildAboutSignature();
   const valueProps = getAboutValueProps(profile);
   const aboutMetrics = getAboutMetrics(profile);
+  const aboutContacts = buildAboutContacts(owner, links);
 
   elements.aboutTitle.textContent = aboutSignature.title;
   elements.ownerSummary.textContent = aboutSignature.summary;
   elements.valueProps.innerHTML = valueProps
     .map((item) => `<article class="value-card">${escapeHtml(item)}</article>`)
     .join("");
+  if (elements.aboutContactList) {
+    elements.aboutContactList.innerHTML = aboutContacts.map(renderAboutContactCard).join("");
+  }
 
   elements.aboutMetrics.innerHTML = aboutMetrics
     .map(
@@ -1044,9 +1053,63 @@ function buildAboutSignature() {
   };
 }
 
+function buildAboutContacts(owner = {}, links = {}) {
+  const email = String(owner.publicEmail || owner.email || DEFAULT_PUBLIC_EMAIL).trim();
+  const notion = String(links.notion || state.bootstrap?.site?.externalLink || "").trim();
+  const github = String(links.github || DEFAULT_PROFILE_GITHUB).trim();
+  const roleCopy = String(owner.headline || "AI Product / LLM PM").split("|")[0].trim();
+
+  return [
+    {
+      label: "Name",
+      value: owner.name || "김도원",
+      note: roleCopy
+    },
+    email
+      ? {
+          label: "Email",
+          value: email,
+          note: "문의 및 협업 연락",
+          href: `mailto:${email}`
+        }
+      : null,
+    notion
+      ? {
+          label: "Notion",
+          value: "Portfolio Notes",
+          note: "경력과 프로젝트 문서",
+          href: notion
+        }
+      : null,
+    github
+      ? {
+          label: "GitHub",
+          value: github.replace(/^https?:\/\//, ""),
+          note: "실험 코드와 노트북",
+          href: github
+        }
+      : null
+  ].filter(Boolean);
+}
+
+function renderAboutContactCard(item) {
+  const tagName = item.href ? "a" : "article";
+  const attrs = item.href
+    ? ` class="about-contact-card" href="${escapeHtml(item.href)}" target="_blank" rel="noreferrer noopener"`
+    : ` class="about-contact-card"`;
+
+  return `
+    <${tagName}${attrs}>
+      <small>${escapeHtml(item.label || "")}</small>
+      <strong>${escapeHtml(item.value || "")}</strong>
+      ${item.note ? `<span>${escapeHtml(item.note)}</span>` : ""}
+    </${tagName}>
+  `;
+}
+
 function getAboutValueProps(profile) {
   const values = arrayOrEmpty(profile.valueProposition);
-  return ABOUT_VALUE_PROPS.length ? ABOUT_VALUE_PROPS : values;
+  return values.length ? values : ABOUT_VALUE_PROPS;
 }
 
 function getAboutMetrics(profile) {

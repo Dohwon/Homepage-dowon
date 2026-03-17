@@ -3690,3 +3690,575 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+.about-contact-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.about-contact-card {
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(103, 132, 205, 0.14);
+  background: rgba(255, 255, 255, 0.88);
+  display: grid;
+  gap: 4px;
+  box-shadow: 0 10px 24px rgba(41, 64, 116, 0.06);
+  transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+
+.about-contact-card:hover,
+.about-contact-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(86, 128, 238, 0.28);
+  background: rgba(250, 252, 255, 0.96);
+  outline: none;
+}
+
+.about-contact-card small {
+  color: #6a80ba;
+  font-family: "Sora", sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.about-contact-card strong {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.about-contact-card span {
+  color: var(--ink-soft);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+#home-section .project-grid {
+  align-items: stretch;
+  grid-auto-rows: 1fr;
+}
+
+#home-section .project-card {
+  height: 100%;
+  overflow: hidden;
+}
+
+@media (min-width: 861px) {
+  #home-section .project-card {
+    display: grid;
+    grid-template-rows: auto 108px 164px minmax(0, 1fr);
+    min-height: 438px;
+    max-height: 438px;
+    gap: 14px;
+  }
+
+  #home-section .card-topline {
+    justify-content: space-between;
+    min-height: 30px;
+  }
+
+  #home-section .card-heading {
+    min-height: 108px;
+  }
+
+  #home-section .display-title.card {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    align-content: start;
+    height: 100%;
+  }
+
+  #home-section .display-title.card .display-title-text {
+    display: grid;
+    gap: 6px;
+    align-content: start;
+    font-size: clamp(1.14rem, 1.12vw, 1.32rem);
+    line-height: 1.15;
+  }
+
+  #home-section .display-title.card .title-lead,
+  #home-section .display-title.card .title-rest {
+    display: block;
+  }
+
+  #home-section .display-title-sub {
+    min-height: 2.9em;
+    margin-top: 0;
+  }
+
+  #home-section .preview-surface {
+    height: 164px;
+    min-height: 164px;
+  }
+
+  #home-section .mock-body {
+    gap: 8px;
+  }
+
+  #home-section .mock-step {
+    padding: 10px 11px;
+  }
+
+  #home-section .mock-step small {
+    margin-bottom: 4px;
+    font-size: 0.68rem;
+  }
+
+  #home-section .mock-step strong {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  #home-section .mock-caption {
+    min-height: 2.6em;
+  }
+
+  #home-section .card-body {
+    min-height: 0;
+    grid-template-rows: minmax(0, 2.9em) minmax(0, 76px) auto auto;
+    align-content: start;
+    gap: 10px;
+  }
+
+  #home-section .card-summary {
+    margin: 0;
+    min-height: 0;
+    -webkit-line-clamp: 2;
+  }
+
+  #home-section .card-proof-line {
+    min-height: 76px;
+    padding: 10px 12px;
+  }
+
+  #home-section .card-proof-line span {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  #home-section .tag-row.compact {
+    min-height: 34px;
+  }
+
+  #home-section .tag-row.compact .tag-pill {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #home-section .card-footer {
+    margin-top: auto;
+    padding-top: 2px;
+    flex-wrap: nowrap;
+  }
+
+  #home-section .card-footer span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 860px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .site-shell {
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .side-rail {
+    position: sticky;
+    top: 0;
+    z-index: 12;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .rail-brand {
+    width: 42px;
+    height: 42px;
+    border-radius: 16px;
+    flex: 0 0 auto;
+  }
+
+  .rail-nav {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .rail-button {
+    width: 100%;
+    min-height: 42px;
+    padding: 10px 8px;
+    justify-content: center;
+    text-align: center;
+    font-size: 0.76rem;
+  }
+
+  .rail-foot {
+    display: none;
+  }
+
+  .page-shell {
+    padding: 12px 12px 22px;
+  }
+
+  .topbar {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .topbar-copy,
+  .topbar-actions,
+  .auth-area {
+    width: 100%;
+  }
+
+  .topbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .page-content {
+    gap: 26px;
+    padding-bottom: 34px;
+  }
+
+  .section-stack {
+    gap: 16px;
+  }
+
+  .section-heading {
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .hero-card,
+  .library-section,
+  .glass-panel,
+  .modal-panel {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  #home-section .hero-copy {
+    margin: 0;
+    text-align: left;
+  }
+
+  #home-section .hero-copy h1 {
+    font-size: clamp(1.9rem, 8vw, 2.6rem);
+  }
+
+  #home-section .hero-searchbar {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  #home-section .hero-searchbar input {
+    padding: 12px 0;
+  }
+
+  #home-section .search-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  #home-section .filter-wrap {
+    gap: 10px;
+  }
+
+  #home-section .chip-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 4px;
+    margin: 0;
+  }
+
+  #home-section .chip-button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  #home-section .mini-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  #home-section .mini-stat-card.radial {
+    min-height: 126px;
+    padding: 12px;
+    border-radius: 22px;
+  }
+
+  .radial-stat-ring {
+    width: 90px;
+    height: 90px;
+  }
+
+  .radial-stat-core {
+    width: 60px;
+    height: 60px;
+  }
+
+  #home-section .project-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  #home-section .project-card {
+    display: grid;
+    grid-template-rows: auto auto 144px auto;
+    min-height: 0;
+    max-height: none;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  #home-section .card-heading {
+    min-height: 0;
+  }
+
+  #home-section .display-title.card .display-title-text {
+    display: grid;
+    gap: 5px;
+    font-size: 1.08rem;
+    line-height: 1.18;
+  }
+
+  #home-section .display-title.card .title-lead,
+  #home-section .display-title.card .title-rest {
+    display: block;
+  }
+
+  #home-section .preview-surface {
+    height: 144px;
+    min-height: 144px;
+  }
+
+  #home-section .card-body {
+    grid-template-rows: auto auto auto auto;
+    gap: 10px;
+  }
+
+  #home-section .card-summary,
+  #home-section .card-proof-line span {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  #home-section .card-footer {
+    flex-wrap: wrap;
+  }
+
+  .about-layout,
+  .about-lower-grid,
+  .timeline-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .about-intro-panel,
+  .about-proof-panel,
+  .about-career-panel,
+  .project-journey-panel {
+    padding: 18px;
+  }
+
+  .about-portrait-wrap {
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 14px;
+    margin-bottom: 14px;
+    align-items: start;
+  }
+
+  .about-avatar-shell {
+    width: 78px;
+    height: 78px;
+    padding: 4px;
+    border-radius: 24px;
+  }
+
+  .about-avatar-image {
+    border-radius: 20px;
+  }
+
+  .about-headline-copy h2 {
+    margin: 6px 0 8px;
+    font-size: clamp(1.45rem, 6.5vw, 1.92rem);
+  }
+
+  .about-contact-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .value-grid,
+  .skill-cluster-grid,
+  .case-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .skill-card,
+  .value-card,
+  .case-card {
+    padding: 14px;
+  }
+
+  .career-wide-track {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 10px 0 0;
+  }
+
+  .career-wide-track::before {
+    inset: 34px 0 auto 0;
+  }
+
+  .career-wide-item {
+    gap: 8px;
+    padding-top: 0;
+  }
+
+  .career-wide-dot {
+    top: 29px;
+    left: 12px;
+    width: 10px;
+    height: 10px;
+    box-shadow: 0 0 0 6px rgba(77, 134, 255, 0.12);
+  }
+
+  .career-wide-period {
+    padding-left: 30px;
+    min-height: 24px;
+  }
+
+  .career-wide-card {
+    padding: 16px;
+  }
+
+  .career-title-row {
+    gap: 10px;
+  }
+
+  .career-index {
+    padding: 6px 10px;
+    font-size: 0.72rem;
+  }
+
+  .timeline-wave-shell {
+    border-radius: 24px;
+  }
+
+  .timeline-wave-scroll {
+    padding: 12px 0 8px;
+  }
+
+  .timeline-wave-board {
+    margin: 0 10px;
+  }
+
+  .timeline-wave-event {
+    width: 176px;
+    padding: 12px 12px 14px;
+    border-radius: 20px;
+  }
+
+  .timeline-wave-copy {
+    font-size: 0.8rem;
+  }
+
+  .blog-board {
+    border-radius: 24px;
+  }
+
+  .blog-board-head {
+    display: none;
+  }
+
+  .blog-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 14px 16px;
+  }
+
+  .blog-row-side {
+    justify-items: start;
+    gap: 8px;
+  }
+
+  .blog-row-main h3 {
+    font-size: 1.06rem;
+  }
+
+  .modal-panel {
+    width: min(100vw - 16px, 960px);
+    max-height: min(92vh, 920px);
+  }
+
+  .detail-layout {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .comment-form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  #home-section .project-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #home-section .project-card {
+    grid-template-rows: auto auto 148px auto;
+  }
+
+  #home-section .preview-surface {
+    height: 148px;
+    min-height: 148px;
+  }
+
+  #home-section .card-summary,
+  #home-section .card-proof-line span {
+    -webkit-line-clamp: unset;
+  }
+
+  .about-contact-strip,
+  .metric-strip {
+    grid-template-columns: 1fr;
+  }
+}

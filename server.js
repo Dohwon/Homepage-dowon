@@ -28,6 +28,8 @@ const ADMIN_EMAILS = new Set(
 );
 const DEV_ALLOW_LOCAL_LOGIN = process.env.DEV_ALLOW_LOCAL_LOGIN === "true";
 const DEV_ADMIN_EMAIL = (process.env.DEV_ADMIN_EMAIL || "").trim().toLowerCase();
+const DEFAULT_PUBLIC_EMAIL = "dowonkim0612@naver.com";
+const DEFAULT_PROFILE_GITHUB = "https://github.com/Dohwon";
 
 const SESSION_COOKIE = "portfolio_session";
 const VISITOR_COOKIE = "portfolio_visitor";
@@ -322,9 +324,17 @@ async function buildSeedContent() {
   const secondary = manual || {};
 
   const mergedProjects = mergeProjects(primary.projects || [], secondary.projects || []);
-  const owner = secondary.owner || primary.owner || defaultOwner();
+  const owner = {
+    ...defaultOwner(),
+    ...(primary.owner || {}),
+    ...(secondary.owner || {})
+  };
   const profile = secondary.profile || primary.profile || {};
-  const links = { ...(primary.links || {}), ...(secondary.links || {}) };
+  const links = {
+    github: DEFAULT_PROFILE_GITHUB,
+    ...(primary.links || {}),
+    ...(secondary.links || {})
+  };
 
   return {
     site: defaultSite(owner, links),
@@ -896,6 +906,7 @@ function defaultOwner() {
   return {
     name: "Dowon",
     headline: "AI Product / LLM Portfolio",
+    publicEmail: DEFAULT_PUBLIC_EMAIL,
     careerSummary: "프로젝트 요약 데이터가 아직 없습니다.",
     focusAreas: []
   };
@@ -1183,13 +1194,24 @@ async function loadContent() {
 
   const hiddenProjectIds = new Set(arrayify(content.meta?.hiddenProjectIds));
   const visibleGenerated = (generated.projects || []).filter((project) => !hiddenProjectIds.has(project.id));
+  const owner = {
+    ...defaultOwner(),
+    ...(content.owner || {})
+  };
+  const links = {
+    github: DEFAULT_PROFILE_GITHUB,
+    ...(content.links || {})
+  };
 
   return {
     ...content,
     site: {
+      ...defaultSite(owner, links),
       ...(content.site || {}),
       heroBadge: ""
     },
+    owner,
+    links,
     projects: mergeProjectsByStatus(content.projects || [], visibleGenerated, statusOverrides).map((project, index) =>
       normalizeProject(project, index)
     ),

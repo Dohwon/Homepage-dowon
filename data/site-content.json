@@ -13,6 +13,7 @@
   "owner": {
     "name": "김도원 (Dowon Kim)",
     "headline": "On-device/Cloud LLM Agent PM | 음성인식·품질자동화·제품기획",
+    "publicEmail": "dowonkim0612@naver.com",
     "careerSummary": "생성형 AI 기반 음성인식 시스템과 LLM Agent를 기획-설계-평가-운영까지 End-to-End로 리드해온 PM. 모델 성능, 운영 비용, 사용자 경험을 동시에 개선하는 실행형 문제해결에 강함.",
     "focusAreas": [
       "On-device AI",
@@ -122,6 +123,7 @@
     ]
   },
   "links": {
+    "github": "https://github.com/Dohwon",
     "notion": "https://do-won.notion.site/Doh-Won-Kim-6e8c929ee98941798064f3397d75fe7b",
     "resumeSource": "profile_sources/김도원_경력기술서_자기소개서_통합(2025).docx"
   },
