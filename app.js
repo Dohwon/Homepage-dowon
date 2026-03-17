@@ -158,6 +158,7 @@ async function init() {
 
 function bindEvents() {
   bindDecorativeMotion();
+  bindRailNavigation();
 
   elements.searchInput.addEventListener("input", () => {
     state.filters.query = elements.searchInput.value.trim().toLowerCase();
@@ -1048,9 +1049,9 @@ function renderTimelineFocus(entry) {
 
 function buildAboutSignature() {
   return {
-    title: "문제를 끝까지 수치로 증명하는 AI Product Manager",
+    title: "복잡한 AI 문제를 구조화해 팀이 움직이게 만드는 Product Builder",
     summary:
-      "기획만 하는 PM이 아니라, 로그를 읽고 지표를 다시 세우고 룰과 운영정책까지 연결해 실제 품질 개선으로 닫는 사람입니다. 음성인식, 챗봇, LLM Agent 영역에서 '왜 안 되는지'를 근거로 설명하고 '어떻게 좋아질지'를 바로 실험으로 옮깁니다."
+      "흐릿한 이슈를 그냥 감으로 넘기지 않고, 제품·운영·정책이 바로 움직일 수 있는 구조로 번역해 끝까지 밀어붙입니다. 로그, 룰베이스, 사용자 흐름, 품질 기준이 뒤엉킨 문제를 빠르게 쪼개고 실제 개선으로 닫는 실행형 빌더입니다."
   };
 }
 
@@ -1894,6 +1895,57 @@ function getProjectDisplayName(project) {
   return prettifyProjectName(project.name || project.id || "Project");
 }
 
+function bindRailNavigation() {
+  const railButtons = Array.from(document.querySelectorAll(".rail-button"));
+  if (!railButtons.length) return;
+
+  const targets = railButtons
+    .map((button) => {
+      const href = button.getAttribute("href") || "";
+      const section = href.startsWith("#") ? document.querySelector(href) : null;
+      return section ? { button, section } : null;
+    })
+    .filter(Boolean);
+
+  if (!targets.length) return;
+
+  const activateRailButton = (sectionId) => {
+    targets.forEach(({ button, section }) => {
+      const isActive = section.id === sectionId;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-current", isActive ? "page" : "false");
+    });
+  };
+
+  railButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const href = button.getAttribute("href") || "";
+      if (href.startsWith("#")) {
+        activateRailButton(href.slice(1));
+      }
+    });
+  });
+
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
+        if (visible) activateRailButton(visible.target.id);
+      },
+      {
+        rootMargin: "-18% 0px -52% 0px",
+        threshold: [0.18, 0.35, 0.55]
+      }
+    );
+
+    targets.forEach(({ section }) => observer.observe(section));
+  }
+
+  activateRailButton(targets[0].section.id);
+}
+
 function getProjectExternalLinks(project) {
   const links = [];
   const overrides = PROJECT_LINK_OVERRIDES[project.id] || [];
@@ -1920,6 +1972,79 @@ function getProjectExternalLinks(project) {
   }
 
   return links.filter((item, index, array) => array.findIndex((candidate) => candidate.url === item.url) === index);
+}
+
+function summarizeLinkHost(url) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+    const path = parsed.pathname && parsed.pathname !== "/" ? parsed.pathname : "";
+    return truncate(`${host}${path}`.replace(/\/$/, ""), 42);
+  } catch {
+    return truncate(String(url || "").replace(/^https?:\/\//, ""), 42);
+  }
+}
+
+function buildDetailOverviewRows(project, timelineEntry) {
+  const stackText = arrayOrEmpty(project.stack).slice(0, 3).join(", ");
+
+  return [
+    {
+      label: "Status",
+      value: project.status === "in-progress" ? "In Progress" : "Completed"
+    },
+    {
+      label: "Period",
+      value: timelineEntry.label || "기록 정리중"
+    },
+    {
+      label: "Category",
+      value: getProjectCategory(project)
+    },
+    stackText
+      ? {
+          label: "Core Stack",
+          value: stackText
+        }
+      : null
+  ].filter(Boolean);
+}
+
+function formatTimelinePoint(value) {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function buildDetailTimelineItems(timelineEntry, story) {
+  const difficultyItems = arrayOrEmpty(timelineEntry.difficulties).map((item) => ({
+    order: item.start?.getTime?.() || 0,
+    tone: item.severity === "high" ? "problem" : item.severity === "medium" ? "warning" : "neutral",
+    eyebrow: "Difficulty",
+    title: item.label || "핵심 난관",
+    meta: formatTimelineLabel(item.start, item.end),
+    description: truncate(story.challenge || "", 78)
+  }));
+
+  const milestoneItems = arrayOrEmpty(timelineEntry.milestones).map((item, index) => ({
+    order: item.date?.getTime?.() || 0,
+    tone: item.tone === "success" ? "success" : item.tone === "warning" ? "warning" : "neutral",
+    eyebrow: "Milestone",
+    title: item.label || "작업 마일스톤",
+    meta: formatTimelinePoint(item.date),
+    description: truncate(
+      item.tone === "success"
+        ? story.resolution || story.narrative || ""
+        : arrayOrEmpty(story.attempts)[index] || story.narrative || "",
+      78
+    )
+  }));
+
+  return [...difficultyItems, ...milestoneItems]
+    .filter((item) => item.title || item.description)
+    .sort((left, right) => left.order - right.order)
+    .slice(0, 6);
 }
 
 function prettifyProjectName(name) {
@@ -1972,37 +2097,29 @@ function renderOpenDetail() {
   const comments = state.commentsByProject.get(project.id) || [];
   const externalLinks = getProjectExternalLinks(project);
   const viewer = state.bootstrap.viewer;
+  const overviewRows = buildDetailOverviewRows(project, timelineEntry);
+  const timelineItems = buildDetailTimelineItems(timelineEntry, story);
+  const impactItems = arrayOrEmpty(story.impact).length ? arrayOrEmpty(story.impact) : arrayOrEmpty(project.highlights);
+  const attemptItems = arrayOrEmpty(story.attempts).length ? arrayOrEmpty(story.attempts) : [buildEvidenceNote(project)];
+  const noteItems = buildProjectNotes(project, story, timelineEntry);
 
   elements.detailModalBody.innerHTML = `
-    <div class="detail-layout">
-      <div class="detail-preview-column">
-        ${renderPreviewMarkup(project, "detail")}
-        <div class="detail-chip-wrap compact">
-          ${arrayOrEmpty(project.tags).map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")}
+    <article class="detail-shell">
+      <header class="detail-hero-card">
+        <div class="detail-hero-copy">
+          <div class="detail-badges">
+            <span class="badge category">${escapeHtml(getProjectCategory(project))}</span>
+            <span class="badge ${project.status === "in-progress" ? "warning" : "success"}">
+              ${project.status === "in-progress" ? "진행중" : "완료/운영"}
+            </span>
+          </div>
+          <div id="detail-title-anchor">
+            ${renderDisplayTitle(project, "detail")}
+          </div>
+          <p class="panel-summary">${escapeHtml(project.summary)}</p>
         </div>
-        <div class="detail-meta-card">
-          <p class="panel-kicker">Project Info</p>
-          <div class="timeline-inline-pills">
-            <span class="collection-pill">${escapeHtml(timelineEntry.label)}</span>
-            <span class="collection-pill subtle">${escapeHtml(getProjectCategory(project))}</span>
-          </div>
-          <div class="memory-chip-row">
-            ${story.relatedCases.map((item) => `<span class="memory-chip">${escapeHtml(item.title)}</span>`).join("")}
-          </div>
-          <p class="panel-kicker detail-file-kicker">Links</p>
-          <div class="detail-link-grid">
-            ${externalLinks
-              .map(
-                (item) => `
-                  <a class="detail-link-card" href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer noopener">
-                    <small>${escapeHtml(item.label)}</small>
-                    <strong>${escapeHtml(item.text)}</strong>
-                  </a>
-                `
-              )
-              .join("")}
-          </div>
-          <p class="detail-caption">${escapeHtml(detail.diagramCaption || "")}</p>
+        <div class="detail-hero-side">
+          <span class="collection-pill">${escapeHtml(timelineEntry.label)}</span>
           ${
             viewer?.role === "admin"
               ? `
@@ -2014,149 +2131,241 @@ function renderOpenDetail() {
               : ""
           }
         </div>
-      </div>
+      </header>
 
-      <div class="detail-content-column">
-        <div class="detail-header">
-          <div>
-            <div class="detail-badges">
-              <span class="badge category">${escapeHtml(getProjectCategory(project))}</span>
-              <span class="badge ${project.status === "in-progress" ? "warning" : "success"}">
-                ${project.status === "in-progress" ? "진행중" : "완료/운영"}
-              </span>
+      <div class="detail-body-grid">
+        <aside class="detail-sidebar">
+          <section class="detail-card-shell detail-visual-card">
+            <div class="detail-card-head">
+              <div>
+                <p class="panel-kicker">Visual Snapshot</p>
+                <h3>Interface Preview</h3>
+              </div>
+              <span class="detail-mini-badge">${escapeHtml(project.status === "in-progress" ? "BUILD" : "LIVE")}</span>
             </div>
-            <div id="detail-title-anchor">
-              ${renderDisplayTitle(project, "detail")}
+            ${renderPreviewMarkup(project, "detail")}
+            <p class="detail-visual-caption">${escapeHtml(detail.diagramCaption || "결과물의 성격이 바로 읽히도록 도식형 프리뷰로 정리했습니다.")}</p>
+          </section>
+
+          <section class="detail-card-shell">
+            <div class="detail-card-head">
+              <div>
+                <p class="panel-kicker">Project Overview</p>
+                <h3>핵심 정보</h3>
+              </div>
             </div>
-            <p class="panel-summary">${escapeHtml(project.summary)}</p>
-          </div>
-        </div>
-
-        <section class="detail-section">
-          <p class="panel-kicker">Difficulty</p>
-          <article class="focus-highlight-card in-modal">
-            <h3>${escapeHtml(story.challenge || project.summary)}</h3>
-            <p>${escapeHtml(story.narrative || project.summary)}</p>
-          </article>
-        </section>
-
-        <section class="detail-section">
-          <p class="panel-kicker">How I Solved It</p>
-          <div class="workflow-track challenge-track">
-            ${arrayOrEmpty(story.attempts)
-              .map(
-                (item, index) => `
-                  <article class="workflow-card">
-                    <strong>Try ${escapeHtml(String(index + 1).padStart(2, "0"))}</strong>
-                    <p>${escapeHtml(item)}</p>
-                  </article>
-                `
-              )
-              .join("")}
-          </div>
-        </section>
-
-        <section class="detail-section">
-          <p class="panel-kicker">Resolved / Impact</p>
-          <article class="detail-result-card">
-            <strong>${escapeHtml(story.resolution || project.summary)}</strong>
-            <div class="focus-impact-list">
-              ${arrayOrEmpty(story.impact).map((item) => `<span class="focus-impact-pill">${escapeHtml(item)}</span>`).join("")}
-            </div>
-          </article>
-        </section>
-
-        <section class="detail-section">
-          <p class="panel-kicker">Timeline View</p>
-          <div class="detail-timeline-card">
-            <div class="detail-timeline-track">
-              <span class="detail-timeline-bar"></span>
-              ${timelineEntry.difficulties
+            <dl class="detail-overview-list">
+              ${overviewRows
                 .map(
                   (item) => `
-                    <article class="detail-timeline-window ${escapeHtml(item.severity)}">
-                      <strong>${escapeHtml(item.label)}</strong>
-                      <span>${escapeHtml(formatTimelineLabel(item.start, item.end))}</span>
+                    <div class="detail-overview-row">
+                      <dt>${escapeHtml(item.label)}</dt>
+                      <dd>${escapeHtml(item.value)}</dd>
+                    </div>
+                  `
+                )
+                .join("")}
+            </dl>
+            <div class="detail-chip-cluster">
+              ${arrayOrEmpty(project.stack).map((item) => `<span class="detail-mini-chip">${escapeHtml(item)}</span>`).join("")}
+            </div>
+            <div class="detail-chip-cluster muted">
+              ${arrayOrEmpty(project.tags).map((tag) => `<span class="detail-mini-chip subtle">${escapeHtml(tag)}</span>`).join("")}
+            </div>
+          </section>
+
+          <section class="detail-card-shell">
+            <div class="detail-card-head">
+              <div>
+                <p class="panel-kicker">Resources</p>
+                <h3>바로 열기</h3>
+              </div>
+            </div>
+            <div class="detail-resource-list">
+              ${
+                externalLinks.length
+                  ? externalLinks
+                      .map(
+                        (item) => `
+                          <a class="detail-link-card" href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer noopener">
+                            <small>${escapeHtml(item.label)}</small>
+                            <strong>${escapeHtml(item.text)}</strong>
+                            <span>${escapeHtml(summarizeLinkHost(item.url))}</span>
+                          </a>
+                        `
+                      )
+                      .join("")
+                  : `<article class="empty-state small">외부 리소스가 아직 없습니다.</article>`
+              }
+            </div>
+          </section>
+
+          <section class="detail-card-shell">
+            <div class="detail-card-head">
+              <div>
+                <p class="panel-kicker">Timeline View</p>
+                <h3>진행 흐름</h3>
+              </div>
+            </div>
+            <div class="detail-mini-timeline">
+              ${
+                timelineItems.length
+                  ? timelineItems
+                      .map(
+                        (item) => `
+                          <article class="detail-timeline-item ${escapeHtml(item.tone)}">
+                            <span class="detail-timeline-dot"></span>
+                            <div class="detail-timeline-copy">
+                              <small>${escapeHtml(item.eyebrow)}</small>
+                              <strong>${escapeHtml(item.title)}</strong>
+                              <span>${escapeHtml(item.meta)}</span>
+                              ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}
+                            </div>
+                          </article>
+                        `
+                      )
+                      .join("")
+                  : `<article class="empty-state small">타임라인 데이터가 아직 없습니다.</article>`
+              }
+            </div>
+          </section>
+        </aside>
+
+        <div class="detail-main">
+          <section class="detail-card-shell">
+            <div class="detail-problem-solution-grid">
+              <article class="detail-callout problem">
+                <small>Problem Identified</small>
+                <h3>${escapeHtml(story.challenge || project.summary)}</h3>
+                <p>${escapeHtml(story.narrative || project.summary)}</p>
+              </article>
+              <article class="detail-callout solution">
+                <small>Solution Resolved</small>
+                <h3>${escapeHtml(story.resolution || project.summary)}</h3>
+                <p>${escapeHtml(impactItems[0] || buildEvidenceNote(project))}</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="detail-card-shell">
+            <div class="detail-card-head">
+              <div>
+                <p class="panel-kicker">Execution Track</p>
+                <h3>어떻게 풀었는지</h3>
+              </div>
+            </div>
+            <div class="detail-attempt-list">
+              ${attemptItems
+                .map(
+                  (item, index) => `
+                    <article class="detail-attempt-item">
+                      <span>TRY ${escapeHtml(String(index + 1).padStart(2, "0"))}</span>
+                      <p>${escapeHtml(item)}</p>
                     </article>
                   `
                 )
                 .join("")}
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section class="detail-section">
-          <p class="panel-kicker">Project Notes</p>
-          <div class="detail-note-grid">
-            ${buildProjectNotes(project, story, timelineEntry)
-              .map(
-                (line, index) => `
-                  <article class="detail-note-card">
-                    <small>Note ${escapeHtml(String(index + 1).padStart(2, "0"))}</small>
-                    <p>${escapeHtml(line)}</p>
+          <section class="detail-card-shell">
+            <div class="detail-card-head">
+              <div>
+                <p class="panel-kicker">Impact Signals</p>
+                <h3>Resolved / Impact</h3>
+              </div>
+            </div>
+            <div class="detail-impact-layout">
+              <article class="detail-impact-summary">
+                <small>Resolved</small>
+                <strong>${escapeHtml(story.resolution || project.summary)}</strong>
+              </article>
+              <div class="detail-impact-pills">
+                ${impactItems.map((item) => `<span class="focus-impact-pill">${escapeHtml(item)}</span>`).join("")}
+              </div>
+            </div>
+          </section>
+
+          <section class="detail-card-shell">
+            <div class="detail-card-head">
+              <div>
+                <p class="panel-kicker">Project Notes</p>
+                <h3>분석 메모</h3>
+              </div>
+              <span class="detail-section-hint">목적, 판단 근거, 결과 중심 정리</span>
+            </div>
+            <div class="detail-note-list">
+              ${noteItems
+                .map(
+                  (line, index) => `
+                    <article class="detail-note-card">
+                      <small>NOTE ${escapeHtml(String(index + 1).padStart(2, "0"))}</small>
+                      <p>${escapeHtml(line)}</p>
+                    </article>
+                  `
+                )
+                .join("")}
+            </div>
+          </section>
+
+          <section class="detail-card-shell detail-comments-shell">
+            <div class="detail-card-head">
+              <div>
+                <p class="panel-kicker">Comments</p>
+                <h3>Visitor Comments</h3>
+              </div>
+              <span class="detail-section-hint">로그인 사용자만 작성 가능</span>
+            </div>
+            ${
+              viewer
+                ? `
+                  <form id="comment-form" class="detail-comment-form">
+                    <textarea name="message" rows="3" maxlength="1000" placeholder="프로젝트를 보고 느낀 점이나 질문을 남겨보세요"></textarea>
+                    <div class="detail-comment-actions">
+                      <input name="commentPassword" type="password" maxlength="32" placeholder="댓글 비밀번호 (선택)" />
+                      <button type="submit" class="primary-button">댓글 등록</button>
+                    </div>
+                    <p class="detail-comment-hint">댓글 비밀번호는 선택값이고, 관리자는 저장된 값도 확인할 수 있습니다.</p>
+                  </form>
+                `
+                : `
+                  <article class="comment-locked compact">
+                    <strong>구글 로그인 후 댓글을 남길 수 있습니다.</strong>
+                    <p>비로그인 방문자는 읽기만 가능합니다.</p>
                   </article>
                 `
-              )
-              .join("")}
-          </div>
-        </section>
-
-        <section class="detail-section">
-          <div class="comment-section-head">
-            <div>
-              <p class="panel-kicker">Comments</p>
-              <h3>방문자 코멘트</h3>
-            </div>
-          </div>
-          ${
-            viewer
-              ? `
-                <form id="comment-form" class="comment-form">
-                  <textarea name="message" rows="3" maxlength="1000" placeholder="프로젝트를 보고 느낀 점이나 질문을 남겨보세요"></textarea>
-                  <div class="comment-form-row">
-                    <input name="commentPassword" type="text" maxlength="32" placeholder="댓글 비밀번호 (선택)" />
-                    <button type="submit" class="primary-button">댓글 등록</button>
-                  </div>
-                  <p class="comment-form-hint">원하면 댓글용 비밀번호를 남길 수 있고, 관리자는 그 값도 확인할 수 있습니다.</p>
-                </form>
-              `
-              : `
-                <article class="comment-locked">
-                  <strong>구글 로그인 후 댓글을 남길 수 있습니다.</strong>
-                  <p>비로그인 방문자는 읽기만 가능합니다.</p>
-                </article>
-              `
-          }
-          <div class="comment-list">
-            ${
-              comments.length
-                ? comments
-                    .map(
-                      (comment) => `
-                        <article class="comment-card">
-                          <div class="comment-author">
-                            <div class="avatar-circle">${escapeHtml((comment.authorName || "?").slice(0, 1).toUpperCase())}</div>
-                            <div>
-                              <strong>${escapeHtml(comment.authorName || "Visitor")}</strong>
-                              <span>${formatDate(comment.createdAt)}</span>
-                            </div>
-                          </div>
-                          ${
-                            viewer?.role === "admin" && comment.password
-                              ? `<div class="comment-password-pill">PW ${escapeHtml(comment.password)}</div>`
-                              : ""
-                          }
-                          <p>${escapeHtml(comment.message || "")}</p>
-                        </article>
-                      `
-                    )
-                    .join("")
-                : `<article class="empty-state small">아직 댓글이 없습니다.</article>`
             }
-          </div>
-        </section>
+            <div class="comment-list detail-comment-list">
+              ${
+                comments.length
+                  ? comments
+                      .map(
+                        (comment) => `
+                          <article class="comment-card detail-comment-card">
+                            <div class="comment-author">
+                              <div class="avatar-circle">${escapeHtml((comment.authorName || "?").slice(0, 1).toUpperCase())}</div>
+                              <div>
+                                <strong>${escapeHtml(comment.authorName || "Visitor")}</strong>
+                                <span>${formatDate(comment.createdAt)}</span>
+                              </div>
+                            </div>
+                            ${
+                              viewer?.role === "admin" && comment.password
+                                ? `<div class="comment-password-pill">PW ${escapeHtml(comment.password)}</div>`
+                                : ""
+                            }
+                            <p>${escapeHtml(comment.message || "")}</p>
+                          </article>
+                        `
+                      )
+                      .join("")
+                  : `<article class="empty-state small">아직 댓글이 없습니다.</article>`
+              }
+            </div>
+          </section>
+        </div>
       </div>
-    </div>
+    </article>
   `;
 
   const detailVideo = elements.detailModalBody.querySelector(".preview-video");
