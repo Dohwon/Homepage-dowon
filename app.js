@@ -102,9 +102,9 @@ const ABOUT_METRIC_OVERRIDES = [
     note: "비-19 판정 성능을 룰 보강과 weak label 정리로 개선"
   },
   {
-    label: "공간명 추출 정확도",
-    value: "100%",
-    note: "도메인 특화 엔티티 추출 과제 기준"
+    label: "음성인식 관련 출원",
+    value: "5건",
+    note: "2025년 기준 음성인식 관련 임시 출원"
   }
 ];
 
@@ -202,7 +202,7 @@ function bindEvents() {
     openDetail(card.dataset.projectId);
   });
 
-  [elements.inProgressBoard, elements.activeBoard, elements.categoryOverview].forEach((container) => {
+  [elements.inProgressBoard, elements.activeBoard, elements.categoryOverview].filter(Boolean).forEach((container) => {
     container.addEventListener("click", (event) => {
       const item = event.target.closest("[data-project-id]");
       if (!item) return;
@@ -234,8 +234,7 @@ function bindEvents() {
     }
     const timelineItem = event.target.closest("[data-timeline-project]");
     if (!timelineItem) return;
-    state.currentTimelineProjectId = timelineItem.dataset.timelineProject;
-    renderProjectTimeline();
+    openDetail(timelineItem.dataset.timelineProject);
   });
 
   elements.projectTimelineMap.addEventListener("keydown", (event) => {
@@ -243,8 +242,7 @@ function bindEvents() {
     const timelineItem = event.target.closest("[data-timeline-project]");
     if (!timelineItem) return;
     event.preventDefault();
-    state.currentTimelineProjectId = timelineItem.dataset.timelineProject;
-    renderProjectTimeline();
+    openDetail(timelineItem.dataset.timelineProject);
   });
 
   elements.projectGrid.addEventListener("mouseover", handlePreviewHover);
@@ -554,20 +552,17 @@ function renderCareerTimeline() {
   const timeline = arrayOrEmpty(profile.careerTimeline)
     .map(
       (item) => `
-        <article class="timeline-item career-timeline-item">
+        <article class="career-line-item">
+          <span class="career-line-dot"></span>
           <div class="career-period-pill">${escapeHtml(item.period || "")}</div>
-          <div class="career-card">
+          <div class="career-line-card">
             <div class="career-title-row">
               <div>
                 <h3>${escapeHtml(item.company || "")}</h3>
                 <p class="career-role">${escapeHtml(item.role || "")}</p>
               </div>
-              <span class="career-index">${escapeHtml(buildCareerIndexLabel(item))}</span>
             </div>
             <p class="timeline-copy">${escapeHtml(item.summary || "")}</p>
-            <div class="career-proof-row">
-              ${buildCareerHighlights(item).map((entry) => `<span class="career-proof-pill">${escapeHtml(entry)}</span>`).join("")}
-            </div>
           </div>
         </article>
       `
@@ -575,7 +570,9 @@ function renderCareerTimeline() {
     .join("");
 
   elements.careerTimeline.innerHTML = `
-    <div class="timeline-track career-track">${timeline}</div>
+    <div class="career-line-scroll">
+      <div class="career-line-track">${timeline}</div>
+    </div>
   `;
 }
 
@@ -587,20 +584,54 @@ function renderProjectTimeline() {
     return;
   }
 
-  const enriched = projects.map((project) => buildTimelineEntry(project));
-  const range = buildTimelineRange(enriched);
-  const selectedId = findProject(state.currentTimelineProjectId) ? state.currentTimelineProjectId : enriched[0].project.id;
-  state.currentTimelineProjectId = selectedId;
+  const enriched = projects
+    .map((project) => buildTimelineEntry(project))
+    .sort((left, right) => left.start.getTime() - right.start.getTime());
 
   elements.timelineLegend.innerHTML = `
-    <span class="timeline-legend-pill"><i class="legend-dot active"></i>프로젝트 기간</span>
+    <span class="timeline-legend-pill"><i class="legend-dot active"></i>프로젝트 진행</span>
     <span class="timeline-legend-pill"><i class="legend-dot difficulty"></i>난관 구간</span>
-    <span class="timeline-legend-pill"><i class="legend-dot milestone"></i>해결 마일스톤</span>
+    <span class="timeline-legend-pill"><i class="legend-dot milestone"></i>해결 힌트</span>
   `;
 
-  elements.projectTimelineMap.innerHTML = enriched
-    .map((entry) => renderTimelineRow(entry, range, entry.project.id === selectedId))
-    .join("");
+  elements.projectTimelineMap.innerHTML = renderTimelineChronicle(enriched);
+}
+
+function renderTimelineChronicle(entries) {
+  return `
+    <div class="timeline-chronicle-shell">
+      <div class="timeline-chronicle-track">
+        ${entries.map((entry) => renderChronicleItem(entry)).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderChronicleItem(entry) {
+  const story = entry.story;
+  const difficultyCopy = entry.difficulties[0]?.label || "핵심 이슈 정리";
+  const impactCopy = arrayOrEmpty(story.impact)[0] || arrayOrEmpty(entry.project.highlights)[0] || entry.project.summary;
+  return `
+    <article class="chronicle-item ${entry.project.status === "in-progress" ? "warning" : "success"}" tabindex="0" data-timeline-project="${escapeHtml(entry.project.id)}">
+      <span class="chronicle-stem"></span>
+      <span class="chronicle-node ${entry.project.status === "in-progress" ? "warning" : "success"}"></span>
+      <div class="chronicle-date">${escapeHtml(entry.label)}</div>
+      <div class="chronicle-card">
+        <div class="chronicle-head">
+          <span class="badge ${entry.project.status === "in-progress" ? "warning" : "success"}">
+            ${entry.project.status === "in-progress" ? "진행중" : "완료/운영"}
+          </span>
+          <span class="chronicle-category">${escapeHtml(getProjectCategory(entry.project))}</span>
+        </div>
+        <h3>${escapeHtml(getProjectDisplayName(entry.project))}</h3>
+        <p>${escapeHtml(story.challenge || entry.project.summary)}</p>
+        <div class="chronicle-meta">
+          <span class="chronicle-pill difficulty">${escapeHtml(truncate(difficultyCopy, 42))}</span>
+          <span class="chronicle-pill">${escapeHtml(truncate(impactCopy, 42))}</span>
+        </div>
+      </div>
+    </article>
+  `;
 }
 
 function renderSkills() {
@@ -1184,33 +1215,35 @@ function renderProjectSnapshot() {
     categoryMap.get(category).push(project);
   }
 
-  elements.categoryOverview.innerHTML = [...categoryMap.entries()]
-    .sort((left, right) => right[1].length - left[1].length || left[0].localeCompare(right[0]))
-    .map(([category, items]) => {
-      return `
-        <article class="category-cluster">
-          <div class="category-cluster-head">
-            <div>
-              <h3>${escapeHtml(category)}</h3>
-              <p>${escapeHtml(String(items.length))}개 프로젝트</p>
+  if (elements.categoryOverview) {
+    elements.categoryOverview.innerHTML = [...categoryMap.entries()]
+      .sort((left, right) => right[1].length - left[1].length || left[0].localeCompare(right[0]))
+      .map(([category, items]) => {
+        return `
+          <article class="category-cluster">
+            <div class="category-cluster-head">
+              <div>
+                <h3>${escapeHtml(category)}</h3>
+                <p>${escapeHtml(String(items.length))}개 프로젝트</p>
+              </div>
             </div>
-          </div>
-          <div class="category-link-list">
-            ${items
-              .map(
-                (project) => `
-                  <button type="button" class="category-link" data-project-id="${escapeHtml(project.id)}">
-                    <span>${escapeHtml(getProjectDisplayName(project))}</span>
-                    <small>${project.status === "in-progress" ? "진행중" : "완료/운영"}</small>
-                  </button>
-                `
-              )
-              .join("")}
-          </div>
-        </article>
-      `;
-    })
-    .join("");
+            <div class="category-link-list">
+              ${items
+                .map(
+                  (project) => `
+                    <button type="button" class="category-link" data-project-id="${escapeHtml(project.id)}">
+                      <span>${escapeHtml(getProjectDisplayName(project))}</span>
+                      <small>${project.status === "in-progress" ? "진행중" : "완료/운영"}</small>
+                    </button>
+                  `
+                )
+                .join("")}
+            </div>
+          </article>
+        `;
+      })
+      .join("");
+  }
 }
 
 function renderSnapshotItem(project, tone) {
@@ -1299,6 +1332,10 @@ function renderProjectCard(project) {
   const counts = state.bootstrap.commentCounts || {};
   const commentCount = counts[project.id] || 0;
   const viewer = state.bootstrap.viewer;
+  const leadHighlight =
+    arrayOrEmpty(project.highlights)[0] ||
+    arrayOrEmpty(project.tags)[0] ||
+    project.summary;
 
   return `
     <article class="project-card" tabindex="0" data-project-id="${escapeHtml(project.id)}">
@@ -1314,14 +1351,18 @@ function renderProjectCard(project) {
       <div class="card-body">
         <div class="card-heading">
           ${renderDisplayTitle(project, "card")}
-          <span class="comment-pill">댓글 ${escapeHtml(String(commentCount))}</span>
         </div>
         <p class="card-summary">${escapeHtml(project.summary)}</p>
-        <div class="tag-row">
-          ${arrayOrEmpty(project.tags).slice(0, 4).map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")}
+        <div class="card-proof-line">
+          <strong>이 프로젝트가 한 일</strong>
+          <span>${escapeHtml(leadHighlight)}</span>
+        </div>
+        <div class="tag-row compact">
+          ${arrayOrEmpty(project.tags).slice(0, 2).map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")}
         </div>
         <div class="card-footer">
           <span>${escapeHtml(arrayOrEmpty(project.stack).slice(0, 3).join(" · "))}</span>
+          <span>댓글 ${escapeHtml(String(commentCount))}</span>
         </div>
       </div>
 
