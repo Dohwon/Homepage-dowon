@@ -3750,10 +3750,10 @@ a {
 
 @media (min-width: 861px) {
   #home-section .project-card {
-    display: grid;
-    grid-template-rows: auto 108px 164px minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
     min-height: 438px;
-    max-height: 438px;
+    max-height: none;
     gap: 14px;
   }
 
@@ -3763,21 +3763,17 @@ a {
   }
 
   #home-section .card-heading {
-    min-height: 108px;
+    min-height: 94px;
   }
 
   #home-section .display-title.card {
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    align-content: start;
-    height: 100%;
+    gap: 6px;
   }
 
   #home-section .display-title.card .display-title-text {
-    display: grid;
-    gap: 6px;
-    align-content: start;
+    display: block;
     font-size: clamp(1.14rem, 1.12vw, 1.32rem);
-    line-height: 1.15;
+    line-height: 1.22;
   }
 
   #home-section .display-title.card .title-lead,
@@ -3785,12 +3781,25 @@ a {
     display: block;
   }
 
+  #home-section .display-title.card .title-rest {
+    margin-top: 6px;
+  }
+
+  #home-section .display-title.card .title-lead::after {
+    display: none;
+  }
+
   #home-section .display-title-sub {
-    min-height: 2.9em;
+    display: -webkit-box;
+    min-height: 2.8em;
     margin-top: 0;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
   #home-section .preview-surface {
+    flex: 0 0 164px;
     height: 164px;
     min-height: 164px;
   }
@@ -3822,20 +3831,23 @@ a {
   }
 
   #home-section .card-body {
-    min-height: 0;
-    grid-template-rows: minmax(0, 2.9em) minmax(0, 76px) auto auto;
-    align-content: start;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
     gap: 10px;
   }
 
   #home-section .card-summary {
+    display: -webkit-box;
     margin: 0;
     min-height: 0;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
 
   #home-section .card-proof-line {
-    min-height: 76px;
+    min-height: 72px;
     padding: 10px 12px;
   }
 
@@ -3860,7 +3872,7 @@ a {
   #home-section .card-footer {
     margin-top: auto;
     padding-top: 2px;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
   }
 
   #home-section .card-footer span {
@@ -3869,6 +3881,58 @@ a {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
+
+.display-title.detail {
+  gap: 8px;
+}
+
+.display-title.detail .display-title-text {
+  display: block;
+  line-height: 1.16;
+}
+
+.display-title.detail .title-rest {
+  display: block;
+  margin-top: 8px;
+}
+
+.display-title.detail .title-lead::after {
+  display: none;
+}
+
+.detail-header,
+.detail-header > div,
+.detail-section,
+.detail-meta-card,
+.detail-link-card,
+.detail-note-card,
+.comment-card {
+  min-width: 0;
+}
+
+.detail-header > div,
+.detail-section,
+.detail-meta-card {
+  overflow: hidden;
+}
+
+.detail-link-card strong,
+.detail-note-card p,
+.focus-highlight-card h3,
+.focus-highlight-card p,
+.detail-result-card strong,
+.comment-card p {
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.detail-timeline-window {
+  align-items: flex-start;
+}
+
+.comment-author {
+  align-items: flex-start;
 }
 
 @media (max-width: 860px) {
@@ -4034,8 +4098,8 @@ a {
   }
 
   #home-section .project-card {
-    display: grid;
-    grid-template-rows: auto auto 144px auto;
+    display: flex;
+    flex-direction: column;
     min-height: 0;
     max-height: none;
     gap: 12px;
@@ -4047,10 +4111,9 @@ a {
   }
 
   #home-section .display-title.card .display-title-text {
-    display: grid;
-    gap: 5px;
+    display: block;
     font-size: 1.08rem;
-    line-height: 1.18;
+    line-height: 1.22;
   }
 
   #home-section .display-title.card .title-lead,
@@ -4058,13 +4121,23 @@ a {
     display: block;
   }
 
+  #home-section .display-title.card .title-rest {
+    margin-top: 6px;
+  }
+
+  #home-section .display-title.card .title-lead::after {
+    display: none;
+  }
+
   #home-section .preview-surface {
+    flex: 0 0 144px;
     height: 144px;
     min-height: 144px;
   }
 
   #home-section .card-body {
-    grid-template-rows: auto auto auto auto;
+    display: flex;
+    flex-direction: column;
     gap: 10px;
   }
 
@@ -4244,10 +4317,12 @@ a {
   }
 
   #home-section .project-card {
-    grid-template-rows: auto auto 148px auto;
+    display: flex;
+    flex-direction: column;
   }
 
   #home-section .preview-surface {
+    flex-basis: 148px;
     height: 148px;
     min-height: 148px;
   }
