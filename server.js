@@ -114,11 +114,55 @@ function mergeProjects(primaryProjects, secondaryProjects) {
   return merged;
 }
 
+function mergeProjectsByStatus(existingProjects, generatedProjects) {
+  const generatedMap = new Map(
+    generatedProjects.map((project) => [project.id || slugify(project.name || "project"), project])
+  );
+
+  const merged = existingProjects.map((project) => {
+    const id = project.id || slugify(project.name || "project");
+    const generated = generatedMap.get(id);
+    if (!generated) return project;
+    generatedMap.delete(id);
+    return {
+      ...project,
+      status: generated.status || project.status,
+      path: project.path || generated.path || "",
+      readme: project.readme || generated.readme || ""
+    };
+  });
+
+  for (const generated of generatedMap.values()) {
+    merged.push({
+      id: generated.id,
+      name: generated.name,
+      status: generated.status,
+      category: generated.category || "Imported Project",
+      summary: "원본 프로젝트에서 상태만 복사한 항목입니다.",
+      highlights: [`상태: ${generated.status === "in-progress" ? "진행중" : "완료/운영"}`],
+      stack: [],
+      tags: ["Imported", "Status Sync"],
+      path: generated.path || "",
+      readme: generated.readme || "",
+      detail: {
+        readmeSummary: ["원본 프로젝트 폴더는 수정하지 않고 상태만 동기화했습니다."],
+        workflow: [],
+        keyFiles: generated.path ? [generated.path] : [],
+        diagramCaption: "원본 프로젝트 상태 동기화 카드"
+      }
+    });
+  }
+
+  return merged;
+}
+
 function normalizeProject(project, index) {
   const id = project.id || slugify(project.name || `project-${index + 1}`);
   const previewAssets = inferPreviewAssets(id);
   const detail = normalizeDetail(project.detail, project);
   const preview = normalizePreview(project.preview, project, previewAssets);
+  const story = normalizeStory(project.story, project);
+  const timeline = normalizeTimeline(project.timeline, project);
 
   return {
     id,
@@ -133,6 +177,8 @@ function normalizeProject(project, index) {
     readme: project.readme ? String(project.readme) : "",
     detail,
     preview,
+    story,
+    timeline,
     createdAt: project.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -193,6 +239,204 @@ function normalizePreview(preview, project, assets) {
     caption: String(preview?.caption || project.summary || ""),
     steps
   };
+}
+
+function normalizeStory(story, project) {
+  return {
+    narrative: String(story?.narrative || ""),
+    challenge: String(story?.challenge || ""),
+    attempts: arrayify(story?.attempts),
+    resolution: String(story?.resolution || ""),
+    impact: arrayify(story?.impact || project.highlights),
+    caseIds: arrayify(story?.caseIds)
+  };
+}
+
+function normalizeTimeline(timeline, project) {
+  const inferred = inferProjectDateRange(project);
+  const start = normalizeTimelineDate(timeline?.start || inferred.start || project.createdAt);
+  const defaultEnd = project.status === "in-progress"
+    ? normalizeTimelineDate(new Date())
+    : normalizeTimelineDate(timeline?.end || inferred.end || start);
+  const end = normalizeTimelineDate(timeline?.end || defaultEnd || start);
+
+  return {
+    start,
+    end,
+    label: String(timeline?.label || buildTimelineLabel(start, end, project.status)),
+    difficultyWindows: Array.isArray(timeline?.difficultyWindows)
+      ? timeline.difficultyWindows
+          .map((item, index) => normalizeDifficultyWindow(item, start, end, index))
+          .filter((item) => item.label)
+      : [],
+    milestones: Array.isArray(timeline?.milestones)
+      ? timeline.milestones
+          .map((item) => normalizeMilestone(item))
+          .filter((item) => item.label || item.date)
+      : []
+  };
+}
+
+function normalizeDifficultyWindow(item, fallbackStart, fallbackEnd, index) {
+  return {
+    label: String(item?.label || item?.name || `난관 ${index + 1}`),
+    start: normalizeTimelineDate(item?.start || fallbackStart),
+    end: normalizeTimelineDate(item?.end || fallbackEnd || fallbackStart),
+    severity: normalizeSeverity(item?.severity)
+  };
+}
+
+function normalizeMilestone(item) {
+  return {
+    label: String(item?.label || item?.name || ""),
+    date: normalizeTimelineDate(item?.date || item?.at || ""),
+    tone: normalizeTone(item?.tone)
+  };
+}
+
+function normalizeSeverity(value) {
+  const severity = String(value || "").toLowerCase();
+  if (severity === "high" || severity === "low") return severity;
+  return "medium";
+}
+
+function normalizeTone(value) {
+  const tone = String(value || "").toLowerCase();
+  if (tone === "warning" || tone === "success" || tone === "neutral") return tone;
+  return "neutral";
+}
+
+function normalizeTimelineDate(value) {
+  if (!value) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  if (/^\d{4}-\d{2}$/.test(raw)) return `${raw}-01`;
+  if (/^\d{4}\.\d{2}\.\d{2}$/.test(raw)) return raw.replace(/\./g, "-");
+  if (/^\d{4}\.\d{2}$/.test(raw)) return `${raw.replace(".", "-")}-01`;
+  if (/^\d{8}$/.test(raw)) return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+  if (/^\d{6}$/.test(raw)) return `20${raw.slice(0, 2)}-${raw.slice(2, 4)}-${raw.slice(4, 6)}`;
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+  return "";
+}
+
+function buildTimelineLabel(start, end, status) {
+  const startLabel = formatTimelineMonth(start);
+  const endLabel = formatTimelineMonth(end);
+  if (!startLabel && !endLabel) {
+    return status === "in-progress" ? "기간 입력 필요 · 진행중" : "기간 입력 필요";
+  }
+  if (startLabel && endLabel && startLabel !== endLabel) {
+    return `${startLabel} - ${endLabel}`;
+  }
+  return startLabel || endLabel;
+}
+
+function formatTimelineMonth(dateText) {
+  if (!dateText) return "";
+  const normalized = normalizeTimelineDate(dateText);
+  if (!normalized) return "";
+  return normalized.slice(0, 7).replace("-", ".");
+}
+
+function inferProjectDateRange(project) {
+  const explicitStart = normalizeTimelineDate(project.timeline?.start || "");
+  const explicitEnd = normalizeTimelineDate(project.timeline?.end || "");
+  if (explicitStart || explicitEnd) {
+    return {
+      start: explicitStart || explicitEnd,
+      end: explicitEnd || explicitStart
+    };
+  }
+
+  const fromText = extractDateCandidates([project.path, project.id, project.name]);
+  const fromPathStats = inspectProjectPathRange(project.path);
+  const fallbackStart = fromText[0] || fromPathStats.start || normalizeTimelineDate(project.createdAt);
+  const fallbackEnd = project.status === "in-progress"
+    ? normalizeTimelineDate(new Date())
+    : fromPathStats.end || fromText[fromText.length - 1] || fallbackStart;
+
+  return {
+    start: fallbackStart,
+    end: fallbackEnd
+  };
+}
+
+function extractDateCandidates(values) {
+  const hits = [];
+  for (const value of values) {
+    const text = String(value || "");
+    const patterns = [
+      /\b(20\d{2})[._-]?(\d{2})[._-]?(\d{2})\b/g,
+      /\b(\d{2})(\d{2})(\d{2})\b/g
+    ];
+    for (const pattern of patterns) {
+      let match;
+      while ((match = pattern.exec(text))) {
+        if (match[1].length === 4) {
+          hits.push(`${match[1]}-${match[2]}-${match[3]}`);
+        } else {
+          hits.push(`20${match[1]}-${match[2]}-${match[3]}`);
+        }
+      }
+    }
+  }
+  return [...new Set(hits.map((item) => normalizeTimelineDate(item)).filter(Boolean))].sort();
+}
+
+function inspectProjectPathRange(projectPath) {
+  if (!projectPath) return { start: "", end: "" };
+  const absolutePath = path.join(ROOT, projectPath);
+  try {
+    const stat = fs.statSync(absolutePath);
+    if (stat.isFile()) {
+      const baseDate = normalizeTimelineDate(stat.mtime);
+      return { start: baseDate, end: baseDate };
+    }
+
+    const ignoredNames = new Set([".git", "node_modules", "__pycache__", "dist", "build", ".venv"]);
+    const stack = [absolutePath];
+    const timestamps = [];
+    let scanned = 0;
+    while (stack.length && scanned < 400) {
+      const current = stack.pop();
+      const entries = fs.readdirSync(current, { withFileTypes: true });
+      for (const entry of entries) {
+        if (ignoredNames.has(entry.name)) continue;
+        const fullPath = path.join(current, entry.name);
+        if (entry.isDirectory()) {
+          stack.push(fullPath);
+          continue;
+        }
+        if (!entry.isFile()) continue;
+        const entryStat = fs.statSync(fullPath);
+        timestamps.push(entryStat.mtime);
+        scanned += 1;
+        if (scanned >= 400) break;
+      }
+    }
+
+    if (!timestamps.length) {
+      const folderDate = normalizeTimelineDate(stat.mtime);
+      return { start: folderDate, end: folderDate };
+    }
+
+    timestamps.sort((left, right) => left.getTime() - right.getTime());
+    return {
+      start: normalizeTimelineDate(timestamps[0]),
+      end: normalizeTimelineDate(timestamps[timestamps.length - 1])
+    };
+  } catch {
+    return { start: "", end: "" };
+  }
 }
 
 function inferPreviewAssets(projectId) {
@@ -437,6 +681,14 @@ function sanitizeProjectInput(input, existingProject) {
       preview: {
         ...(existingProject?.preview || {}),
         ...(input.preview || {})
+      },
+      story: {
+        ...(existingProject?.story || {}),
+        ...(input.story || {})
+      },
+      timeline: {
+        ...(existingProject?.timeline || {}),
+        ...(input.timeline || {})
       }
     },
     0
@@ -476,7 +728,26 @@ function slugify(value) {
 }
 
 async function loadContent() {
-  return readJson(SITE_CONTENT_PATH, null);
+  const content = await readJson(SITE_CONTENT_PATH, null);
+  const generated = await readJson(path.join(DATA_DIR, "projects.generated.json"), { projects: [] });
+
+  if (!content) {
+    return buildSeedContent();
+  }
+
+  const hiddenProjectIds = new Set(arrayify(content.meta?.hiddenProjectIds));
+  const visibleGenerated = (generated.projects || []).filter((project) => !hiddenProjectIds.has(project.id));
+
+  return {
+    ...content,
+    projects: mergeProjectsByStatus(content.projects || [], visibleGenerated).map((project, index) =>
+      normalizeProject(project, index)
+    ),
+    meta: {
+      ...(content.meta || {}),
+      hiddenProjectIds: [...hiddenProjectIds]
+    }
+  };
 }
 
 async function saveContent(content) {
@@ -814,6 +1085,8 @@ async function handleApi(req, res, url) {
     const body = await readBody(req);
     const input = body.project || {};
     const content = await loadContent();
+    content.meta = content.meta || {};
+    content.meta.hiddenProjectIds = arrayify(content.meta.hiddenProjectIds).filter((id) => id !== slugify(input.id || ""));
     const existingIndex = content.projects.findIndex((project) => project.id === slugify(input.id || ""));
     const existingProject = existingIndex >= 0 ? content.projects[existingIndex] : null;
     const project = sanitizeProjectInput(input, existingProject);
@@ -841,11 +1114,19 @@ async function handleApi(req, res, url) {
     const projectId = decodeURIComponent(url.pathname.replace("/api/projects/", ""));
     const content = await loadContent();
     const nextProjects = content.projects.filter((project) => project.id !== projectId);
-    if (nextProjects.length === content.projects.length) {
+    const hiddenIds = new Set(arrayify(content.meta?.hiddenProjectIds));
+    const existedInGenerated = await readJson(path.join(DATA_DIR, "projects.generated.json"), { projects: [] });
+    const inGenerated = (existedInGenerated.projects || []).some((project) => project.id === projectId);
+    if (nextProjects.length === content.projects.length && !inGenerated) {
       sendJson(res, 404, { error: "project_not_found" });
       return;
     }
     content.projects = nextProjects;
+    content.meta = content.meta || {};
+    if (inGenerated) {
+      hiddenIds.add(projectId);
+    }
+    content.meta.hiddenProjectIds = [...hiddenIds];
     await saveContent(content);
     const comments = await loadComments();
     await saveComments(comments.filter((comment) => comment.projectId !== projectId));

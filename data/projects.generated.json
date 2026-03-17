@@ -271,11 +271,121 @@
         ],
         "keyFiles": [
           "projects/260212_feeling_traker/README.md",
-          "projects/260212_feeling_traker/server.py",
-          "projects/260212_feeling_traker/AGENTS.md",
-          "projects/260212_feeling_traker/desktop_widget.py",
-          "projects/260212_feeling_traker/project_memory/backlog.md",
-          "projects/260212_feeling_traker/project_memory/decisions.md"
+          "projects/260212_feeling_traker/branding/icon_candidates_2026-02-15/README.md",
+          "projects/260212_feeling_traker/branding/squishy_pet_blob_2026-02-15/README.md",
+          "projects/260212_feeling_traker/branding/calm_slime_candidates_2026-02-15/README.md",
+          "projects/260212_feeling_traker/branding/calm_slime_favicon_final_2026-02-15/README.md",
+          "projects/260212_feeling_traker/server.py"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "260218-ope-log-anlayze",
+      "name": "260218_ope_log_anlayze",
+      "status": "active",
+      "category": "Operational Analytics",
+      "summary": "260218_ope_log_anlayze 프로젝트 자산.",
+      "highlights": [
+        "프로젝트 스캔 기반 기본 요약"
+      ],
+      "stack": [
+        "XLSX",
+        "CSV"
+      ],
+      "tags": [
+        "Ops",
+        "Log",
+        "Analytics"
+      ],
+      "path": "projects/260218_ope_log_anlayze",
+      "readme": null,
+      "detail": {
+        "readmeSummary": [
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
+        ],
+        "workflow": [
+          {
+            "step": "입력 확인",
+            "desc": "프로젝트 입력 데이터/의존성을 확인"
+          },
+          {
+            "step": "처리 실행",
+            "desc": "주요 코드 또는 노트북 셀을 실행"
+          },
+          {
+            "step": "결과 확인",
+            "desc": "산출물/로그를 점검해 품질을 판단"
+          },
+          {
+            "step": "개선 반영",
+            "desc": "문제점 기반으로 다음 수정안을 도출"
+          }
+        ],
+        "keyFiles": [
+          "projects/260218_ope_log_anlayze/ope_log_handoff_to_codex.md",
+          "projects/260218_ope_log_anlayze/docs/A1_llm_conversation_dashboard_sql.md",
+          "projects/260218_ope_log_anlayze/docs/worklogs/2026-02-18_a1-llm-dashboard-analysis.md",
+          "projects/260218_ope_log_anlayze/260130-운영계-대화기록-01월.csv",
+          "projects/260218_ope_log_anlayze/dynamodb_테이블정의서 (2).xlsx",
+          "projects/260218_ope_log_anlayze/250107-운영계-대화기록-1월_7일.csv"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "260315-moe-prompt-routing",
+      "name": "260315_MoE_Prompt_Routing",
+      "status": "active",
+      "category": "Prompt Evaluation",
+      "summary": "260315_MoE_Prompt_Routing 프로젝트 자산.",
+      "highlights": [
+        "프로젝트 스캔 기반 기본 요약"
+      ],
+      "stack": [
+        "Python",
+        "XLSX",
+        "CSV"
+      ],
+      "tags": [
+        "Prompt",
+        "Eval",
+        "Automation"
+      ],
+      "path": "projects/260315_MoE_Prompt_Routing",
+      "readme": "projects/260315_MoE_Prompt_Routing/README.md",
+      "detail": {
+        "readmeSummary": [
+          "이 폴더는 `음성 클라우드 라우팅 설계`, `실행 프롬프트`, `평가용 judge`, `엑셀 기반 테스트`를 한곳에서 관리하는 작업 폴더다.",
+          "가장 중요한 기준 파일은 아래 4개다.",
+          "구조 설명: docs/architecture/routing-blueprint.current.md",
+          "실제 runtime 프롬프트: prompts/runtime"
+        ],
+        "workflow": [
+          {
+            "step": "입력 준비",
+            "desc": "README 기준 입력 파일/파라미터를 준비"
+          },
+          {
+            "step": "핵심 실행",
+            "desc": "메인 스크립트 또는 엔트리포인트를 실행"
+          },
+          {
+            "step": "결과 저장",
+            "desc": "산출물 파일(JSON/CSV/로그 등) 생성"
+          },
+          {
+            "step": "검토",
+            "desc": "결과를 검토해 다음 개선 작업으로 연결"
+          }
+        ],
+        "keyFiles": [
+          "projects/260315_MoE_Prompt_Routing/README.md",
+          "projects/260315_MoE_Prompt_Routing/tools/__init__.py",
+          "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/cli.py",
+          "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/common.py",
+          "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/harness.py",
+          "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/workbook.py"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
       }
@@ -437,9 +547,9 @@
           "projects/Operation_log_analayzer/judge_search.py",
           "projects/Operation_log_analayzer/process_logs.py",
           "projects/Operation_log_analayzer/process_logs_v3.py",
-          "projects/Operation_log_analayzer/samples/vip.txt",
-          "projects/Operation_log_analayzer/requirements.txt",
-          "projects/Operation_log_analayzer/samples/internal.txt"
+          "projects/Operation_log_analayzer/analyze_business_insights.py",
+          "projects/Operation_log_analayzer/manager_memory/short-term/active-tasks.md",
+          "projects/Operation_log_analayzer/manager_memory/long-term/strategy-roadmap.md"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
       }
@@ -643,12 +753,67 @@
           }
         ],
         "keyFiles": [
+          "projects/Semantic_Verb_Schema/file_sets/README.md",
           "projects/Semantic_Verb_Schema/fc_dict.py",
           "projects/Semantic_Verb_Schema/split_corpus.py",
+          "projects/Semantic_Verb_Schema/mcp_build_spec.md",
           "projects/Semantic_Verb_Schema/fc_json_to_tsv.py",
-          "projects/Semantic_Verb_Schema/filter_fc_semantic.py",
-          "projects/Semantic_Verb_Schema/expand_from_corpus.py",
-          "projects/Semantic_Verb_Schema/merge_fc_candidates.py"
+          "projects/Semantic_Verb_Schema/retag_with_kiwi.py"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      }
+    },
+    {
+      "id": "todack",
+      "name": "Todack",
+      "status": "in-progress",
+      "category": "General",
+      "summary": "Todack 프로젝트 자산.",
+      "highlights": [
+        "프로젝트 스캔 기반 기본 요약"
+      ],
+      "stack": [
+        "Python",
+        "YAML",
+        "JSON"
+      ],
+      "tags": [
+        "Project"
+      ],
+      "path": "projects/Todack",
+      "readme": "projects/Todack/README.md",
+      "detail": {
+        "readmeSummary": [
+          "진행중 프로젝트. Web API를 기준으로 Web/Windows/Android/iOS 클라이언트를 연계한다.",
+          "1. 앱/컴퓨터 연동: 공용 API 서버(`server.py`) + SQLite 저장",
+          "2. 컴퓨터 화면 앱: 웹 관리화면(`index.html`)과 플로팅 위젯(`desktop_widget.py`)",
+          "3. 통계 그래프: 최근 기록 점수 추세 캔버스 그래프"
+        ],
+        "workflow": [
+          {
+            "step": "입력 준비",
+            "desc": "README 기준 입력 파일/파라미터를 준비"
+          },
+          {
+            "step": "핵심 실행",
+            "desc": "메인 스크립트 또는 엔트리포인트를 실행"
+          },
+          {
+            "step": "결과 저장",
+            "desc": "산출물 파일(JSON/CSV/로그 등) 생성"
+          },
+          {
+            "step": "검토",
+            "desc": "결과를 검토해 다음 개선 작업으로 연결"
+          }
+        ],
+        "keyFiles": [
+          "projects/Todack/README.md",
+          "projects/Todack/windows/README.md",
+          "projects/Todack/design/figma/README.md",
+          "projects/Todack/mobile/expo-feeling-app/README.md",
+          "projects/Todack/calm_slime_favicon_final_2026-02-15/README.md",
+          "projects/Todack/branding/calm_slime_favicon_final_2026-02-15/README.md"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
       }
