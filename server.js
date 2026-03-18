@@ -1229,6 +1229,21 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
+function normalizeDisplayPayload(value) {
+  if (typeof value === "string") {
+    return value.replace(/ -> /g, " → ");
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeDisplayPayload(item));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, normalizeDisplayPayload(item)])
+    );
+  }
+  return value;
+}
+
 function sendText(res, statusCode, message) {
   res.writeHead(statusCode, {
     "Content-Type": "text/plain; charset=utf-8"
@@ -1580,7 +1595,7 @@ async function handleApi(req, res, url) {
         devLoginEnabled: isDevLoginAllowed(req)
       }
     };
-    sendJson(res, 200, response);
+    sendJson(res, 200, normalizeDisplayPayload(response));
     return;
   }
 
