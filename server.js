@@ -30,6 +30,8 @@ const DEV_ALLOW_LOCAL_LOGIN = process.env.DEV_ALLOW_LOCAL_LOGIN === "true";
 const DEV_ADMIN_EMAIL = (process.env.DEV_ADMIN_EMAIL || "").trim().toLowerCase();
 const DEFAULT_PUBLIC_EMAIL = "dowonkim0612@naver.com";
 const DEFAULT_PROFILE_GITHUB = "https://github.com/Dohwon";
+const SITE_CONTENT_SEED_SYNC_VERSION = "2026-03-18-site-v1";
+const BLOG_POSTS_SEED_SYNC_VERSION = "2026-03-18-blog-v1";
 
 const SESSION_COOKIE = "portfolio_session";
 const VISITOR_COOKIE = "portfolio_visitor";
@@ -391,6 +393,9 @@ async function ensureStorage() {
   } catch {
     await fsp.writeFile(ANALYTICS_PATH, "", "utf8");
   }
+
+  await syncStoredSeedContent();
+  await syncStoredSeedBlogPosts();
 }
 
 async function syncSeedFile(fileName) {
@@ -398,6 +403,45 @@ async function syncSeedFile(fileName) {
   const seedData = await readJson(seedPath, null);
   if (!seedData) return;
   await writeJsonAtomic(path.join(DATA_DIR, fileName), seedData);
+}
+
+async function syncStoredSeedContent() {
+  const current = await readJson(SITE_CONTENT_PATH, null);
+  if (!current || isPlaceholderContent(current)) return;
+  if (current.meta?.seedSyncVersion === SITE_CONTENT_SEED_SYNC_VERSION) return;
+
+  const seeded = await readJson(path.join(SEED_DATA_DIR, "site-content.json"), null);
+  if (!seeded || !Array.isArray(seeded.projects)) return;
+
+  const hiddenProjectIds = new Set(arrayify(current.meta?.hiddenProjectIds));
+  const projects = appendMissingItemsById(current.projects || [], seeded.projects || [], hiddenProjectIds);
+
+  await writeJsonAtomic(SITE_CONTENT_PATH, {
+    ...current,
+    projects,
+    meta: {
+      ...(current.meta || {}),
+      hiddenProjectIds: [...hiddenProjectIds],
+      seedSyncVersion: SITE_CONTENT_SEED_SYNC_VERSION
+    }
+  });
+}
+
+async function syncStoredSeedBlogPosts() {
+  const current = await readJson(BLOG_POSTS_PATH, { posts: [] });
+  if (current.meta?.seedSyncVersion === BLOG_POSTS_SEED_SYNC_VERSION) return;
+
+  const seeded = await readJson(path.join(SEED_DATA_DIR, "blog-posts.json"), { posts: [] });
+  const posts = appendMissingItemsById(current.posts || [], seeded.posts || []);
+
+  await writeJsonAtomic(BLOG_POSTS_PATH, {
+    ...current,
+    posts,
+    meta: {
+      ...(current.meta || {}),
+      seedSyncVersion: BLOG_POSTS_SEED_SYNC_VERSION
+    }
+  });
 }
 
 async function buildSeedContent() {
@@ -460,6 +504,24 @@ function mergeProjects(primaryProjects, secondaryProjects) {
     merged.push(project);
   }
   return merged;
+}
+
+function appendMissingItemsById(existingItems, seedItems, blockedIds = new Set()) {
+  const existingList = Array.isArray(existingItems) ? existingItems : [];
+  const seedList = Array.isArray(seedItems) ? seedItems : [];
+  const existingIds = new Set(
+    existingList.map((item) => String(item?.id || slugify(item?.name || item?.title || "item")))
+  );
+  const nextItems = [...existingList];
+
+  for (const item of seedList) {
+    const id = String(item?.id || slugify(item?.name || item?.title || "item"));
+    if (!id || existingIds.has(id) || blockedIds.has(id)) continue;
+    existingIds.add(id);
+    nextItems.push(item);
+  }
+
+  return nextItems;
 }
 
 function mergeProjectsByStatus(existingProjects, generatedProjects, statusOverrides = {}) {
@@ -1341,7 +1403,11 @@ async function loadBlogPosts() {
 }
 
 async function saveBlogPosts(posts) {
-  await writeJsonAtomic(BLOG_POSTS_PATH, { posts });
+  const current = await readJson(BLOG_POSTS_PATH, {});
+  await writeJsonAtomic(BLOG_POSTS_PATH, {
+    ...current,
+    posts
+  });
 }
 
 async function loadCases() {
