@@ -26,10 +26,12 @@ const elements = {
   heroTitle: document.getElementById("hero-title"),
   heroDescription: document.getElementById("hero-description"),
   heroNote: document.getElementById("hero-note"),
+  nowBuildingBar: document.getElementById("now-building-bar"),
   heroMiniStats: document.getElementById("hero-mini-stats"),
   aboutTitle: document.getElementById("about-title"),
   ownerSummary: document.getElementById("owner-summary"),
   aboutContactList: document.getElementById("about-contact-list"),
+  aboutCoreStrengths: document.getElementById("about-core-strengths"),
   aboutMetrics: document.getElementById("about-metrics"),
   focusTags: document.getElementById("focus-tags"),
   valueProps: document.getElementById("value-props"),
@@ -44,6 +46,7 @@ const elements = {
   projectGrid: document.getElementById("project-grid"),
   timelineLegend: document.getElementById("timeline-legend"),
   projectTimelineMap: document.getElementById("project-timeline-map"),
+  projectLineageMap: document.getElementById("project-lineage-map"),
   adminPanel: document.getElementById("admin-panel"),
   newBlogButton: document.getElementById("new-blog-button"),
   blogGrid: document.getElementById("blog-grid"),
@@ -117,6 +120,78 @@ const ABOUT_METRIC_OVERRIDES = [
     value: "5건",
     note: "2025년 기준 음성인식 관련 임시 출원"
   }
+];
+
+const ABOUT_CORE_STRENGTHS = [
+  {
+    title: "문제 구조화",
+    description: "흐릿한 현상을 로그, 조건, 가설로 쪼개 팀이 바로 움직일 수 있게 만듭니다."
+  },
+  {
+    title: "품질 기준 설계",
+    description: "감으로 말하던 품질 이슈를 합의 가능한 기준과 지표로 바꿉니다."
+  },
+  {
+    title: "실험 루프 구축",
+    description: "한 번성 분석으로 끝내지 않고, 반복 검증 가능한 루프까지 연결합니다."
+  }
+];
+
+const REPEATED_STRENGTH_CLUSTERS = [
+  {
+    id: "problem-structuring",
+    title: "문제 구조화",
+    summary: "복잡한 현상을 바로 움직일 수 있는 문제 단위로 다시 정의하는 영역입니다.",
+    narrative: "운영 로그, 발화 스펙, 프로젝트 기록처럼 흐릿한 입력을 구조화해 backlog와 실험 설계로 넘깁니다.",
+    projects: ["260218-ope-log-anlayze", "operation-log-analyzer", "semantic-verb-schema"],
+    blogs: ["why-i-built-this-homepage"],
+    cases: ["log-driven-debug", "utterance-spec-expansion"]
+  },
+  {
+    id: "quality-criteria",
+    title: "품질 기준 설계",
+    summary: "팀이 같은 품질을 바라보게 만드는 기준과 수치 축을 직접 세우는 영역입니다.",
+    narrative: "CER, 유사도, 판정 스키마처럼 설명 가능한 기준을 먼저 만들고 그 위에서 개선을 반복합니다.",
+    projects: ["calc-stt-cer-colab", "morpheme-analysis-notebook", "utterance-similarity-notebook", "prompt-auto-evaluation"],
+    blogs: [],
+    cases: ["stt-physical-explainability", "nlu-robustness"]
+  },
+  {
+    id: "experiment-loop",
+    title: "실험 루프 구축",
+    summary: "큰 시스템을 분리하고 다시 검증 가능한 루프로 만드는 영역입니다.",
+    narrative: "라우팅, judge, stage 분리를 통해 구조가 바뀌어도 바로 다시 확인할 수 있는 실험 체계를 만듭니다.",
+    projects: ["gemini-multiturn-tester-v3", "260315-moe-prompt-routing", "a2a-family-classifier-experts"],
+    blogs: ["stitch-figma-codex-design-workflow"],
+    cases: ["tooling-bottleneck"]
+  }
+];
+
+const PROJECT_LINEAGE_ROUTES = [
+  {
+    id: "ops-to-routing",
+    title: "운영 문제를 라우팅 구조로 끌어올린 흐름",
+    summary: "운영 로그 분석에서 출발해, 평가 기준과 expert 분리 구조까지 이어진 계보입니다.",
+    projects: ["260218-ope-log-anlayze", "prompt-auto-evaluation", "260315-moe-prompt-routing", "a2a-family-classifier-experts"]
+  },
+  {
+    id: "quality-to-schema",
+    title: "품질 설명력을 데이터 기준으로 고정한 흐름",
+    summary: "음성/NLU 품질을 숫자와 데이터 기준으로 다시 묶어 설명력을 만든 계보입니다.",
+    projects: ["calc-stt-cer-colab", "morpheme-analysis-notebook", "utterance-similarity-notebook", "semantic-verb-schema"]
+  },
+  {
+    id: "personal-tools",
+    title: "직접 쓰는 도구를 제품으로 만든 흐름",
+    summary: "기록과 운영 도구를 실제 인터페이스와 사용 흐름으로 다듬어온 계보입니다.",
+    projects: ["mood-tracker", "todack", "260317-desktop-scheduler"]
+  }
+];
+
+const NOW_BUILDING_PRIORITY_IDS = [
+  "a2a-family-classifier-experts",
+  "260315-moe-prompt-routing",
+  "260317-desktop-scheduler"
 ];
 
 const CAREER_HIGHLIGHT_OVERRIDES = {
@@ -202,6 +277,12 @@ function bindEvents() {
     renderProjects();
   });
 
+  elements.nowBuildingBar?.addEventListener("click", (event) => {
+    const target = event.target.closest("[data-project-link]");
+    if (!target) return;
+    openDetail(target.dataset.projectLink);
+  });
+
   elements.projectGrid.addEventListener("click", (event) => {
     const actionButton = event.target.closest("[data-card-action]");
     if (actionButton) {
@@ -227,6 +308,24 @@ function bindEvents() {
     if (!card) return;
     event.preventDefault();
     openDetail(card.dataset.projectId);
+  });
+
+  elements.caseGrid?.addEventListener("click", (event) => {
+    const projectLink = event.target.closest("[data-project-link]");
+    if (projectLink) {
+      openDetail(projectLink.dataset.projectLink);
+      return;
+    }
+    const blogLink = event.target.closest("[data-blog-link]");
+    if (blogLink) {
+      openBlogDetail(blogLink.dataset.blogLink);
+    }
+  });
+
+  elements.projectLineageMap?.addEventListener("click", (event) => {
+    const projectLink = event.target.closest("[data-project-link]");
+    if (!projectLink) return;
+    openDetail(projectLink.dataset.projectLink);
   });
 
   elements.projectTimelineMap.addEventListener("click", (event) => {
@@ -486,6 +585,8 @@ function renderHero() {
     .map((item) => `<span class="tag-pill">${escapeHtml(item)}</span>`)
     .join("");
 
+  renderNowBuildingBar();
+
   const statItems = [
     { label: "프로젝트", value: String(stats.total), ratio: 1, tone: "neutral" },
     { label: "진행중", value: String(stats.inProgress), ratio: stats.inProgress / Math.max(1, stats.total), tone: "warning" },
@@ -507,6 +608,34 @@ function renderHero() {
       `
     )
     .join("");
+}
+
+function renderNowBuildingBar() {
+  if (!elements.nowBuildingBar) return;
+  const project = getNowBuildingProject();
+  if (!project) {
+    elements.nowBuildingBar.classList.add("hidden");
+    elements.nowBuildingBar.innerHTML = "";
+    return;
+  }
+
+  const story = buildProjectStory(project);
+  const focusCopy = arrayOrEmpty(project.highlights)[0] || story.challenge || project.summary;
+  const statusCopy = project.timeline?.label || formatBlogDate(project.updatedAt || project.createdAt || new Date().toISOString());
+
+  elements.nowBuildingBar.classList.remove("hidden");
+  elements.nowBuildingBar.innerHTML = `
+    <div class="now-building-copy">
+      <p class="panel-kicker">NOW BUILDING</p>
+      <h2>${escapeHtml(getProjectDisplayName(project))}</h2>
+      <p>${escapeHtml(focusCopy)}</p>
+    </div>
+    <div class="now-building-meta">
+      <span class="badge warning">진행중</span>
+      <strong>${escapeHtml(statusCopy)}</strong>
+      <button type="button" class="primary-button" data-project-link="${escapeHtml(project.id)}">지금 보는 작업 열기</button>
+    </div>
+  `;
 }
 
 function renderFilters() {
@@ -560,6 +689,9 @@ function renderProfile() {
   elements.valueProps.innerHTML = valueProps
     .map((item) => `<article class="value-card">${escapeHtml(item)}</article>`)
     .join("");
+  if (elements.aboutCoreStrengths) {
+    elements.aboutCoreStrengths.innerHTML = ABOUT_CORE_STRENGTHS.map(renderAboutCoreStrength).join("");
+  }
   if (elements.aboutContactList) {
     elements.aboutContactList.innerHTML = aboutContacts.map(renderAboutContactCard).join("");
   }
@@ -575,6 +707,15 @@ function renderProfile() {
       `
     )
     .join("");
+}
+
+function renderAboutCoreStrength(item) {
+  return `
+    <article class="about-core-card">
+      <strong>${escapeHtml(item.title)}</strong>
+      <p>${escapeHtml(item.description)}</p>
+    </article>
+  `;
 }
 
 function renderCareerTimeline() {
@@ -613,6 +754,9 @@ function renderProjectTimeline() {
   if (!projects.length) {
     elements.timelineLegend.innerHTML = "";
     elements.projectTimelineMap.innerHTML = `<article class="empty-state">타임라인 데이터가 없습니다.</article>`;
+    if (elements.projectLineageMap) {
+      elements.projectLineageMap.innerHTML = `<article class="empty-state">프로젝트 연결선 데이터가 없습니다.</article>`;
+    }
     return;
   }
 
@@ -627,6 +771,7 @@ function renderProjectTimeline() {
   `;
 
   elements.projectTimelineMap.innerHTML = renderTimelineChronicle(enriched);
+  renderProjectLineages();
 }
 
 function renderTimelineChronicle(entries) {
@@ -847,30 +992,125 @@ function renderSkills() {
 }
 
 function renderCases() {
-  const cases = arrayOrEmpty(state.bootstrap.cases);
-  elements.caseGrid.innerHTML = cases.length
-    ? cases
-        .map(
-          (item) => `
-            <article class="case-card">
-              <div class="case-head">
-                <h3>${escapeHtml(item.title || "")}</h3>
-                <span class="case-badge">Case</span>
-              </div>
-              <p><strong>문제</strong> ${escapeHtml(item.problem || "")}</p>
-              <p><strong>시도</strong></p>
-              <ul class="support-list tight">
-                ${arrayOrEmpty(item.attempts).map((attempt) => `<li>${escapeHtml(attempt)}</li>`).join("")}
-              </ul>
-              <p><strong>결과</strong> ${escapeHtml(item.result || "")}</p>
-              <div class="flow-track">
-                ${arrayOrEmpty(item.flow).map((step) => `<span class="flow-node">${escapeHtml(step)}</span>`).join("")}
-              </div>
-            </article>
-          `
-        )
-        .join("")
+  const clusters = buildRepeatedStrengthClusters();
+  elements.caseGrid.innerHTML = clusters.length
+    ? clusters.map(renderRepeatedStrengthCluster).join("")
     : `<article class="empty-state">문제 해결 사례 데이터가 없습니다.</article>`;
+}
+
+function buildRepeatedStrengthClusters() {
+  const cases = arrayOrEmpty(state.bootstrap.cases);
+  return REPEATED_STRENGTH_CLUSTERS.map((cluster) => ({
+    ...cluster,
+    projectItems: cluster.projects.map((id) => findProject(id)).filter(Boolean),
+    blogItems: cluster.blogs.map((id) => findBlogPost(id)).filter(Boolean),
+    caseItems: cluster.cases.map((id) => cases.find((item) => item.id === id)).filter(Boolean)
+  })).filter((cluster) => cluster.projectItems.length || cluster.blogItems.length || cluster.caseItems.length);
+}
+
+function renderRepeatedStrengthCluster(cluster) {
+  const counts = [
+    cluster.projectItems.length ? `프로젝트 ${cluster.projectItems.length}` : "",
+    cluster.caseItems.length ? `케이스 ${cluster.caseItems.length}` : "",
+    cluster.blogItems.length ? `블로그 ${cluster.blogItems.length}` : ""
+  ].filter(Boolean);
+
+  return `
+    <article class="strength-map-card">
+      <div class="strength-map-head">
+        <div>
+          <p class="panel-kicker">Repeated Strength</p>
+          <h3>${escapeHtml(cluster.title)}</h3>
+        </div>
+        <span class="strength-map-count">${escapeHtml(counts.join(" · "))}</span>
+      </div>
+      <p class="strength-map-summary">${escapeHtml(cluster.summary)}</p>
+      <p class="strength-map-narrative">${escapeHtml(cluster.narrative)}</p>
+      <div class="strength-map-columns">
+        <section class="strength-evidence-block">
+          <p class="panel-kicker">Projects</p>
+          <div class="strength-link-list">
+            ${cluster.projectItems.map(renderStrengthProjectLink).join("")}
+          </div>
+        </section>
+        <section class="strength-evidence-block">
+          <p class="panel-kicker">Problem Record</p>
+          <ul class="support-list tight strength-record-list">
+            ${cluster.caseItems.map((item) => `<li><strong>${escapeHtml(item.title || "")}</strong> ${escapeHtml(item.result || "")}</li>`).join("")}
+          </ul>
+        </section>
+        ${
+          cluster.blogItems.length
+            ? `
+              <section class="strength-evidence-block">
+                <p class="panel-kicker">Blog Notes</p>
+                <div class="strength-link-list">
+                  ${cluster.blogItems.map(renderStrengthBlogLink).join("")}
+                </div>
+              </section>
+            `
+            : ""
+        }
+      </div>
+    </article>
+  `;
+}
+
+function renderStrengthProjectLink(project) {
+  return `
+    <button type="button" class="strength-link-card" data-project-link="${escapeHtml(project.id)}">
+      <strong>${escapeHtml(getProjectDisplayName(project))}</strong>
+      <span>${escapeHtml(truncate(project.summary || "", 70))}</span>
+    </button>
+  `;
+}
+
+function renderStrengthBlogLink(post) {
+  return `
+    <button type="button" class="strength-link-card subtle" data-blog-link="${escapeHtml(post.id)}">
+      <strong>${escapeHtml(post.title)}</strong>
+      <span>${escapeHtml(truncate(post.excerpt || "", 72))}</span>
+    </button>
+  `;
+}
+
+function renderProjectLineages() {
+  if (!elements.projectLineageMap) return;
+  const routes = PROJECT_LINEAGE_ROUTES.map((route) => ({
+    ...route,
+    projectItems: route.projects.map((id) => findProject(id)).filter(Boolean)
+  })).filter((route) => route.projectItems.length > 1);
+
+  elements.projectLineageMap.innerHTML = routes.length
+    ? routes.map(renderProjectLineageRoute).join("")
+    : `<article class="empty-state">프로젝트 연결선 데이터가 없습니다.</article>`;
+}
+
+function renderProjectLineageRoute(route) {
+  return `
+    <article class="lineage-route-card">
+      <div class="lineage-route-head">
+        <div>
+          <p class="panel-kicker">Project Lineage</p>
+          <h3>${escapeHtml(route.title)}</h3>
+        </div>
+        <p class="lineage-route-summary">${escapeHtml(route.summary)}</p>
+      </div>
+      <div class="lineage-track">
+        ${route.projectItems
+          .map(
+            (project, index) => `
+              ${index ? `<span class="lineage-connector" aria-hidden="true">→</span>` : ""}
+              <button type="button" class="lineage-node-card" data-project-link="${escapeHtml(project.id)}">
+                <small>${escapeHtml(project.timeline?.label || getProjectCategory(project))}</small>
+                <strong>${escapeHtml(truncate(getProjectDisplayName(project), 24))}</strong>
+              </button>
+            `
+          )
+          .join("")}
+      </div>
+    </article>
+  `;
 }
 
 function getTimelineProjects() {
@@ -879,6 +1119,14 @@ function getTimelineProjects() {
     const rightDate = parseTimelineDate(right.timeline?.start || right.createdAt)?.getTime() || 0;
     return rightDate - leftDate;
   });
+}
+
+function getNowBuildingProject() {
+  const inProgress = [...arrayOrEmpty(state.bootstrap?.projects)]
+    .filter((project) => project.status === "in-progress")
+    .sort((left, right) => getProjectRecentTimestamp(right) - getProjectRecentTimestamp(left));
+  const preferred = inProgress.filter((project) => NOW_BUILDING_PRIORITY_IDS.includes(project.id));
+  return preferred[0] || inProgress[0] || null;
 }
 
 function buildTimelineEntry(project) {

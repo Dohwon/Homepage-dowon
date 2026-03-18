@@ -487,6 +487,55 @@ a {
   border: 1px solid var(--line);
 }
 
+.now-building-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) auto;
+  gap: 18px;
+  align-items: center;
+  padding: 22px 24px;
+  background:
+    radial-gradient(circle at 86% 18%, rgba(74, 121, 248, 0.18), transparent 24%),
+    radial-gradient(circle at 12% 50%, rgba(255, 216, 119, 0.18), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 255, 0.94));
+  border: 1px solid rgba(92, 133, 236, 0.16);
+  box-shadow: 0 18px 34px rgba(41, 64, 116, 0.08);
+}
+
+.now-building-copy {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.now-building-copy h2,
+.strength-map-head h3,
+.lineage-route-head h3 {
+  margin: 0;
+  font-family: "Sora", sans-serif;
+  font-size: 1.28rem;
+  line-height: 1.2;
+}
+
+.now-building-copy p:last-child,
+.strength-map-summary,
+.lineage-route-summary {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.now-building-meta {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+  text-align: right;
+}
+
+.now-building-meta strong {
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
 .hero-searchbar {
   margin-top: 24px;
   display: flex;
@@ -606,6 +655,34 @@ a {
   margin-top: 16px;
 }
 
+.about-core-strengths {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.about-core-card {
+  padding: 14px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(103, 132, 205, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(245, 249, 255, 0.88));
+}
+
+.about-core-card strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.94rem;
+  color: var(--ink);
+}
+
+.about-core-card p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
 .value-card,
 .skill-card,
 .case-card,
@@ -689,8 +766,8 @@ a {
 
 .case-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .case-head,
@@ -753,6 +830,159 @@ a {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.strength-map-card,
+.lineage-route-card {
+  padding: 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(103, 132, 205, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(246, 249, 255, 0.92));
+  box-shadow: 0 16px 28px rgba(41, 64, 116, 0.08);
+}
+
+.strength-map-card {
+  display: grid;
+  gap: 14px;
+}
+
+.strength-map-head,
+.lineage-route-head {
+  display: grid;
+  gap: 10px;
+}
+
+.strength-map-count {
+  color: #5f78ba;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.strength-map-narrative {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.94rem;
+  line-height: 1.68;
+}
+
+.strength-map-columns {
+  display: grid;
+  gap: 14px;
+}
+
+.strength-evidence-block {
+  display: grid;
+  gap: 10px;
+}
+
+.strength-link-list {
+  display: grid;
+  gap: 10px;
+}
+
+.strength-link-card {
+  width: 100%;
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  border: 1px solid rgba(103, 132, 205, 0.14);
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.strength-link-card:hover,
+.strength-link-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(78, 118, 235, 0.28);
+  box-shadow: 0 14px 24px rgba(41, 64, 116, 0.1);
+  outline: none;
+}
+
+.strength-link-card.subtle {
+  background: rgba(242, 246, 255, 0.92);
+}
+
+.strength-link-card strong {
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.strength-link-card span,
+.strength-record-list li {
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+  line-height: 1.64;
+}
+
+.strength-record-list {
+  margin-top: 0;
+}
+
+.lineage-panel {
+  padding: 28px;
+}
+
+.project-lineage-map {
+  display: grid;
+  gap: 14px;
+}
+
+.lineage-route-summary {
+  max-width: 780px;
+}
+
+.lineage-track {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(83, 120, 228, 0.36) rgba(230, 238, 255, 0.74);
+}
+
+.lineage-node-card {
+  min-width: 186px;
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(103, 132, 205, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.lineage-node-card:hover,
+.lineage-node-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(78, 118, 235, 0.28);
+  box-shadow: 0 14px 24px rgba(41, 64, 116, 0.1);
+  outline: none;
+}
+
+.lineage-node-card small {
+  color: #6077b8;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.lineage-node-card strong {
+  font-size: 0.94rem;
+  line-height: 1.5;
+}
+
+.lineage-connector {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  color: #6d84c8;
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
 .flow-node {
@@ -2008,6 +2238,17 @@ a {
 
   #active-board {
     --visible-card-height: 158px;
+  }
+
+  .now-building-bar,
+  .about-core-strengths,
+  .case-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .now-building-meta {
+    justify-items: start;
+    text-align: left;
   }
 }
 
@@ -5424,6 +5665,10 @@ a {
     padding: 16px;
   }
 
+  .about-core-strengths {
+    grid-template-columns: 1fr;
+  }
+
   .career-title-row {
     gap: 10px;
   }
@@ -5457,6 +5702,16 @@ a {
 
   .blog-board {
     border-radius: 24px;
+  }
+
+  .now-building-bar,
+  .strength-map-card,
+  .lineage-route-card {
+    padding: 16px;
+  }
+
+  .lineage-node-card {
+    min-width: 164px;
   }
 
   .blog-board-head {
@@ -6231,5 +6486,24 @@ a {
 
   .career-index {
     justify-self: start;
+  }
+
+  .now-building-copy h2,
+  .strength-map-head h3,
+  .lineage-route-head h3 {
+    font-size: 1.08rem;
+  }
+
+  .strength-map-columns {
+    gap: 12px;
+  }
+
+  .lineage-track {
+    gap: 8px;
+  }
+
+  .lineage-node-card {
+    min-width: 152px;
+    padding: 12px 14px;
   }
 }
