@@ -10,6 +10,7 @@ const state = {
   currentTimelineProjectId: null,
   currentBlogId: null,
   commentsByProject: new Map(),
+  blogCommentsByPost: new Map(),
   trackedProjects: new Set()
 };
 
@@ -333,6 +334,15 @@ function bindEvents() {
       return;
     }
 
+    const navButton = event.target.closest("[data-blog-nav]");
+    if (navButton) {
+      const targetId = navButton.dataset.blogId;
+      if (targetId) {
+        openBlogDetail(targetId);
+      }
+      return;
+    }
+
     const actionButton = event.target.closest("[data-blog-detail-action]");
     if (!actionButton) return;
     const blogId = actionButton.dataset.blogId || state.currentBlogId;
@@ -342,6 +352,13 @@ function bindEvents() {
     }
     if (actionButton.dataset.blogDetailAction === "delete") {
       void deleteBlogPost(blogId);
+    }
+  });
+
+  elements.blogModalBody?.addEventListener("submit", (event) => {
+    if (event.target.matches("#blog-comment-form")) {
+      event.preventDefault();
+      void submitBlogComment();
     }
   });
 
@@ -1466,9 +1483,7 @@ function renderProjects() {
 
 function renderBlog() {
   if (!elements.blogGrid) return;
-  const posts = arrayOrEmpty(state.bootstrap.blogPosts)
-    .filter((post) => post.status === "published" || state.bootstrap.viewer?.role === "admin")
-    .sort((left, right) => String(right.updatedAt || "").localeCompare(String(left.updatedAt || "")));
+  const posts = getSortedBlogPosts();
 
   if (!posts.length) {
     elements.blogGrid.innerHTML = `<article class="empty-state">아직 공개된 글이 없습니다.</article>`;
@@ -2393,6 +2408,7 @@ function openBlogDetail(blogId) {
   elements.blogModal?.classList.remove("hidden");
   document.body.classList.add("modal-open");
   renderOpenBlog();
+  void loadBlogComments(blogId);
   void recordVisit("blog-detail", blogId);
 }
 
@@ -2413,32 +2429,207 @@ function renderOpenBlog() {
   }
 
   const viewer = state.bootstrap.viewer;
+  const comments = state.blogCommentsByPost.get(post.id) || [];
+  const posts = getSortedBlogPosts();
+  const siblings = getAdjacentBlogPosts(post.id);
+  const readMinutes = estimateBlogReadMinutes(post.markdown || post.excerpt || "");
+  const leadParagraph = extractLeadParagraph(post.markdown || "") || post.excerpt || "";
+
   elements.blogModalBody.innerHTML = `
-    <article class="blog-detail-shell">
-      <div class="blog-detail-head">
-        <div>
-          <div class="detail-badges">
-            <span class="badge category">${escapeHtml(post.status === "draft" ? "Draft" : "Published")}</span>
-            <span class="collection-pill">${escapeHtml(formatBlogDate(post.updatedAt || post.createdAt))}</span>
-          </div>
-          <h2 id="blog-detail-title">${escapeHtml(post.title)}</h2>
-          <p class="panel-summary">${escapeHtml(post.excerpt || "")}</p>
+    <article class="blog-editorial-shell">
+      <header class="blog-editorial-topbar">
+        <div class="blog-editorial-topbar-mark">
+          <span class="blog-editorial-mark-icon">✦</span>
+          <span class="blog-editorial-mark-label">Editorial Series</span>
         </div>
-        ${
-          viewer?.role === "admin"
-            ? `
-              <div class="detail-admin-actions">
-                <button type="button" class="ghost-button" data-blog-detail-action="edit" data-blog-id="${escapeHtml(post.id)}">편집</button>
-                <button type="button" class="ghost-button danger" data-blog-detail-action="delete" data-blog-id="${escapeHtml(post.id)}">삭제</button>
+        <button class="blog-editorial-close" data-close-blog type="button" aria-label="닫기">×</button>
+      </header>
+
+      <div class="blog-editorial-scroll">
+        <article class="blog-editorial-article">
+          <section class="blog-editorial-hero">
+            <div class="blog-editorial-wrap">
+              <div class="blog-editorial-kickers">
+                <span class="blog-editorial-chip primary">${escapeHtml(post.status === "draft" ? "Draft" : "Published")}</span>
+                ${arrayOrEmpty(post.tags)
+                  .slice(0, 2)
+                  .map((tag) => `<span class="blog-editorial-chip">${escapeHtml(tag)}</span>`)
+                  .join("")}
               </div>
-            `
-            : ""
-        }
+
+              <div class="blog-editorial-title-row">
+                <div class="blog-editorial-title-copy">
+                  <h2 id="blog-detail-title" class="blog-editorial-title">${escapeHtml(post.title)}</h2>
+                  <p class="blog-editorial-excerpt">${escapeHtml(post.excerpt || "")}</p>
+                </div>
+                ${
+                  viewer?.role === "admin"
+                    ? `
+                      <div class="blog-editorial-admin-actions">
+                        <button type="button" class="ghost-button" data-blog-detail-action="edit" data-blog-id="${escapeHtml(post.id)}">편집</button>
+                        <button type="button" class="ghost-button danger" data-blog-detail-action="delete" data-blog-id="${escapeHtml(post.id)}">삭제</button>
+                      </div>
+                    `
+                    : ""
+                }
+              </div>
+
+              <div class="blog-editorial-meta">
+                <div class="blog-editorial-author">
+                  <img class="blog-editorial-author-avatar" src="assets/about-memoji.png" alt="author avatar" />
+                  <span class="blog-editorial-author-name">${escapeHtml(state.bootstrap.owner?.name || "김도원")}</span>
+                </div>
+                <span class="blog-editorial-meta-sep">•</span>
+                <time datetime="${escapeHtml(post.updatedAt || post.createdAt)}">${escapeHtml(formatBlogDate(post.updatedAt || post.createdAt))}</time>
+                <span class="blog-editorial-meta-sep">•</span>
+                <span>${escapeHtml(String(readMinutes))} min read</span>
+              </div>
+            </div>
+
+            <div class="blog-editorial-visual-shell">
+              <div class="blog-editorial-visual">
+                <div class="blog-editorial-visual-grid" aria-hidden="true"></div>
+                <p class="blog-editorial-visual-label">Lead Note</p>
+                <p class="blog-editorial-visual-copy">${escapeHtml(truncate(leadParagraph, 180))}</p>
+                <div class="blog-editorial-visual-tags">
+                  ${arrayOrEmpty(post.tags).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
+                </div>
+              </div>
+            </div>
+
+            <div class="blog-editorial-wrap">
+              <div class="blog-editorial-body blog-markdown-body">${renderMarkdown(post.markdown || "")}</div>
+            </div>
+          </section>
+
+          <section class="blog-editorial-comments">
+            <div class="blog-editorial-wrap">
+              <div class="blog-comments-head">
+                <div class="blog-comments-title">
+                  <span class="blog-comments-icon">✳</span>
+                  <h3>Comments <span>(${escapeHtml(String(comments.length))})</span></h3>
+                </div>
+              </div>
+
+              <form id="blog-comment-form" class="blog-comment-form">
+                <div class="blog-comment-form-row">
+                  <div class="blog-comment-form-avatar">
+                    ${
+                      viewer?.picture
+                        ? `<img src="${escapeHtml(viewer.picture)}" alt="viewer avatar" />`
+                        : `<img src="assets/about-memoji.png" alt="profile avatar" />`
+                    }
+                  </div>
+                  <div class="blog-comment-form-main">
+                    ${
+                      viewer
+                        ? `
+                          <div class="blog-comment-meta logged-in">
+                            <span class="blog-comment-identity">${escapeHtml(viewer.name || viewer.email || "로그인 사용자")}</span>
+                            <input name="commentPassword" type="password" maxlength="32" placeholder="댓글 비밀번호 (선택)" />
+                          </div>
+                        `
+                        : `
+                          <div class="blog-comment-meta">
+                            <input name="nickname" type="text" maxlength="24" placeholder="닉네임" />
+                            <input name="commentPassword" type="password" maxlength="32" placeholder="댓글 비밀번호 (선택)" />
+                          </div>
+                        `
+                    }
+                    <textarea name="message" rows="4" maxlength="1000" placeholder="이 글을 보고 든 생각이나 질문을 남겨보세요"></textarea>
+                    <div class="blog-comment-form-actions">
+                      <p class="blog-comment-form-hint">${
+                        viewer
+                          ? "현재 계정 이름으로 저장됩니다. 비밀번호는 선택값입니다."
+                          : "비회원도 댓글 작성 가능. 닉네임은 필수, 비밀번호는 선택값입니다."
+                      }</p>
+                      <button type="submit" class="blog-comment-submit">Post Comment</button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+
+              <div class="blog-comment-list">
+                ${
+                  comments.length
+                    ? comments.map((comment) => renderBlogCommentCard(comment, viewer)).join("")
+                    : `<article class="blog-comment-empty">아직 댓글이 없습니다. 첫 반응을 남겨주세요.</article>`
+                }
+              </div>
+            </div>
+          </section>
+
+          <section class="blog-editorial-series">
+            <div class="blog-editorial-wrap">
+              <p class="blog-series-kicker">Next in Editorial Series</p>
+              <div class="blog-series-grid">
+                ${
+                  siblings.previous
+                    ? `
+                      <button type="button" class="blog-series-card" data-blog-nav="previous" data-blog-id="${escapeHtml(siblings.previous.id)}">
+                        <small>Previous</small>
+                        <strong>${escapeHtml(siblings.previous.title)}</strong>
+                        <span>${escapeHtml(truncate(siblings.previous.excerpt || "", 120))}</span>
+                      </button>
+                    `
+                    : `<article class="blog-series-card muted"><small>Previous</small><strong>첫 글입니다</strong><span>이전 글이 없습니다.</span></article>`
+                }
+                ${
+                  siblings.next
+                    ? `
+                      <button type="button" class="blog-series-card" data-blog-nav="next" data-blog-id="${escapeHtml(siblings.next.id)}">
+                        <small>Next</small>
+                        <strong>${escapeHtml(siblings.next.title)}</strong>
+                        <span>${escapeHtml(truncate(siblings.next.excerpt || "", 120))}</span>
+                      </button>
+                    `
+                    : `<article class="blog-series-card muted"><small>Next</small><strong>마지막 글입니다</strong><span>다음 글이 없습니다.</span></article>`
+                }
+              </div>
+            </div>
+          </section>
+        </article>
       </div>
-      <div class="tag-row">
-        ${arrayOrEmpty(post.tags).map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")}
+
+      <footer class="blog-editorial-footer">
+        <button type="button" class="blog-footer-nav ${siblings.previous ? "" : "disabled"}" ${
+          siblings.previous ? `data-blog-nav="previous" data-blog-id="${escapeHtml(siblings.previous.id)}"` : "disabled"
+        }>
+          <span class="blog-footer-kicker">Previous Post</span>
+          <strong>${escapeHtml(siblings.previous?.title || "이전 글 없음")}</strong>
+        </button>
+        <div class="blog-footer-indicator">
+          <span>${escapeHtml(String(posts.findIndex((item) => item.id === post.id) + 1).padStart(2, "0"))}</span>
+          <span>/</span>
+          <span>${escapeHtml(String(posts.length).padStart(2, "0"))}</span>
+        </div>
+        <button type="button" class="blog-footer-nav next ${siblings.next ? "" : "disabled"}" ${
+          siblings.next ? `data-blog-nav="next" data-blog-id="${escapeHtml(siblings.next.id)}"` : "disabled"
+        }>
+          <span class="blog-footer-kicker">Next Post</span>
+          <strong>${escapeHtml(siblings.next?.title || "다음 글 없음")}</strong>
+        </button>
+      </footer>
+    </article>
+  `;
+}
+
+function renderBlogCommentCard(comment, viewer) {
+  return `
+    <article class="blog-comment-card">
+      <div class="blog-comment-avatar">${escapeHtml((comment.authorName || "?").slice(0, 1).toUpperCase())}</div>
+      <div class="blog-comment-copy">
+        <div class="blog-comment-meta-line">
+          <strong>${escapeHtml(comment.authorName || "Visitor")}</strong>
+          <span>${escapeHtml(formatRelativeTime(comment.createdAt))}</span>
+          ${
+            viewer?.role === "admin" && comment.password
+              ? `<span class="blog-comment-password">PW ${escapeHtml(comment.password)}</span>`
+              : ""
+          }
+        </div>
+        <p>${escapeHtml(comment.message || "")}</p>
       </div>
-      <div class="blog-markdown-body">${renderMarkdown(post.markdown || "")}</div>
     </article>
   `;
 }
@@ -2476,6 +2667,18 @@ async function loadComments(projectId) {
     state.commentsByProject.set(projectId, data.comments || []);
     if (state.currentProjectId === projectId) {
       renderOpenDetail();
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function loadBlogComments(blogId) {
+  try {
+    const data = await api(`/api/blog-comments?blogId=${encodeURIComponent(blogId)}`);
+    state.blogCommentsByPost.set(blogId, data.comments || []);
+    if (state.currentBlogId === blogId) {
+      renderOpenBlog();
     }
   } catch (error) {
     console.error(error);
@@ -2841,6 +3044,45 @@ async function submitComment() {
   }
 }
 
+async function submitBlogComment() {
+  const form = elements.blogModalBody?.querySelector("#blog-comment-form");
+  const textarea = form?.elements.namedItem("message");
+  const nicknameInput = form?.elements.namedItem("nickname");
+  const passwordInput = form?.elements.namedItem("commentPassword");
+  if (!textarea || !state.currentBlogId) return;
+
+  const message = textarea.value.trim();
+  const nickname = String(nicknameInput?.value || "").trim();
+  const password = String(passwordInput?.value || "").trim();
+  if (!message) return;
+  if (!state.bootstrap.viewer && !nickname) {
+    window.alert("닉네임을 입력해주세요.");
+    return;
+  }
+
+  try {
+    await api("/api/blog-comments", {
+      method: "POST",
+      body: {
+        blogId: state.currentBlogId,
+        message,
+        nickname,
+        password
+      }
+    });
+    textarea.value = "";
+    if (nicknameInput) {
+      nicknameInput.value = "";
+    }
+    if (passwordInput) {
+      passwordInput.value = "";
+    }
+    await loadBlogComments(state.currentBlogId);
+  } catch (error) {
+    window.alert(`블로그 댓글 등록 실패: ${error.message}`);
+  }
+}
+
 async function refreshCommentCounts() {
   const data = await api("/api/bootstrap");
   state.bootstrap.commentCounts = data.commentCounts;
@@ -2924,6 +3166,21 @@ function findProject(projectId) {
 
 function findBlogPost(blogId) {
   return arrayOrEmpty(state.bootstrap.blogPosts).find((post) => post.id === blogId);
+}
+
+function getSortedBlogPosts() {
+  return [...arrayOrEmpty(state.bootstrap?.blogPosts)]
+    .filter((post) => post.status === "published" || state.bootstrap.viewer?.role === "admin")
+    .sort((left, right) => String(right.updatedAt || right.createdAt || "").localeCompare(String(left.updatedAt || left.createdAt || "")));
+}
+
+function getAdjacentBlogPosts(blogId) {
+  const posts = getSortedBlogPosts();
+  const index = posts.findIndex((post) => post.id === blogId);
+  return {
+    previous: index >= 0 ? posts[index - 1] || null : null,
+    next: index >= 0 ? posts[index + 1] || null : null
+  };
 }
 
 function computeStats(projects) {
@@ -3090,6 +3347,39 @@ function formatBlogDate(value) {
   } catch {
     return value;
   }
+}
+
+function formatRelativeTime(value) {
+  const date = parseTimelineDate(value);
+  if (!date) return String(value || "");
+  const diffMs = date.getTime() - Date.now();
+  const minutes = Math.round(diffMs / (1000 * 60));
+  const hours = Math.round(diffMs / (1000 * 60 * 60));
+  const days = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  const formatter = new Intl.RelativeTimeFormat("ko-KR", { numeric: "auto" });
+  if (Math.abs(minutes) < 60) return formatter.format(minutes, "minute");
+  if (Math.abs(hours) < 24) return formatter.format(hours, "hour");
+  return formatter.format(days, "day");
+}
+
+function estimateBlogReadMinutes(value) {
+  const plain = String(value || "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/[#>*`\-\[\]\(\)]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const units = plain ? plain.split(" ").length : 0;
+  return Math.max(1, Math.round(units / 220));
+}
+
+function extractLeadParagraph(value) {
+  const lines = String(value || "")
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const line = lines.find((item) => !/^#{1,4}\s/.test(item) && !/^[-*]\s/.test(item) && !/^>\s/.test(item));
+  return line ? line.replace(/[*`[\]()]/g, "").trim() : "";
 }
 
 async function api(url, options = {}) {

@@ -1437,6 +1437,7 @@ async function loadAnalyticsEvents() {
 function commentCounts(comments) {
   const counts = {};
   for (const comment of comments) {
+    if (!comment.projectId) continue;
     counts[comment.projectId] = (counts[comment.projectId] || 0) + 1;
   }
   return counts;
@@ -1671,6 +1672,29 @@ async function handleApi(req, res, url) {
     return;
   }
 
+  if (req.method === "GET" && url.pathname === "/api/blog-comments") {
+    const blogId = url.searchParams.get("blogId");
+    if (!blogId) {
+      sendJson(res, 400, { error: "blogId_required" });
+      return;
+    }
+    const posts = await loadBlogPosts();
+    if (!posts.some((post) => post.id === blogId)) {
+      sendJson(res, 404, { error: "blog_not_found" });
+      return;
+    }
+    const comments = await loadComments();
+    const items = comments
+      .filter((comment) => comment.blogId === blogId)
+      .sort((left, right) => (left.createdAt < right.createdAt ? 1 : -1))
+      .map((comment) => ({
+        ...comment,
+        password: viewer?.role === "admin" ? String(comment.password || "") : ""
+      }));
+    sendJson(res, 200, { comments: items });
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/api/comments") {
     const body = await readBody(req);
     const projectId = String(body.projectId || "");
@@ -1710,6 +1734,60 @@ async function handleApi(req, res, url) {
     const comment = {
       id: crypto.randomUUID(),
       projectId,
+      message,
+      authorName: viewer?.name || nickname,
+      authorEmail: viewer?.email || "",
+      authorImage: viewer?.picture || "",
+      authorRole: viewer?.role || "guest",
+      password,
+      createdAt: new Date().toISOString()
+    };
+    comments.push(comment);
+    await saveComments(comments);
+    sendJson(res, 201, { comment });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/blog-comments") {
+    const body = await readBody(req);
+    const blogId = String(body.blogId || "");
+    const message = String(body.message || "").trim();
+    const password = String(body.password || "").trim();
+    const nickname = String(body.nickname || "").trim();
+    if (!blogId) {
+      sendJson(res, 400, { error: "blogId_required" });
+      return;
+    }
+    if (!message) {
+      sendJson(res, 400, { error: "message_required" });
+      return;
+    }
+    if (message.length > MAX_COMMENT_LENGTH) {
+      sendJson(res, 400, { error: "message_too_long" });
+      return;
+    }
+    if (password.length > MAX_COMMENT_PASSWORD_LENGTH) {
+      sendJson(res, 400, { error: "password_too_long" });
+      return;
+    }
+    if (!viewer && !nickname) {
+      sendJson(res, 400, { error: "nickname_required" });
+      return;
+    }
+    if (nickname.length > MAX_COMMENT_NICKNAME_LENGTH) {
+      sendJson(res, 400, { error: "nickname_too_long" });
+      return;
+    }
+    const posts = await loadBlogPosts();
+    if (!posts.some((post) => post.id === blogId)) {
+      sendJson(res, 404, { error: "blog_not_found" });
+      return;
+    }
+    const comments = await loadComments();
+    const comment = {
+      id: crypto.randomUUID(),
+      projectId: "",
+      blogId,
       message,
       authorName: viewer?.name || nickname,
       authorEmail: viewer?.email || "",
@@ -1854,6 +1932,8 @@ async function handleApi(req, res, url) {
       return;
     }
     await saveBlogPosts(nextPosts);
+    const comments = await loadComments();
+    await saveComments(comments.filter((comment) => comment.blogId !== blogId));
     sendJson(res, 200, { ok: true });
     return;
   }
