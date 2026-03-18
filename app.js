@@ -2885,29 +2885,37 @@ function stopPreviewHover(event) {
 }
 
 function getVisibleProjects() {
-  return state.bootstrap.projects.filter((project) => {
-    if (state.filters.status !== "all" && project.status !== state.filters.status) {
-      return false;
-    }
-    if (state.filters.category !== "all" && getProjectCategory(project) !== state.filters.category) {
-      return false;
-    }
-    if (!state.filters.query) {
-      return true;
-    }
-    const haystack = [
-      project.name,
-      project.summary,
-      project.category,
-      getProjectCategory(project),
-      ...arrayOrEmpty(project.tags),
-      ...arrayOrEmpty(project.stack),
-      ...arrayOrEmpty(project.highlights)
-    ]
-      .join(" ")
-      .toLowerCase();
-    return haystack.includes(state.filters.query);
-  });
+  return state.bootstrap.projects
+    .filter((project) => {
+      if (state.filters.status !== "all" && project.status !== state.filters.status) {
+        return false;
+      }
+      if (state.filters.category !== "all" && getProjectCategory(project) !== state.filters.category) {
+        return false;
+      }
+      if (!state.filters.query) {
+        return true;
+      }
+      const haystack = [
+        project.name,
+        project.summary,
+        project.category,
+        getProjectCategory(project),
+        ...arrayOrEmpty(project.tags),
+        ...arrayOrEmpty(project.stack),
+        ...arrayOrEmpty(project.highlights)
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(state.filters.query);
+    })
+    .sort((left, right) => getProjectRecentTimestamp(right) - getProjectRecentTimestamp(left));
+}
+
+function getProjectRecentTimestamp(project) {
+  return (
+    parseTimelineDate(project.timeline?.end || project.timeline?.start || project.createdAt)?.getTime() || 0
+  );
 }
 
 function findProject(projectId) {
