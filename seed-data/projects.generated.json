@@ -28,7 +28,7 @@
       },
       {
         "label": "프롬프트 비용 절감",
-        "value": "-30% (6500 -> 4500 tokens)"
+        "value": "-30% (6500 → 4500 tokens)"
       },
       {
         "label": "챗봇 정답률",
@@ -162,7 +162,7 @@
         "keyFiles": [
           "projects/(SKM)Calc_STT_CER_ipynb의_사본.ipynb"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-12",
@@ -221,7 +221,7 @@
         "keyFiles": [
           "projects/250731_학습데이터_형태소분석기.ipynb"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-11-09",
@@ -291,7 +291,7 @@
           "projects/260212_feeling_traker/branding/calm_slime_favicon_final_2026-02-15/README.md",
           "projects/260212_feeling_traker/server.py"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-12",
@@ -351,7 +351,7 @@
           "projects/260218_ope_log_anlayze/dynamodb_테이블정의서 (2).xlsx",
           "projects/260218_ope_log_anlayze/250107-운영계-대화기록-1월_7일.csv"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-01-07",
@@ -415,7 +415,7 @@
           "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/harness.py",
           "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/workbook.py"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-10-28",
@@ -475,7 +475,7 @@
           "projects/260317_desktop_scheduler/src/__init__.py",
           "projects/260317_desktop_scheduler/src/reminders.py"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-03-17",
@@ -527,7 +527,7 @@
         "keyFiles": [
           "projects/dowon_codex_manager_memory_work_summary.v4.md"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-12",
@@ -595,7 +595,7 @@
           "projects/gemini_multiturn_tester_v3/app/logger.py",
           "projects/gemini_multiturn_tester_v3/app/client.py"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-10",
@@ -660,7 +660,7 @@
           "projects/Operation_log_analayzer/manager_memory/short-term/active-tasks.md",
           "projects/Operation_log_analayzer/manager_memory/long-term/strategy-roadmap.md"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-12-31",
@@ -712,7 +712,7 @@
         "keyFiles": [
           "projects/PROJECT_NAMING_RULE.md"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-12",
@@ -780,7 +780,7 @@
           "projects/Prompt_Auto_Evaluation/env.template",
           "projects/Prompt_Auto_Evaluation/judge_prompt.txt"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-11-04",
@@ -833,7 +833,7 @@
           "projects/scripts/create_project.sh",
           "projects/scripts/version_work_summary.sh"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-12",
@@ -897,7 +897,7 @@
           "projects/Semantic_Verb_Schema/fc_json_to_tsv.py",
           "projects/Semantic_Verb_Schema/retag_with_kiwi.py"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-10-28",
@@ -959,7 +959,7 @@
           "projects/Todack/calm_slime_favicon_final_2026-02-15/README.md",
           "projects/Todack/branding/calm_slime_favicon_final_2026-02-15/README.md"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-15",
@@ -1012,7 +1012,7 @@
           "projects/work_summary_versions/dowon_codex_manager_memory_work_summary.v6.md",
           "projects/work_summary_versions/dowon_codex_manager_memory_work_summary.v5.md"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-12",
@@ -1071,7 +1071,7 @@
         "keyFiles": [
           "projects/형태소분석기_기반_사용자_발화_유사도_분석(2).ipynb"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-11-09",

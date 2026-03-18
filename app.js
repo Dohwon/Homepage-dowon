@@ -109,7 +109,7 @@ const ABOUT_METRIC_OVERRIDES = [
   },
   {
     label: "룰베이스 튜닝",
-    value: "56.24% -> 74.22%",
+    value: "56.24% → 74.22%",
     note: "비-19 판정 성능을 룰 보강과 weak label 정리로 개선"
   },
   {
@@ -124,6 +124,19 @@ const CAREER_HIGHLIGHT_OVERRIDES = {
   "올거나이즈코리아": ["RAG 서비스 기획", "정확도 개선", "PoC to 운영"],
   "와이즈버즈": ["정책 설계", "운영 프로세스 개선", "광고 플랫폼 기획"],
   "와이즈넛": ["공공 챗봇 구축", "다국어 QA", "시나리오 품질 개선"]
+};
+
+const BLOG_EDITORIAL_OVERRIDES = {
+  "stitch-figma-codex-design-workflow": {
+    noteLabel: "Design In Progress",
+    leadNote:
+      "AI로 디자인 시스템을 구축하는 방법을 아직 찾아가는 중이다. Stitch로 화면의 첫 감을 잡고, Figma로 구조를 다듬고, Codex로 실제 서비스까지 연결하면서 개발자이던 내 역할은 디자이너의 영역까지 조금씩 넓어지고 있다."
+  },
+  "why-i-built-this-homepage": {
+    noteLabel: "Working Archive",
+    leadNote:
+      "흩어진 프로젝트를 단순 전시가 아니라 작업 방식까지 읽히는 라이브러리로 다시 묶는 실험이다. 결국 이 사이트는 소개 페이지보다, 내가 문제를 다루는 방식을 남기는 기록 쪽에 가깝다."
+  }
 };
 
 const CATEGORY_GROUPS = [
@@ -2433,7 +2446,8 @@ function renderOpenBlog() {
   const posts = getSortedBlogPosts();
   const siblings = getAdjacentBlogPosts(post.id);
   const readMinutes = estimateBlogReadMinutes(post.markdown || post.excerpt || "");
-  const leadParagraph = extractLeadParagraph(post.markdown || "") || post.excerpt || "";
+  const editorialMeta = getBlogEditorialMeta(post);
+  const heroChip = arrayOrEmpty(post.tags)[0] || (post.status === "draft" ? "Draft" : "Editorial");
 
   elements.blogModalBody.innerHTML = `
     <article class="blog-editorial-shell">
@@ -2450,11 +2464,7 @@ function renderOpenBlog() {
           <section class="blog-editorial-hero">
             <div class="blog-editorial-wrap">
               <div class="blog-editorial-kickers">
-                <span class="blog-editorial-chip primary">${escapeHtml(post.status === "draft" ? "Draft" : "Published")}</span>
-                ${arrayOrEmpty(post.tags)
-                  .slice(0, 2)
-                  .map((tag) => `<span class="blog-editorial-chip">${escapeHtml(tag)}</span>`)
-                  .join("")}
+                <span class="blog-editorial-chip primary">${escapeHtml(heroChip)}</span>
               </div>
 
               <div class="blog-editorial-title-row">
@@ -2489,11 +2499,8 @@ function renderOpenBlog() {
             <div class="blog-editorial-visual-shell">
               <div class="blog-editorial-visual">
                 <div class="blog-editorial-visual-grid" aria-hidden="true"></div>
-                <p class="blog-editorial-visual-label">Lead Note</p>
-                <p class="blog-editorial-visual-copy">${escapeHtml(truncate(leadParagraph, 180))}</p>
-                <div class="blog-editorial-visual-tags">
-                  ${arrayOrEmpty(post.tags).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}
-                </div>
+                <p class="blog-editorial-visual-label">${escapeHtml(editorialMeta.noteLabel)}</p>
+                <p class="blog-editorial-visual-copy">${escapeHtml(editorialMeta.leadNote)}</p>
               </div>
             </div>
 
@@ -3180,6 +3187,17 @@ function getAdjacentBlogPosts(blogId) {
   return {
     previous: index >= 0 ? posts[index - 1] || null : null,
     next: index >= 0 ? posts[index + 1] || null : null
+  };
+}
+
+function getBlogEditorialMeta(post) {
+  const override = BLOG_EDITORIAL_OVERRIDES[post.id];
+  if (override) {
+    return override;
+  }
+  return {
+    noteLabel: arrayOrEmpty(post.tags)[0] || "Editorial Note",
+    leadNote: extractLeadParagraph(post.markdown || "") || post.excerpt || "이 글의 핵심 포인트를 정리 중입니다."
   };
 }
 
