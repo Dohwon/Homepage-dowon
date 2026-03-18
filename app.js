@@ -64,6 +64,7 @@ const PROJECT_TITLE_OVERRIDES = {
   "260315-moe-prompt-routing": "질문마다 맞는 프롬프트를 고르는 라우팅 엔진",
   "dowon-codex-manager-memory-work-summary-v4": "에이전트 작업기억을 한 장으로 묶는 실험",
   "gemini-multiturn-tester-v3": "멀티턴 LLM을 끝까지 흔드는 테스트 벤치",
+  "a2a-family-classifier-experts": "Agent-to-Agent로 가기 위한 1차 분류기와 Expert 묶음",
   "operation-log-analyzer": "운영 로그에서 원인을 역추적하는 워크벤치",
   "project-naming-rule": "이름이 인상을 바꾸는 프로젝트 네이밍 룰",
   "prompt-auto-evaluation": "프롬프트 승자를 자동으로 가려내는 평가 파이프라인",
@@ -2318,27 +2319,34 @@ function renderOpenDetail() {
                 <p class="panel-kicker">Comments</p>
                 <h3>Visitor Comments</h3>
               </div>
-              <span class="detail-section-hint">로그인 사용자만 작성 가능</span>
+              <span class="detail-section-hint">비회원도 작성 가능</span>
             </div>
-            ${
-              viewer
-                ? `
-                  <form id="comment-form" class="detail-comment-form">
-                    <textarea name="message" rows="3" maxlength="1000" placeholder="프로젝트를 보고 느낀 점이나 질문을 남겨보세요"></textarea>
-                    <div class="detail-comment-actions">
+            <form id="comment-form" class="detail-comment-form">
+              ${
+                viewer
+                  ? `
+                    <div class="detail-comment-meta logged-in">
+                      <span class="comment-identity-pill">${escapeHtml(viewer.name || viewer.email || "로그인 사용자")}</span>
                       <input name="commentPassword" type="password" maxlength="32" placeholder="댓글 비밀번호 (선택)" />
-                      <button type="submit" class="primary-button">댓글 등록</button>
                     </div>
-                    <p class="detail-comment-hint">댓글 비밀번호는 선택값이고, 관리자는 저장된 값도 확인할 수 있습니다.</p>
-                  </form>
-                `
-                : `
-                  <article class="comment-locked compact">
-                    <strong>구글 로그인 후 댓글을 남길 수 있습니다.</strong>
-                    <p>비로그인 방문자는 읽기만 가능합니다.</p>
-                  </article>
-                `
-            }
+                  `
+                  : `
+                    <div class="detail-comment-meta">
+                      <input name="nickname" type="text" maxlength="24" placeholder="닉네임" />
+                      <input name="commentPassword" type="password" maxlength="32" placeholder="댓글 비밀번호 (선택)" />
+                    </div>
+                  `
+              }
+              <textarea name="message" rows="3" maxlength="1000" placeholder="프로젝트를 보고 느낀 점이나 질문을 남겨보세요"></textarea>
+              <div class="detail-comment-actions">
+                <button type="submit" class="primary-button">댓글 등록</button>
+              </div>
+              <p class="detail-comment-hint">${
+                viewer
+                  ? "로그인 상태에선 현재 계정 이름으로 저장되고, 비밀번호는 선택값입니다."
+                  : "비회원도 댓글을 남길 수 있고, 닉네임은 필수입니다. 비밀번호는 선택값이고 관리자는 확인할 수 있습니다."
+              }</p>
+            </form>
             <div class="comment-list detail-comment-list">
               ${
                 comments.length
@@ -2800,11 +2808,17 @@ async function deleteBlogPost(blogId) {
 async function submitComment() {
   const form = elements.detailModalBody.querySelector("#comment-form");
   const textarea = form?.elements.namedItem("message");
+  const nicknameInput = form?.elements.namedItem("nickname");
   const passwordInput = form?.elements.namedItem("commentPassword");
   if (!textarea) return;
   const message = textarea.value.trim();
+  const nickname = String(nicknameInput?.value || "").trim();
   const password = String(passwordInput?.value || "").trim();
   if (!message) return;
+  if (!state.bootstrap.viewer && !nickname) {
+    window.alert("닉네임을 입력해주세요.");
+    return;
+  }
 
   try {
     await api("/api/comments", {
@@ -2812,6 +2826,7 @@ async function submitComment() {
       body: {
         projectId: state.currentProjectId,
         message,
+        nickname,
         password
       }
     });

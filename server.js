@@ -36,6 +36,7 @@ const VISITOR_COOKIE = "portfolio_visitor";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const MAX_COMMENT_LENGTH = 1000;
 const MAX_COMMENT_PASSWORD_LENGTH = 32;
+const MAX_COMMENT_NICKNAME_LENGTH = 24;
 const MAX_BLOG_MARKDOWN_LENGTH = 50000;
 
 const MIME_TYPES = {
@@ -183,6 +184,57 @@ const PROJECT_CONTENT_OVERRIDES = {
         "월간-주간-세부 할 일 흐름 통합",
         "로컬 단일 사용자용 빠른 실행 경험 확보",
         "MVP 상태지만 실제 사용 시나리오에 맞는 구조 완성"
+      ]
+    }
+  },
+  "a2a-family-classifier-experts": {
+    summary: "거대한 시스템 프롬프트를 쪼개서, 1차 family classifier가 경로를 고르고 2차 expert/system이 실제 처리하는 A2A-ready 음성 라우팅 묶음.",
+    highlights: [
+      "1차 순수 분류기와 2차 순수 처리기의 책임 분리",
+      "schedule / general / unsupported / on-device 계층 분리",
+      "stage1-only와 judge까지 붙인 회귀 검증 흐름"
+    ],
+    stack: ["Python", "Prompt Routing", "XLSX Judge"],
+    tags: ["A2A", "Classifier", "Experts", "Routing"],
+    detail: {
+      readmeSummary: [
+        "이 카드는 MoE 폴더 전체 중에서도 특히 `1차 family classifier -> 2차 experts/systems`로 정리한 핵심 설계 축만 따로 떼어 본 프로젝트다.",
+        "답을 한 번에 잘 만드는 프롬프트보다, 어떤 처리기로 보내야 하는지 먼저 고르는 구조를 분리한 것이 포인트다.",
+        "route_only, stage1-only, classifier 시트까지 붙여서 1차 라우팅 품질만 빠르게 보는 루프도 같이 만들고 있다."
+      ]
+    },
+    story: {
+      challenge: "기존처럼 큰 시스템 프롬프트 하나에 기능을 계속 붙이면 latency도 늘고, 왜 그 답이 나왔는지 추적도 어려워졌다.",
+      attempts: [
+        "1차는 `family classifier`로 순수 분류만 하게 두고, 2차는 expert/system이 실제 처리하게 경계를 나눴다.",
+        "low confidence일 때만 제한 병렬과 selector를 허용해 무조건 복잡해지지 않게 설계했다.",
+        "stage1-only 실행과 classifier 시트로 1차 품질만 빠르게 확인하는 검증 루프를 추가했다."
+      ],
+      resolution: "결국 프롬프트를 잘 쓰는 문제가 아니라, 음성 요청을 어떤 처리 계층으로 보낼지 먼저 고르는 오케스트레이션 문제로 다시 정의했다.",
+      impact: [
+        "A2A-ready 구조 초안 고정",
+        "1차 라우팅 품질만 보는 빠른 실험 루프 확보",
+        "expert 추가 시 전체 프롬프트 재작성 부담 감소"
+      ]
+    },
+    timeline: {
+      start: "2026-03-16",
+      end: "2026-03-18",
+      label: "2026.03",
+      difficultyWindows: [
+        {
+          label: "1차 분류 기준 재정의",
+          start: "2026-03-16",
+          end: "2026-03-17",
+          severity: "high"
+        }
+      ],
+      milestones: [
+        {
+          label: "stage1-only 실행 루프 추가",
+          date: "2026-03-18",
+          tone: "success"
+        }
       ]
     }
   },
@@ -1554,11 +1606,11 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/comments") {
-    if (!requireMember(viewer, res)) return;
     const body = await readBody(req);
     const projectId = String(body.projectId || "");
     const message = String(body.message || "").trim();
     const password = String(body.password || "").trim();
+    const nickname = String(body.nickname || "").trim();
     if (!projectId) {
       sendJson(res, 400, { error: "projectId_required" });
       return;
@@ -1575,6 +1627,14 @@ async function handleApi(req, res, url) {
       sendJson(res, 400, { error: "password_too_long" });
       return;
     }
+    if (!viewer && !nickname) {
+      sendJson(res, 400, { error: "nickname_required" });
+      return;
+    }
+    if (nickname.length > MAX_COMMENT_NICKNAME_LENGTH) {
+      sendJson(res, 400, { error: "nickname_too_long" });
+      return;
+    }
     const content = await loadContent();
     if (!content.projects.some((project) => project.id === projectId)) {
       sendJson(res, 404, { error: "project_not_found" });
@@ -1585,10 +1645,10 @@ async function handleApi(req, res, url) {
       id: crypto.randomUUID(),
       projectId,
       message,
-      authorName: viewer.name,
-      authorEmail: viewer.email,
-      authorImage: viewer.picture || "",
-      authorRole: viewer.role,
+      authorName: viewer?.name || nickname,
+      authorEmail: viewer?.email || "",
+      authorImage: viewer?.picture || "",
+      authorRole: viewer?.role || "guest",
       password,
       createdAt: new Date().toISOString()
     };

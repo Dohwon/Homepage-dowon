@@ -1003,6 +1003,28 @@
       },
       "createdAt": "2026-03-16T22:07:03.313Z",
       "updatedAt": "2026-03-16T22:07:03.313Z"
+    },
+    {
+      "id": "a2a-family-classifier-experts",
+      "name": "A2A_Family_Classifier_Experts",
+      "status": "in-progress",
+      "category": "Prompt Evaluation",
+      "summary": "A2A-ready 1차 분류기와 2차 expert/system 분리 작업.",
+      "highlights": [
+        "1차 family classifier",
+        "2차 expert 묶음"
+      ],
+      "stack": [
+        "Python"
+      ],
+      "tags": [
+        "A2A",
+        "Routing"
+      ],
+      "path": "projects/260315_MoE_Prompt_Routing",
+      "readme": "projects/260315_MoE_Prompt_Routing/README.md",
+      "createdAt": "2026-03-18T10:20:00.000Z",
+      "updatedAt": "2026-03-18T10:20:00.000Z"
     }
   ],
   "meta": {
