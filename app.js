@@ -803,24 +803,22 @@ function renderTimelineChronicle(entries) {
 
   return `
     <div class="timeline-wave-shell">
-      <div class="timeline-wave-scroll">
-        <div class="timeline-wave-board" style="width:${width}px; height:${height}px;">
-          <svg class="timeline-wave-bg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
-            <path class="timeline-wave-axis-line" d="M 52 ${height - 50} H ${width - 52}"></path>
-            <path class="timeline-wave-area" d="${areaPath}"></path>
-            <path class="timeline-wave-line" d="${wavePath}"></path>
-          </svg>
-          <div class="timeline-wave-axis">
-            ${labelIndexes
-              .map(({ label }) => {
-                const ratio = graphRatio(label, range.start, range.end, 0.12, 0.88);
-                return `<span style="left:${(ratio * width).toFixed(1)}px;">${escapeHtml(label.toISOString().slice(0, 7).replace("-", "."))}</span>`;
-              })
-              .join("")}
-          </div>
-          <div class="timeline-wave-events">
-            ${eventLayouts.map((layout) => renderTimelineWaveEvent(layout)).join("")}
-          </div>
+      <div class="timeline-wave-board" style="width:${width}px; height:${height}px;">
+        <svg class="timeline-wave-bg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+          <path class="timeline-wave-axis-line" d="M 52 ${height - 50} H ${width - 52}"></path>
+          <path class="timeline-wave-area" d="${areaPath}"></path>
+          <path class="timeline-wave-line" d="${wavePath}"></path>
+        </svg>
+        <div class="timeline-wave-axis">
+          ${labelIndexes
+            .map(({ label }) => {
+              const ratio = graphRatio(label, range.start, range.end, 0.12, 0.88);
+              return `<span style="left:${(ratio * width).toFixed(1)}px;">${escapeHtml(label.toISOString().slice(0, 7).replace("-", "."))}</span>`;
+            })
+            .join("")}
+        </div>
+        <div class="timeline-wave-events">
+          ${eventLayouts.map((layout) => renderTimelineWaveEvent(layout)).join("")}
         </div>
       </div>
     </div>
@@ -3479,9 +3477,8 @@ function getVisibleProjects() {
 function getProjectRecentTimestamp(project) {
   const timelineEnd = parseTimelineDate(project.timeline?.end || "")?.getTime() || 0;
   const timelineStart = parseTimelineDate(project.timeline?.start || "")?.getTime() || 0;
-  const updatedAt = parseTimelineDate(project.updatedAt || "")?.getTime() || 0;
   const createdAt = parseTimelineDate(project.createdAt || "")?.getTime() || 0;
-  return Math.max(timelineEnd, timelineStart, updatedAt, createdAt);
+  return Math.max(timelineEnd, timelineStart, createdAt);
 }
 
 function findProject(projectId) {

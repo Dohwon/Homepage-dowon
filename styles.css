@@ -4621,8 +4621,10 @@ a {
 }
 
 .timeline-wave-shell {
+  display: block;
   overflow-x: auto;
   overflow-y: hidden;
+  width: 100%;
   border-radius: 30px;
   border: 1px solid rgba(103, 132, 205, 0.14);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 249, 255, 0.94));
@@ -4630,11 +4632,6 @@ a {
   scrollbar-width: thin;
   scrollbar-color: rgba(83, 120, 228, 0.38) rgba(230, 238, 255, 0.72);
   touch-action: pan-x;
-}
-
-.timeline-wave-scroll {
-  width: max-content;
-  min-width: 100%;
   padding: 18px 28px 12px;
 }
 
@@ -5687,12 +5684,8 @@ a {
     border-radius: 24px;
   }
 
-  .timeline-wave-scroll {
+  .timeline-wave-shell {
     padding: 12px 18px 8px;
-  }
-
-  .timeline-wave-board {
-    margin: 0;
   }
 
   .timeline-wave-event {
