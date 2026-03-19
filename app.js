@@ -788,18 +788,32 @@ function renderProjectTimeline() {
 
 function renderTimelineCalendar(entries) {
   const range = buildTimelineRange(entries);
-  const months = range.labels.map((label) => buildTimelineMonthBucket(label, entries));
+  const years = buildTimelineCalendarYears(range, entries);
   return `
-    <div class="timeline-calendar-grid">
-      ${months.map((month) => renderTimelineMonthCard(month)).join("")}
+    <div class="timeline-calendar-stack">
+      ${years.map((year) => renderTimelineYearBoard(year)).join("")}
     </div>
   `;
 }
 
-function buildTimelineMonthBucket(label, entries) {
+function buildTimelineCalendarYears(range, entries) {
+  const years = [];
+  for (let year = range.start.getFullYear(); year <= range.end.getFullYear(); year += 1) {
+    const months = [];
+    for (let monthIndex = 0; monthIndex < 12; monthIndex += 1) {
+      const label = new Date(year, monthIndex, 1);
+      const inRange = label >= range.start && label <= range.end;
+      months.push(buildTimelineMonthBucket(label, entries, inRange));
+    }
+    years.push({ year, months });
+  }
+  return years;
+}
+
+function buildTimelineMonthBucket(label, entries, inRange = true) {
   const monthLabel = label.toISOString().slice(0, 7).replace("-", ".");
   const items = entries
-    .filter((entry) => isEntryActiveInMonth(entry, label))
+    .filter((entry) => inRange && isEntryActiveInMonth(entry, label))
     .map((entry) => ({
       project: entry.project,
       label: getProjectDisplayName(entry.project),
@@ -813,19 +827,38 @@ function buildTimelineMonthBucket(label, entries) {
     year: label.getFullYear(),
     month: label.getMonth() + 1,
     label: monthLabel,
+    inRange,
     items
   };
 }
 
+function renderTimelineYearBoard(year) {
+  return `
+    <section class="timeline-year-board">
+      <header class="timeline-year-head">
+        <div>
+          <p class="panel-kicker">Project Calendar</p>
+          <h3>${escapeHtml(String(year.year))}</h3>
+        </div>
+      </header>
+      <div class="timeline-calendar-grid">
+        ${year.months.map((month) => renderTimelineMonthCard(month)).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderTimelineMonthCard(month) {
   return `
-    <article class="timeline-month-card">
+    <article class="timeline-month-card ${month.inRange ? "" : "muted"}">
       <header class="timeline-month-head">
-        <p>${escapeHtml(String(month.year))}</p>
+        <p>${escapeHtml(`${month.month}월`)}</p>
         <strong>${escapeHtml(String(month.month).padStart(2, "0"))}</strong>
       </header>
       ${
-        month.items.length
+        !month.inRange
+          ? `<p class="timeline-month-empty muted">범위 밖</p>`
+          : month.items.length
           ? `
             <div class="timeline-month-list">
               ${month.items.map((item) => renderTimelineMonthItem(item)).join("")}
