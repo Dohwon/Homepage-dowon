@@ -790,11 +790,13 @@ function renderProjectTimeline() {
 
 function renderTimelineChronicle(entries) {
   const range = buildTimelineRange(entries);
-  const width = Math.max(1540, entries.length * 174);
-  const height = 430;
+  const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1440;
+  const width = Math.max(2200, entries.length * 300, range.labels.length * 280, viewportWidth * 1.9);
+  const height = 540;
   const wavePoints = buildTimelineWavePoints(entries, range, width, height);
   const wavePath = buildSmoothPath(wavePoints);
   const areaPath = `${wavePath} L ${width - 52} ${height - 50} L 52 ${height - 50} Z`;
+  const eventLayouts = buildTimelineEventLayouts(entries, range, width, height);
   const labelIndexes = range.labels
     .map((label, index) => ({ label, index }))
     .filter(({ index }) => index === 0 || index === range.labels.length - 1 || index % 2 === 0);
@@ -817,7 +819,7 @@ function renderTimelineChronicle(entries) {
               .join("")}
           </div>
           <div class="timeline-wave-events">
-            ${entries.map((entry, index) => renderTimelineWaveEvent(entry, index, entries, range, width, height)).join("")}
+            ${eventLayouts.map((layout) => renderTimelineWaveEvent(layout)).join("")}
           </div>
         </div>
       </div>
@@ -825,12 +827,8 @@ function renderTimelineChronicle(entries) {
   `;
 }
 
-function renderTimelineWaveEvent(entry, index, entries, range, width, height) {
-  const ratio = graphRatio(entry.start, range.start, range.end, 0.12, 0.88);
-  const x = ratio * width;
-  const y = computeTimelineWaveY(ratio, entries, range, height);
-  const direction = index % 2 === 0 ? "above" : "below";
-  const cardTop = clampNumber(direction === "above" ? y - 150 : y + 36, 22, height - 148);
+function renderTimelineWaveEvent(layout) {
+  const { entry, x, cardTop, direction } = layout;
   const difficultyCopy = entry.difficulties[0]?.label || "핵심 이슈";
   const summaryCopy = arrayOrEmpty(entry.story.impact)[0] || entry.story.challenge || entry.project.summary;
   return `
@@ -852,6 +850,37 @@ function renderTimelineWaveEvent(entry, index, entries, range, width, height) {
       <span class="timeline-wave-node"></span>
     </button>
   `;
+}
+
+function buildTimelineEventLayouts(entries, range, width, height) {
+  const laneAnchors = [
+    (y) => y - 162,
+    (y) => y - 264,
+    (y) => y + 34,
+    (y) => y + 136
+  ];
+  const laneDirections = ["above", "above", "below", "below"];
+  const laneLastX = [-Infinity, -Infinity, -Infinity, -Infinity];
+  const minimumGap = 248;
+
+  return entries
+    .map((entry) => {
+      const ratio = graphRatio(entry.start, range.start, range.end, 0.12, 0.88);
+      const x = ratio * width;
+      const y = computeTimelineWaveY(ratio, entries, range, height);
+      let laneIndex = laneLastX.findIndex((lastX) => x - lastX >= minimumGap);
+      if (laneIndex === -1) {
+        laneIndex = laneLastX.indexOf(Math.min(...laneLastX));
+      }
+      laneLastX[laneIndex] = x;
+      return {
+        entry,
+        x,
+        direction: laneDirections[laneIndex],
+        cardTop: clampNumber(laneAnchors[laneIndex](y), 28, height - 170)
+      };
+    })
+    .sort((left, right) => left.x - right.x);
 }
 
 function buildTimelineWavePoints(entries, range, width, height) {
@@ -2236,7 +2265,33 @@ function bindRailNavigation() {
     targets.forEach(({ section }) => observer.observe(section));
   }
 
-  activateRailButton(targets[0].section.id);
+  let scrollTicking = false;
+  const syncRailOnScroll = () => {
+    const focusY = window.scrollY + window.innerHeight * 0.32;
+    let activeSectionId = targets[0].section.id;
+    targets.forEach(({ section }) => {
+      const absoluteTop = section.getBoundingClientRect().top + window.scrollY;
+      if (absoluteTop <= focusY) {
+        activeSectionId = section.id;
+      }
+    });
+    activateRailButton(activeSectionId);
+  };
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (scrollTicking) return;
+      scrollTicking = true;
+      window.requestAnimationFrame(() => {
+        syncRailOnScroll();
+        scrollTicking = false;
+      });
+    },
+    { passive: true }
+  );
+  window.addEventListener("resize", syncRailOnScroll);
+  syncRailOnScroll();
 }
 
 function getProjectExternalLinks(project) {
