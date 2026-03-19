@@ -776,7 +776,7 @@ function renderProjectTimeline() {
 
   const enriched = projects
     .map((project) => buildTimelineEntry(project))
-    .sort((left, right) => left.start.getTime() - right.start.getTime());
+    .sort((left, right) => getProjectRecentTimestamp(right.project) - getProjectRecentTimestamp(left.project));
 
   elements.timelineLegend.innerHTML = `
     <span class="timeline-legend-pill"><i class="legend-dot active"></i>프로젝트 시점</span>
@@ -790,7 +790,7 @@ function renderProjectTimeline() {
 
 function renderTimelineChronicle(entries) {
   const range = buildTimelineRange(entries);
-  const width = Math.max(1480, entries.length * 164);
+  const width = Math.max(1540, entries.length * 174);
   const height = 430;
   const wavePoints = buildTimelineWavePoints(entries, range, width, height);
   const wavePath = buildSmoothPath(wavePoints);
@@ -811,7 +811,7 @@ function renderTimelineChronicle(entries) {
           <div class="timeline-wave-axis">
             ${labelIndexes
               .map(({ label }) => {
-                const ratio = graphRatio(label, range.start, range.end, 0.08, 0.92);
+                const ratio = graphRatio(label, range.start, range.end, 0.12, 0.88);
                 return `<span style="left:${(ratio * width).toFixed(1)}px;">${escapeHtml(label.toISOString().slice(0, 7).replace("-", "."))}</span>`;
               })
               .join("")}
@@ -826,7 +826,7 @@ function renderTimelineChronicle(entries) {
 }
 
 function renderTimelineWaveEvent(entry, index, entries, range, width, height) {
-  const ratio = graphRatio(entry.start, range.start, range.end, 0.08, 0.92);
+  const ratio = graphRatio(entry.start, range.start, range.end, 0.12, 0.88);
   const x = ratio * width;
   const y = computeTimelineWaveY(ratio, entries, range, height);
   const direction = index % 2 === 0 ? "above" : "below";
@@ -857,7 +857,7 @@ function renderTimelineWaveEvent(entry, index, entries, range, width, height) {
 function buildTimelineWavePoints(entries, range, width, height) {
   const points = [];
   for (let index = 0; index <= 72; index += 1) {
-    const ratio = 0.08 + 0.84 * (index / 72);
+    const ratio = 0.12 + 0.76 * (index / 72);
     points.push({
       x: ratio * width,
       y: computeTimelineWaveY(ratio, entries, range, height)
@@ -1129,9 +1129,7 @@ function renderProjectLineageRoute(route) {
 
 function getTimelineProjects() {
   return [...(state.bootstrap?.projects || [])].sort((left, right) => {
-    const leftDate = parseTimelineDate(left.timeline?.start || left.createdAt)?.getTime() || 0;
-    const rightDate = parseTimelineDate(right.timeline?.start || right.createdAt)?.getTime() || 0;
-    return rightDate - leftDate;
+    return getProjectRecentTimestamp(right) - getProjectRecentTimestamp(left);
   });
 }
 
@@ -3424,9 +3422,11 @@ function getVisibleProjects() {
 }
 
 function getProjectRecentTimestamp(project) {
-  return (
-    parseTimelineDate(project.timeline?.end || project.timeline?.start || project.createdAt)?.getTime() || 0
-  );
+  const timelineEnd = parseTimelineDate(project.timeline?.end || "")?.getTime() || 0;
+  const timelineStart = parseTimelineDate(project.timeline?.start || "")?.getTime() || 0;
+  const updatedAt = parseTimelineDate(project.updatedAt || "")?.getTime() || 0;
+  const createdAt = parseTimelineDate(project.createdAt || "")?.getTime() || 0;
+  return Math.max(timelineEnd, timelineStart, updatedAt, createdAt);
 }
 
 function findProject(projectId) {

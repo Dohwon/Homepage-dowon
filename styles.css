@@ -4629,7 +4629,7 @@ a {
 .timeline-wave-scroll {
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 18px 0 12px;
+  padding: 18px 28px 12px;
   scrollbar-width: thin;
   scrollbar-color: rgba(83, 120, 228, 0.38) rgba(230, 238, 255, 0.72);
 }
@@ -4637,7 +4637,7 @@ a {
 .timeline-wave-board {
   position: relative;
   min-width: 100%;
-  margin: 0 16px;
+  margin: 0;
 }
 
 .timeline-wave-bg {
@@ -5683,11 +5683,11 @@ a {
   }
 
   .timeline-wave-scroll {
-    padding: 12px 0 8px;
+    padding: 12px 18px 8px;
   }
 
   .timeline-wave-board {
-    margin: 0 10px;
+    margin: 0;
   }
 
   .timeline-wave-event {
