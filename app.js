@@ -779,13 +779,27 @@ function renderProjectTimeline() {
     .sort((left, right) => getProjectRecentTimestamp(right.project) - getProjectRecentTimestamp(left.project));
 
   elements.timelineLegend.innerHTML = `
-    <span class="timeline-legend-pill"><i class="legend-dot active"></i>프로젝트 시점</span>
+    <span class="timeline-legend-pill"><i class="legend-dot active"></i>프로젝트 기간</span>
     <span class="timeline-legend-pill"><i class="legend-dot difficulty"></i>난관 피크</span>
     <span class="timeline-legend-pill"><i class="legend-dot milestone"></i>해결 전환점</span>
   `;
 
-  elements.projectTimelineMap.innerHTML = renderTimelineChronicle(enriched);
+  elements.projectTimelineMap.innerHTML = renderTimelineGantt(enriched);
   renderProjectLineages();
+}
+
+function renderTimelineGantt(entries) {
+  const range = buildTimelineRange(entries);
+  const boardWidth = Math.max(1320, range.labels.length * 124);
+  return `
+    <div class="timeline-gantt-shell">
+      <div class="timeline-gantt-board" style="--timeline-board-width:${boardWidth}px;">
+        ${entries
+          .map((entry) => renderTimelineRow(entry, range, entry.project.id === state.currentTimelineProjectId))
+          .join("")}
+      </div>
+    </div>
+  `;
 }
 
 function renderTimelineChronicle(entries) {
@@ -1219,6 +1233,7 @@ function renderTimelineRow(entry, range, isActive) {
   const left = monthOffset(entry.start, range);
   const width = Math.max(6, monthSpan(entry.start, entry.end, range));
   const displayName = getProjectDisplayName(entry.project);
+  const boardWidthStyle = `width:var(--timeline-board-width);min-width:var(--timeline-board-width);`;
   const difficultyMarkup = entry.difficulties
     .map((item) => {
       const diffLeft = monthOffset(item.start, range);
@@ -1249,10 +1264,10 @@ function renderTimelineRow(entry, range, isActive) {
         </div>
       </div>
       <div class="timeline-row-track-wrap">
-        <div class="timeline-row-scale">
+        <div class="timeline-row-scale" style="${boardWidthStyle}">
           ${range.labels.map((label) => `<span>${escapeHtml(label.toISOString().slice(2, 7).replace("-", "."))}</span>`).join("")}
         </div>
-        <div class="timeline-row-track">
+        <div class="timeline-row-track" style="${boardWidthStyle}">
           <div class="timeline-grid-lines">
             ${range.labels.map(() => `<span></span>`).join("")}
           </div>

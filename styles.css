@@ -2521,6 +2521,19 @@ a {
   overflow: visible;
 }
 
+.timeline-gantt-shell {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(83, 120, 228, 0.38) rgba(230, 238, 255, 0.72);
+}
+
+.timeline-gantt-board {
+  min-width: max-content;
+}
+
 .timeline-project-row {
   display: grid;
   grid-template-columns: minmax(260px, 320px) 1fr;
@@ -2572,6 +2585,7 @@ a {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
 }
 
 .timeline-row-scale {
@@ -2920,6 +2934,10 @@ a {
 
   .timeline-row-scale {
     font-size: 0.66rem;
+  }
+
+  .timeline-project-row {
+    min-width: 920px;
   }
 
   .timeline-project-bar strong {
