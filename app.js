@@ -799,6 +799,9 @@ function renderProjectTimeline() {
 
   elements.timelineLegend.innerHTML = `
     <span class="timeline-legend-copy">달력 칸에는 그달에 움직인 프로젝트 이름만 표시됩니다.</span>
+    <span class="timeline-legend-pill"><i class="legend-dot active"></i>기본 진행</span>
+    <span class="timeline-legend-pill"><i class="legend-dot difficulty"></i>난관 구간</span>
+    <span class="timeline-legend-pill"><i class="legend-dot milestone"></i>해결 전환점</span>
   `;
 
   elements.projectTimelineMap.innerHTML = renderTimelineCalendar(enriched);
@@ -862,12 +865,12 @@ function renderTimelineYearBoard(year, prevYear, nextYear) {
           <h3>${escapeHtml(String(year.year))}</h3>
         </div>
         <div class="timeline-year-nav">
-          <button type="button" class="timeline-year-button" ${prevYear ? `data-timeline-year-nav="${prevYear.year}"` : "disabled"}>
-            ${prevYear ? `${prevYear.year}` : "이전"}
+          <button type="button" class="timeline-year-button" aria-label="이전 연도" ${prevYear ? `data-timeline-year-nav="${prevYear.year}"` : "disabled"}>
+            <span aria-hidden="true">‹</span>
           </button>
-          <button type="button" class="timeline-year-button current" disabled>${escapeHtml(String(year.year))}</button>
-          <button type="button" class="timeline-year-button" ${nextYear ? `data-timeline-year-nav="${nextYear.year}"` : "disabled"}>
-            ${nextYear ? `${nextYear.year}` : "다음"}
+          <span class="timeline-year-current">${escapeHtml(String(year.year))}</span>
+          <button type="button" class="timeline-year-button" aria-label="다음 연도" ${nextYear ? `data-timeline-year-nav="${nextYear.year}"` : "disabled"}>
+            <span aria-hidden="true">›</span>
           </button>
         </div>
       </header>
