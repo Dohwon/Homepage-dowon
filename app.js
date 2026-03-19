@@ -8,6 +8,7 @@ const state = {
   },
   currentProjectId: null,
   currentTimelineProjectId: null,
+  currentTimelineYear: null,
   currentBlogId: null,
   commentsByProject: new Map(),
   blogCommentsByPost: new Map(),
@@ -343,6 +344,15 @@ function bindEvents() {
   });
 
   elements.projectTimelineMap.addEventListener("click", (event) => {
+    const yearNav = event.target.closest("[data-timeline-year-nav]");
+    if (yearNav) {
+      const nextYear = Number(yearNav.dataset.timelineYearNav);
+      if (!Number.isNaN(nextYear)) {
+        state.currentTimelineYear = nextYear;
+        renderProjectTimeline();
+      }
+      return;
+    }
     const action = event.target.closest("[data-timeline-action]");
     if (action) {
       const projectId = action.dataset.projectId || state.currentTimelineProjectId;
@@ -537,6 +547,15 @@ async function refreshApp() {
   }
   if (!findBlogPost(state.currentBlogId)) {
     state.currentBlogId = null;
+  }
+  const timelineYears = timelineProjects
+    .map((project) => buildTimelineEntry(project))
+    .flatMap((entry) => [entry.start.getFullYear(), entry.end.getFullYear()]);
+  if (timelineYears.length) {
+    const latestYear = Math.max(...timelineYears);
+    if (!state.currentTimelineYear || !timelineYears.includes(state.currentTimelineYear)) {
+      state.currentTimelineYear = latestYear;
+    }
   }
   if (state.bootstrap.viewer?.role === "admin") {
     state.analytics = await api("/api/analytics/summary").catch(() => null);
@@ -789,10 +808,12 @@ function renderProjectTimeline() {
 function renderTimelineCalendar(entries) {
   const range = buildTimelineRange(entries);
   const years = buildTimelineCalendarYears(range, entries);
+  const activeYear = years.find((item) => item.year === state.currentTimelineYear) || years[years.length - 1];
+  const currentIndex = years.findIndex((item) => item.year === activeYear.year);
+  const prevYear = years[currentIndex - 1] || null;
+  const nextYear = years[currentIndex + 1] || null;
   return `
-    <div class="timeline-calendar-stack">
-      ${years.map((year) => renderTimelineYearBoard(year)).join("")}
-    </div>
+    ${renderTimelineYearBoard(activeYear, prevYear, nextYear)}
   `;
 }
 
@@ -832,13 +853,22 @@ function buildTimelineMonthBucket(label, entries, inRange = true) {
   };
 }
 
-function renderTimelineYearBoard(year) {
+function renderTimelineYearBoard(year, prevYear, nextYear) {
   return `
     <section class="timeline-year-board">
       <header class="timeline-year-head">
         <div>
           <p class="panel-kicker">Project Calendar</p>
           <h3>${escapeHtml(String(year.year))}</h3>
+        </div>
+        <div class="timeline-year-nav">
+          <button type="button" class="timeline-year-button" ${prevYear ? `data-timeline-year-nav="${prevYear.year}"` : "disabled"}>
+            ${prevYear ? `${prevYear.year}` : "이전"}
+          </button>
+          <button type="button" class="timeline-year-button current" disabled>${escapeHtml(String(year.year))}</button>
+          <button type="button" class="timeline-year-button" ${nextYear ? `data-timeline-year-nav="${nextYear.year}"` : "disabled"}>
+            ${nextYear ? `${nextYear.year}` : "다음"}
+          </button>
         </div>
       </header>
       <div class="timeline-calendar-grid">
@@ -849,11 +879,12 @@ function renderTimelineYearBoard(year) {
 }
 
 function renderTimelineMonthCard(month) {
+  const countLabel = month.inRange ? `${month.items.length}개` : "";
   return `
     <article class="timeline-month-card ${month.inRange ? "" : "muted"}">
       <header class="timeline-month-head">
         <p>${escapeHtml(`${month.month}월`)}</p>
-        <strong>${escapeHtml(String(month.month).padStart(2, "0"))}</strong>
+        <strong>${escapeHtml(countLabel)}</strong>
       </header>
       ${
         !month.inRange
