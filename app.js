@@ -66,6 +66,7 @@ const PROJECT_TITLE_OVERRIDES = {
   "mood-tracker": "감정의 흐름을 기록하는 무드 트래커",
   "260218-ope-log-anlayze": "로그 속 숨은 운영 이슈를 건져낸 분석기",
   "260315-moe-prompt-routing": "질문마다 맞는 프롬프트를 고르는 라우팅 엔진",
+  "260319-llm-tool-hub": "모델 추천과 공통 메모리를 묶는 LLM Tool Hub",
   "dowon-codex-manager-memory-work-summary-v4": "에이전트 작업기억을 한 장으로 묶는 실험",
   "gemini-multiturn-tester-v3": "멀티턴 LLM을 끝까지 흔드는 테스트 벤치",
   "a2a-family-classifier-experts": "Agent-to-Agent로 가기 위한 1차 분류기와 Expert 묶음",
@@ -85,6 +86,12 @@ const PROJECT_LINK_OVERRIDES = {
     {
       label: "Colab",
       url: "https://colab.research.google.com/drive/1OHqEr4OaIbO67_xJQc8KYXb91wwUoDIz"
+    }
+  ],
+  "260319-llm-tool-hub": [
+    {
+      label: "Live",
+      url: "https://celebrated-enjoyment-production.up.railway.app/"
     }
   ]
 };
@@ -143,7 +150,7 @@ const REPEATED_STRENGTH_CLUSTERS = [
     title: "문제 구조화",
     summary: "복잡한 현상을 바로 움직일 수 있는 문제 단위로 다시 정의하는 영역입니다.",
     narrative: "운영 로그, 발화 스펙, 프로젝트 기록처럼 흐릿한 입력을 구조화해 backlog와 실험 설계로 넘깁니다.",
-    projects: ["260218-ope-log-anlayze", "operation-log-analyzer", "semantic-verb-schema"],
+    projects: ["260218-ope-log-anlayze", "operation-log-analyzer", "semantic-verb-schema", "260319-llm-tool-hub"],
     blogs: ["why-i-built-this-homepage"],
     cases: ["log-driven-debug", "utterance-spec-expansion"]
   },
@@ -185,10 +192,17 @@ const PROJECT_LINEAGE_ROUTES = [
     title: "직접 쓰는 도구를 제품으로 만든 흐름",
     summary: "기록과 운영 도구를 실제 인터페이스와 사용 흐름으로 다듬어온 계보입니다.",
     projects: ["mood-tracker", "todack", "260317-desktop-scheduler"]
+  },
+  {
+    id: "routing-to-memory-hub",
+    title: "라우팅 실험을 공통 메모리 허브로 확장한 흐름",
+    summary: "분류와 expert orchestration 경험을, 모델 추천과 공유 handover 구조를 다루는 운영 허브로 확장한 계보입니다.",
+    projects: ["260315-moe-prompt-routing", "a2a-family-classifier-experts", "260319-llm-tool-hub"]
   }
 ];
 
 const NOW_BUILDING_PRIORITY_IDS = [
+  "260319-llm-tool-hub",
   "a2a-family-classifier-experts",
   "260315-moe-prompt-routing",
   "260317-desktop-scheduler"

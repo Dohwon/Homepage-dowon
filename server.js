@@ -355,6 +355,68 @@ const PROJECT_CONTENT_OVERRIDES = {
         "후속 NLU 보정 근거 확보"
       ]
     }
+  },
+  "260319-llm-tool-hub": {
+    status: "in-progress",
+    category: "AI Workflow Hub",
+    summary: "모델 추천, 툴 조합, 프로젝트 런타임, 공통 메모리 어댑터를 한 화면에서 묶어 팀 handover까지 줄이려는 운영 허브.",
+    highlights: [
+      "상황별 모델·툴 추천 규칙을 레지스트리로 정리",
+      "Codex·Claude·Gemini·Cursor용 공통 메모리 어댑터 동기화",
+      "프로젝트 런타임과 handover bundle을 한 화면에서 관리"
+    ],
+    stack: ["Node.js", "Registry", "Memory Adapter", "Railway"],
+    tags: ["LLM", "Tooling", "Memory", "Hub"],
+    detail: {
+      readmeSummary: [
+        "이 프로젝트의 중심은 모델 비교표를 예쁘게 보여주는 것이 아니라, 어떤 상황에서 어떤 모델과 툴을 써야 하는지 추천 규칙으로 고정하는 것이다.",
+        "동시에 Codex, Claude Code, Gemini CLI, Cursor, Windsurf에 주입할 공통 메모리를 한 번에 생성해 handover 비용을 줄이는 흐름을 만들고 있다.",
+        "레지스트리, recommendation rules, global memory adapters, runtime board가 서로 어긋나지 않도록 한 화면 안에서 관리하는 운영형 허브다."
+      ]
+    },
+    preview: {
+      eyebrow: "AI Workflow Hub",
+      caption: "모델 추천 규칙과 공통 메모리 어댑터, 프로젝트 런타임 보드를 한 번에 묶는 허브.",
+      steps: [
+        { label: "Focus", value: "모델·툴 추천 규칙" },
+        { label: "Flow", value: "공통 메모리 어댑터 동기화" },
+        { label: "Impact", value: "handover 비용과 컨텍스트 손실 감소" }
+      ]
+    },
+    story: {
+      challenge: "프로젝트마다 어떤 모델과 툴을 써야 하는지 판단이 흩어지고, 작업 메모리도 도구별로 따로 놀아서 handover 때마다 맥락이 새기 시작했다.",
+      attempts: [
+        "모델/툴 레지스트리를 만들고 추천 규칙을 JSON으로 분리해 판단 근거를 남겼다.",
+        "Codex, Claude Code, Gemini CLI, Cursor, Windsurf용 공통 메모리 어댑터를 한 번에 재생성하는 흐름을 붙였다.",
+        "프로젝트 런타임 위치, handover bundle, risk를 한 화면에서 같이 보게 해 다음 작업자가 바로 이어받을 수 있게 정리했다."
+      ],
+      resolution: "결국 좋은 모델 하나를 고르는 문제가 아니라, 프로젝트 상황에 맞는 조합과 공통 기억을 운영 체계로 만드는 문제로 다시 정의했다.",
+      impact: [
+        "모델 선택 근거를 규칙 형태로 고정",
+        "도구별 컨텍스트 차이를 줄이는 공통 메모리 체계 확보",
+        "프로젝트 handover 속도와 재현성 개선"
+      ]
+    },
+    timeline: {
+      start: "2026-03-19",
+      end: "2026-03-19",
+      label: "2026.03",
+      difficultyWindows: [
+        {
+          label: "공통 메모리 정규화 구조 정리",
+          start: "2026-03-19",
+          end: "2026-03-19",
+          severity: "medium"
+        }
+      ],
+      milestones: [
+        {
+          label: "Railway 공개 배포와 허브 초안 오픈",
+          date: "2026-03-19",
+          tone: "success"
+        }
+      ]
+    }
   }
 };
 
