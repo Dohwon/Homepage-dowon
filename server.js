@@ -359,11 +359,11 @@ const PROJECT_CONTENT_OVERRIDES = {
   "260319-llm-tool-hub": {
     status: "in-progress",
     category: "AI Workflow Hub",
-    summary: "모델과 툴은 바뀌어도 기억은 하나로 이어지고, 프롬프트는 도구별 언어로 다시 컴파일되게 만들려는 LLM 운영 허브.",
+    summary: "모델 추천, 공통 메모리, 프롬프트 번역기를 한곳에 묶어 도구를 갈아타도 작업 맥락과 실행 지시가 끊기지 않게 만드는 LLM 운영 허브.",
     highlights: [
       "상황별 모델·툴 추천 규칙을 레지스트리로 고정",
       "Codex·Claude·Gemini·Cursor용 공통 메모리 어댑터 동기화",
-      "프롬프트를 도구별 형식으로 다시 바꾸는 변환 레이어 설계"
+      "프롬프트 번역기와 목표 기반 프롬프트 생성기 설계"
     ],
     stack: ["Node.js", "Registry", "Memory Adapter", "Prompt Compiler"],
     tags: ["LLM", "Tooling", "Memory", "Prompt Ops"],
@@ -371,15 +371,15 @@ const PROJECT_CONTENT_OVERRIDES = {
       readmeSummary: [
         "이 프로젝트의 핵심은 모델 리스트를 모아두는 것이 아니라, 상황이 바뀌어도 어떤 조합을 써야 하는지 추천 규칙으로 남기는 데 있다.",
         "동시에 Codex, Claude Code, Gemini CLI, Cursor, Windsurf처럼 도구가 달라도 같은 기억을 이어받게 공통 메모리 레이어를 만들고 있다.",
-        "다음 단계는 프롬프트를 도구별 문법과 제약에 맞게 다시 바꾸는 변환 레이어까지 붙여, 사람 handover 없이도 작업 맥락이 이어지게 만드는 것이다."
+        "다음 단계는 프롬프트를 도구별 문법과 제약에 맞게 다시 바꾸는 번역기와, 업무 목표와 실패 피드백을 받아 프롬프트를 다시 짜주는 생성기까지 붙여 사람 handover 없이도 작업 맥락이 이어지게 만드는 것이다."
       ]
     },
     preview: {
       eyebrow: "AI Workflow Hub",
-      caption: "도구는 달라도 기억은 하나로 이어지고, 프롬프트는 각 런타임에 맞게 다시 변환되는 운영 허브.",
+      caption: "도구는 달라도 기억은 하나로 이어지고, 프롬프트는 각 런타임에 맞게 번역되거나 다시 생성되는 운영 허브.",
       steps: [
         { label: "Focus", value: "모델·툴 추천 규칙" },
-        { label: "Flow", value: "공통 기억 + 프롬프트 변환" },
+        { label: "Flow", value: "공통 기억 + 프롬프트 번역/생성" },
         { label: "Impact", value: "handover 없이 이어지는 작업 맥락" }
       ]
     },
@@ -388,9 +388,9 @@ const PROJECT_CONTENT_OVERRIDES = {
       attempts: [
         "모델/툴 레지스트리를 만들고 추천 규칙을 JSON으로 분리해 선택 근거를 남겼다.",
         "Codex, Claude Code, Gemini CLI, Cursor, Windsurf용 공통 메모리 어댑터를 한 번에 재생성하는 흐름을 붙였다.",
-        "프롬프트를 각 도구의 입력 형식과 제약에 맞게 다시 바꾸는 변환 레이어를 설계해, 같은 의도를 다른 런타임에서도 유지하려고 했다."
+        "프롬프트를 각 도구의 입력 형식과 제약에 맞게 다시 바꾸는 번역기와, 업무 목표와 실패 피드백을 받아 다시 조이는 생성기를 함께 설계해 같은 의도를 다른 런타임에서도 유지하려고 했다."
       ],
-      resolution: "결국 이 문제는 좋은 모델 하나를 찾는 게 아니라, 어떤 툴로 넘어가도 기억은 하나로 이어지고 프롬프트도 다시 살아나는 운영 체계를 만드는 일로 다시 정의됐다.",
+      resolution: "결국 이 문제는 좋은 모델 하나를 찾는 게 아니라, 어떤 툴로 넘어가도 기억은 하나로 이어지고 프롬프트도 번역되거나 다시 빚어지는 운영 체계를 만드는 일로 다시 정의됐다.",
       impact: [
         "모델 선택 근거를 감이 아니라 규칙으로 고정",
         "도구별 컨텍스트 단절을 줄이는 공통 기억 체계 확보",
