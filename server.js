@@ -1520,6 +1520,47 @@ function commentCounts(comments) {
   return counts;
 }
 
+function buildNotifications(comments, content, posts) {
+  const projectMap = new Map((content.projects || []).map((project) => [project.id, project]));
+  const blogMap = new Map((posts || []).map((post) => [post.id, post]));
+
+  return comments
+    .map((comment) => {
+      const isBlog = Boolean(comment.blogId);
+      const target = isBlog ? blogMap.get(comment.blogId) : projectMap.get(comment.projectId);
+      if (!target) return null;
+      return {
+        id: comment.id,
+        commentId: comment.id,
+        surface: isBlog ? "blog" : "project",
+        surfaceLabel: isBlog ? "블로그 댓글" : "프로젝트 댓글",
+        projectId: comment.projectId || "",
+        blogId: comment.blogId || "",
+        title: isBlog ? String(target.title || "블로그") : prettifyNotificationProjectName(target),
+        message: truncateText(String(comment.message || ""), 90),
+        authorName: String(comment.authorName || "Visitor"),
+        createdAt: comment.createdAt,
+        readAt: comment.adminReadAt || ""
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
+}
+
+function truncateText(value, maxLength) {
+  const clean = String(value || "").replace(/\s+/g, " ").trim();
+  return clean.length > maxLength ? `${clean.slice(0, maxLength - 1)}…` : clean;
+}
+
+function prettifyNotificationProjectName(project) {
+  return String(project.displayName || project.name || project.id || "Project")
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/^[0-9]{6,8}[_-]*/, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function summarizeAnalytics(events, content) {
   const uniqueVisitors = new Set();
   const uniqueLoggedIn = new Set();
@@ -1772,6 +1813,14 @@ async function handleApi(req, res, url) {
     return;
   }
 
+  if (req.method === "GET" && url.pathname === "/api/notifications") {
+    if (!requireAdmin(viewer, res)) return;
+    const [content, posts, comments] = await Promise.all([loadContent(), loadBlogPosts(), loadComments()]);
+    const notifications = buildNotifications(comments, content, posts);
+    sendJson(res, 200, { notifications });
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/api/comments") {
     const body = await readBody(req);
     const projectId = String(body.projectId || "");
@@ -1817,6 +1866,7 @@ async function handleApi(req, res, url) {
       authorImage: viewer?.picture || "",
       authorRole: viewer?.role || "guest",
       password,
+      adminReadAt: "",
       createdAt: new Date().toISOString()
     };
     comments.push(comment);
@@ -1871,11 +1921,33 @@ async function handleApi(req, res, url) {
       authorImage: viewer?.picture || "",
       authorRole: viewer?.role || "guest",
       password,
+      adminReadAt: "",
       createdAt: new Date().toISOString()
     };
     comments.push(comment);
     await saveComments(comments);
     sendJson(res, 201, { comment });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/notifications/read") {
+    if (!requireAdmin(viewer, res)) return;
+    const body = await readBody(req).catch(() => ({}));
+    const readAll = Boolean(body.readAll);
+    const ids = Array.isArray(body.ids) ? body.ids.map((item) => String(item)) : [];
+    const comments = await loadComments();
+    const now = new Date().toISOString();
+    let changed = false;
+    const nextComments = comments.map((comment) => {
+      const shouldMark = readAll || ids.includes(String(comment.id));
+      if (!shouldMark || comment.adminReadAt) return comment;
+      changed = true;
+      return { ...comment, adminReadAt: now };
+    });
+    if (changed) {
+      await saveComments(nextComments);
+    }
+    sendJson(res, 200, { ok: true });
     return;
   }
 

@@ -287,6 +287,118 @@ a {
   align-items: center;
 }
 
+.auth-stack {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notification-shell {
+  position: relative;
+}
+
+.notification-toggle {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-soft);
+}
+
+.notification-bell {
+  font-size: 1rem;
+}
+
+.notification-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #ff8a68, #f35f54);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.notification-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(360px, calc(100vw - 32px));
+  padding: 14px;
+  border-radius: 24px;
+  border: 1px solid rgba(103, 132, 205, 0.16);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 26px 56px rgba(33, 53, 98, 0.16);
+  backdrop-filter: blur(16px);
+  z-index: 40;
+}
+
+.notification-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.notification-list {
+  display: grid;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.notification-item,
+.notification-empty {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(103, 132, 205, 0.12);
+  background: rgba(244, 248, 255, 0.88);
+  text-align: left;
+}
+
+.notification-item-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.notification-item-head strong {
+  font-size: 0.92rem;
+}
+
+.notification-item-head span,
+.notification-item small,
+.notification-empty {
+  color: var(--ink-soft);
+}
+
+.notification-item p {
+  margin: 8px 0 6px;
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+.notification-item.read {
+  opacity: 0.5;
+}
+
+.notification-item.read p,
+.notification-item.read strong {
+  color: rgba(64, 78, 118, 0.78);
+}
+
 .viewer-pill,
 .login-box {
   display: flex;
@@ -323,6 +435,11 @@ a {
   background: linear-gradient(180deg, rgba(76, 125, 255, 0.16), rgba(60, 111, 245, 0.28));
   color: var(--accent-strong);
   font-weight: 700;
+}
+
+.notification-target {
+  border-color: rgba(74, 122, 245, 0.4) !important;
+  box-shadow: 0 0 0 4px rgba(82, 126, 241, 0.16), 0 20px 38px rgba(53, 82, 155, 0.16) !important;
 }
 
 .page-content {
@@ -2298,9 +2415,29 @@ a {
   }
 
   .viewer-pill,
-  .login-box {
+  .login-box,
+  .auth-stack {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .auth-stack {
+    flex-wrap: wrap;
+  }
+
+  .notification-shell {
+    width: 100%;
+  }
+
+  .notification-toggle {
+    width: 100%;
+    border-radius: 18px;
+  }
+
+  .notification-popover {
+    left: 0;
+    right: auto;
+    width: 100%;
   }
 
   .editor-grid {

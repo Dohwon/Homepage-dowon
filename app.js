@@ -10,6 +10,10 @@ const state = {
   currentTimelineProjectId: null,
   currentTimelineYear: null,
   currentBlogId: null,
+  notifications: [],
+  notificationOpen: false,
+  notificationPollId: null,
+  pendingNotificationCommentId: null,
   commentsByProject: new Map(),
   blogCommentsByPost: new Map(),
   trackedProjects: new Set()
@@ -425,6 +429,25 @@ function bindEvents() {
   elements.newBlogButton?.addEventListener("click", () => openBlogEditor(null));
 
   elements.authArea.addEventListener("click", (event) => {
+    const notificationToggle = event.target.closest("[data-notification-action='toggle']");
+    if (notificationToggle) {
+      state.notificationOpen = !state.notificationOpen;
+      renderAuthArea();
+      return;
+    }
+
+    const notificationReadAll = event.target.closest("[data-notification-action='read-all']");
+    if (notificationReadAll) {
+      void markNotificationsRead("all");
+      return;
+    }
+
+    const notificationItem = event.target.closest("[data-notification-id]");
+    if (notificationItem) {
+      void openNotificationItem(notificationItem.dataset.notificationId);
+      return;
+    }
+
     const logoutButton = event.target.closest("[data-auth-action='logout']");
     if (logoutButton) {
       void logout();
@@ -511,11 +534,20 @@ function bindEvents() {
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      state.notificationOpen = false;
+      renderAuthArea();
       closeDetail();
       closeEditor();
       closeBlogDetail();
       closeBlogEditor();
     }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!state.notificationOpen) return;
+    if (event.target.closest(".notification-shell")) return;
+    state.notificationOpen = false;
+    renderAuthArea();
   });
 }
 
@@ -559,8 +591,13 @@ async function refreshApp() {
   }
   if (state.bootstrap.viewer?.role === "admin") {
     state.analytics = await api("/api/analytics/summary").catch(() => null);
+    await refreshNotifications();
+    startNotificationPolling();
   } else {
     state.analytics = null;
+    stopNotificationPolling();
+    state.notifications = [];
+    state.notificationOpen = false;
   }
   renderAll();
   initializeGoogleButton();
@@ -2823,7 +2860,7 @@ function renderOpenDetail() {
                   ? comments
                       .map(
                         (comment) => `
-                          <article class="comment-card detail-comment-card">
+                          <article class="comment-card detail-comment-card" data-comment-id="${escapeHtml(comment.id)}">
                             <div class="comment-author">
                               <div class="avatar-circle">${escapeHtml((comment.authorName || "?").slice(0, 1).toUpperCase())}</div>
                               <div>
@@ -3065,7 +3102,7 @@ function renderOpenBlog() {
 
 function renderBlogCommentCard(comment, viewer) {
   return `
-    <article class="blog-comment-card">
+    <article class="blog-comment-card" data-comment-id="${escapeHtml(comment.id)}">
       <div class="blog-comment-avatar">${escapeHtml((comment.authorName || "?").slice(0, 1).toUpperCase())}</div>
       <div class="blog-comment-copy">
         <div class="blog-comment-meta-line">
@@ -3117,6 +3154,7 @@ async function loadComments(projectId) {
     if (state.currentProjectId === projectId) {
       renderOpenDetail();
     }
+    focusPendingNotificationComment();
   } catch (error) {
     console.error(error);
   }
@@ -3129,22 +3167,52 @@ async function loadBlogComments(blogId) {
     if (state.currentBlogId === blogId) {
       renderOpenBlog();
     }
+    focusPendingNotificationComment();
   } catch (error) {
     console.error(error);
+  }
+}
+
+async function refreshNotifications() {
+  if (state.bootstrap.viewer?.role !== "admin") return;
+  try {
+    const data = await api("/api/notifications");
+    state.notifications = data.notifications || [];
+    renderAuthArea();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function startNotificationPolling() {
+  stopNotificationPolling();
+  state.notificationPollId = window.setInterval(() => {
+    void refreshNotifications();
+  }, 30000);
+}
+
+function stopNotificationPolling() {
+  if (state.notificationPollId) {
+    window.clearInterval(state.notificationPollId);
+    state.notificationPollId = null;
   }
 }
 
 function renderAuthArea() {
   const viewer = state.bootstrap.viewer;
   if (viewer) {
+    const notificationCenter = viewer.role === "admin" ? renderNotificationCenter() : "";
     elements.authArea.innerHTML = `
-      <div class="viewer-pill">
-        <div class="avatar-circle">${escapeHtml((viewer.name || viewer.email || "?").slice(0, 1).toUpperCase())}</div>
-        <div class="viewer-copy">
-          <strong>${escapeHtml(viewer.name || viewer.email)}</strong>
-          <span>${escapeHtml(viewer.role === "admin" ? "관리자" : "로그인 사용자")}</span>
+      <div class="auth-stack">
+        ${notificationCenter}
+        <div class="viewer-pill">
+          <div class="avatar-circle">${escapeHtml((viewer.name || viewer.email || "?").slice(0, 1).toUpperCase())}</div>
+          <div class="viewer-copy">
+            <strong>${escapeHtml(viewer.name || viewer.email)}</strong>
+            <span>${escapeHtml(viewer.role === "admin" ? "관리자" : "로그인 사용자")}</span>
+          </div>
+          <button type="button" class="ghost-button" data-auth-action="logout">로그아웃</button>
         </div>
-        <button type="button" class="ghost-button" data-auth-action="logout">로그아웃</button>
       </div>
     `;
     return;
@@ -3158,6 +3226,95 @@ function renderAuthArea() {
     <div class="login-box">
       <div id="google-button-slot" class="google-button-slot"></div>
       ${devLoginButton}
+    </div>
+  `;
+}
+
+async function markNotificationsRead(mode, notificationId = "") {
+  if (state.bootstrap.viewer?.role !== "admin") return;
+  try {
+    await api("/api/notifications/read", {
+      method: "POST",
+      body:
+        mode === "all"
+          ? { readAll: true }
+          : {
+              ids: [notificationId]
+            }
+    });
+    await refreshNotifications();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function openNotificationItem(notificationId) {
+  const notification = state.notifications.find((item) => item.id === notificationId);
+  if (!notification) return;
+  state.notificationOpen = false;
+  await markNotificationsRead("single", notificationId);
+  state.pendingNotificationCommentId = notification.commentId;
+  if (notification.surface === "blog") {
+    openBlogDetail(notification.blogId);
+    return;
+  }
+  openDetail(notification.projectId);
+}
+
+function focusPendingNotificationComment() {
+  if (!state.pendingNotificationCommentId) return;
+  const selector = `[data-comment-id="${CSS.escape(state.pendingNotificationCommentId)}"]`;
+  const target =
+    elements.detailModalBody.querySelector(selector) || elements.blogModalBody?.querySelector(selector) || null;
+  if (!target) return;
+  state.pendingNotificationCommentId = null;
+  target.classList.add("notification-target");
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  window.setTimeout(() => target.classList.remove("notification-target"), 2600);
+}
+
+function renderNotificationCenter() {
+  const unreadCount = state.notifications.filter((item) => !item.readAt).length;
+  const items = state.notifications.length
+    ? state.notifications
+        .map(
+          (item) => `
+            <button
+              type="button"
+              class="notification-item ${item.readAt ? "read" : ""}"
+              data-notification-id="${escapeHtml(item.id)}"
+            >
+              <div class="notification-item-head">
+                <strong>${escapeHtml(item.title)}</strong>
+                <span>${escapeHtml(formatRelativeTime(item.createdAt))}</span>
+              </div>
+              <p>${escapeHtml(item.message)}</p>
+              <small>${escapeHtml(item.authorName)} · ${escapeHtml(item.surfaceLabel)}</small>
+            </button>
+          `
+        )
+        .join("")
+    : `<article class="notification-empty">새 댓글 알람이 없습니다.</article>`;
+
+  return `
+    <div class="notification-shell ${state.notificationOpen ? "open" : ""}">
+      <button type="button" class="notification-toggle" data-notification-action="toggle" aria-label="알람 열기">
+        <span class="notification-bell">🔔</span>
+        ${unreadCount ? `<span class="notification-count">${escapeHtml(String(unreadCount))}</span>` : ""}
+      </button>
+      ${
+        state.notificationOpen
+          ? `
+            <section class="notification-popover">
+              <div class="notification-popover-head">
+                <strong>새 댓글 알람</strong>
+                <button type="button" class="ghost-button compact" data-notification-action="read-all">전체 확인</button>
+              </div>
+              <div class="notification-list">${items}</div>
+            </section>
+          `
+          : ""
+      }
     </div>
   `;
 }
@@ -3488,6 +3645,7 @@ async function submitComment() {
     }
     await loadComments(state.currentProjectId);
     await refreshCommentCounts();
+    await refreshNotifications();
   } catch (error) {
     window.alert(`댓글 등록 실패: ${error.message}`);
   }
@@ -3527,6 +3685,7 @@ async function submitBlogComment() {
       passwordInput.value = "";
     }
     await loadBlogComments(state.currentBlogId);
+    await refreshNotifications();
   } catch (error) {
     window.alert(`블로그 댓글 등록 실패: ${error.message}`);
   }
