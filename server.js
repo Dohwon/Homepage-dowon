@@ -359,42 +359,42 @@ const PROJECT_CONTENT_OVERRIDES = {
   "260319-llm-tool-hub": {
     status: "in-progress",
     category: "AI Workflow Hub",
-    summary: "모델 추천, 툴 조합, 프로젝트 런타임, 공통 메모리 어댑터를 한 화면에서 묶어 팀 handover까지 줄이려는 운영 허브.",
+    summary: "모델과 툴은 바뀌어도 기억은 하나로 이어지고, 프롬프트는 도구별 언어로 다시 컴파일되게 만들려는 LLM 운영 허브.",
     highlights: [
-      "상황별 모델·툴 추천 규칙을 레지스트리로 정리",
+      "상황별 모델·툴 추천 규칙을 레지스트리로 고정",
       "Codex·Claude·Gemini·Cursor용 공통 메모리 어댑터 동기화",
-      "프로젝트 런타임과 handover bundle을 한 화면에서 관리"
+      "프롬프트를 도구별 형식으로 다시 바꾸는 변환 레이어 설계"
     ],
-    stack: ["Node.js", "Registry", "Memory Adapter", "Railway"],
-    tags: ["LLM", "Tooling", "Memory", "Hub"],
+    stack: ["Node.js", "Registry", "Memory Adapter", "Prompt Compiler"],
+    tags: ["LLM", "Tooling", "Memory", "Prompt Ops"],
     detail: {
       readmeSummary: [
-        "이 프로젝트의 중심은 모델 비교표를 예쁘게 보여주는 것이 아니라, 어떤 상황에서 어떤 모델과 툴을 써야 하는지 추천 규칙으로 고정하는 것이다.",
-        "동시에 Codex, Claude Code, Gemini CLI, Cursor, Windsurf에 주입할 공통 메모리를 한 번에 생성해 handover 비용을 줄이는 흐름을 만들고 있다.",
-        "레지스트리, recommendation rules, global memory adapters, runtime board가 서로 어긋나지 않도록 한 화면 안에서 관리하는 운영형 허브다."
+        "이 프로젝트의 핵심은 모델 리스트를 모아두는 것이 아니라, 상황이 바뀌어도 어떤 조합을 써야 하는지 추천 규칙으로 남기는 데 있다.",
+        "동시에 Codex, Claude Code, Gemini CLI, Cursor, Windsurf처럼 도구가 달라도 같은 기억을 이어받게 공통 메모리 레이어를 만들고 있다.",
+        "다음 단계는 프롬프트를 도구별 문법과 제약에 맞게 다시 바꾸는 변환 레이어까지 붙여, 사람 handover 없이도 작업 맥락이 이어지게 만드는 것이다."
       ]
     },
     preview: {
       eyebrow: "AI Workflow Hub",
-      caption: "모델 추천 규칙과 공통 메모리 어댑터, 프로젝트 런타임 보드를 한 번에 묶는 허브.",
+      caption: "도구는 달라도 기억은 하나로 이어지고, 프롬프트는 각 런타임에 맞게 다시 변환되는 운영 허브.",
       steps: [
         { label: "Focus", value: "모델·툴 추천 규칙" },
-        { label: "Flow", value: "공통 메모리 어댑터 동기화" },
-        { label: "Impact", value: "handover 비용과 컨텍스트 손실 감소" }
+        { label: "Flow", value: "공통 기억 + 프롬프트 변환" },
+        { label: "Impact", value: "handover 없이 이어지는 작업 맥락" }
       ]
     },
     story: {
-      challenge: "프로젝트마다 어떤 모델과 툴을 써야 하는지 판단이 흩어지고, 작업 메모리도 도구별로 따로 놀아서 handover 때마다 맥락이 새기 시작했다.",
+      challenge: "모델 추천은 사람 감에 의존하고, 작업 메모리는 도구마다 따로 놀아서 툴을 바꾸는 순간 맥락이 끊기는 게 가장 큰 문제였다.",
       attempts: [
-        "모델/툴 레지스트리를 만들고 추천 규칙을 JSON으로 분리해 판단 근거를 남겼다.",
+        "모델/툴 레지스트리를 만들고 추천 규칙을 JSON으로 분리해 선택 근거를 남겼다.",
         "Codex, Claude Code, Gemini CLI, Cursor, Windsurf용 공통 메모리 어댑터를 한 번에 재생성하는 흐름을 붙였다.",
-        "프로젝트 런타임 위치, handover bundle, risk를 한 화면에서 같이 보게 해 다음 작업자가 바로 이어받을 수 있게 정리했다."
+        "프롬프트를 각 도구의 입력 형식과 제약에 맞게 다시 바꾸는 변환 레이어를 설계해, 같은 의도를 다른 런타임에서도 유지하려고 했다."
       ],
-      resolution: "결국 좋은 모델 하나를 고르는 문제가 아니라, 프로젝트 상황에 맞는 조합과 공통 기억을 운영 체계로 만드는 문제로 다시 정의했다.",
+      resolution: "결국 이 문제는 좋은 모델 하나를 찾는 게 아니라, 어떤 툴로 넘어가도 기억은 하나로 이어지고 프롬프트도 다시 살아나는 운영 체계를 만드는 일로 다시 정의됐다.",
       impact: [
-        "모델 선택 근거를 규칙 형태로 고정",
-        "도구별 컨텍스트 차이를 줄이는 공통 메모리 체계 확보",
-        "프로젝트 handover 속도와 재현성 개선"
+        "모델 선택 근거를 감이 아니라 규칙으로 고정",
+        "도구별 컨텍스트 단절을 줄이는 공통 기억 체계 확보",
+        "프롬프트 이식성과 handover 재현성 개선 기반 마련"
       ]
     },
     timeline: {

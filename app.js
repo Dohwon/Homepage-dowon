@@ -66,7 +66,7 @@ const PROJECT_TITLE_OVERRIDES = {
   "mood-tracker": "감정의 흐름을 기록하는 무드 트래커",
   "260218-ope-log-anlayze": "로그 속 숨은 운영 이슈를 건져낸 분석기",
   "260315-moe-prompt-routing": "질문마다 맞는 프롬프트를 고르는 라우팅 엔진",
-  "260319-llm-tool-hub": "모델 추천과 공통 메모리를 묶는 LLM Tool Hub",
+  "260319-llm-tool-hub": "도구는 바뀌어도 기억은 하나인 LLM 운영 허브",
   "dowon-codex-manager-memory-work-summary-v4": "에이전트 작업기억을 한 장으로 묶는 실험",
   "gemini-multiturn-tester-v3": "멀티턴 LLM을 끝까지 흔드는 테스트 벤치",
   "a2a-family-classifier-experts": "Agent-to-Agent로 가기 위한 1차 분류기와 Expert 묶음",
