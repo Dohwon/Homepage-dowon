@@ -25,6 +25,7 @@ const elements = {
   ownerPrimary: document.getElementById("owner-primary"),
   ownerHeadline: document.getElementById("owner-headline"),
   externalLink: document.getElementById("external-link"),
+  notificationSlot: document.getElementById("notification-slot"),
   authArea: document.getElementById("auth-area"),
   newProjectButton: document.getElementById("new-project-button"),
   heroBadge: document.getElementById("hero-badge"),
@@ -428,10 +429,11 @@ function bindEvents() {
   elements.newProjectButton.addEventListener("click", () => openEditor(null));
   elements.newBlogButton?.addEventListener("click", () => openBlogEditor(null));
 
-  elements.authArea.addEventListener("click", (event) => {
+  elements.notificationSlot?.addEventListener("click", (event) => {
     const notificationToggle = event.target.closest("[data-notification-action='toggle']");
     if (notificationToggle) {
       state.notificationOpen = !state.notificationOpen;
+      renderTopbar();
       renderAuthArea();
       return;
     }
@@ -447,6 +449,9 @@ function bindEvents() {
       void openNotificationItem(notificationItem.dataset.notificationId);
       return;
     }
+  });
+
+  elements.authArea.addEventListener("click", (event) => {
 
     const logoutButton = event.target.closest("[data-auth-action='logout']");
     if (logoutButton) {
@@ -535,6 +540,7 @@ function bindEvents() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       state.notificationOpen = false;
+      renderTopbar();
       renderAuthArea();
       closeDetail();
       closeEditor();
@@ -547,6 +553,7 @@ function bindEvents() {
     if (!state.notificationOpen) return;
     if (event.target.closest(".notification-shell")) return;
     state.notificationOpen = false;
+    renderTopbar();
     renderAuthArea();
   });
 }
@@ -636,6 +643,9 @@ function renderTopbar() {
 
   elements.newProjectButton.classList.toggle("hidden", state.bootstrap.viewer?.role !== "admin");
   elements.newBlogButton?.classList.toggle("hidden", state.bootstrap.viewer?.role !== "admin");
+  if (elements.notificationSlot) {
+    elements.notificationSlot.innerHTML = state.bootstrap.viewer?.role === "admin" ? renderNotificationCenter() : "";
+  }
 }
 
 function renderHero() {
@@ -3178,6 +3188,7 @@ async function refreshNotifications() {
   try {
     const data = await api("/api/notifications");
     state.notifications = data.notifications || [];
+    renderTopbar();
     renderAuthArea();
   } catch (error) {
     console.error(error);
@@ -3201,18 +3212,14 @@ function stopNotificationPolling() {
 function renderAuthArea() {
   const viewer = state.bootstrap.viewer;
   if (viewer) {
-    const notificationCenter = viewer.role === "admin" ? renderNotificationCenter() : "";
     elements.authArea.innerHTML = `
-      <div class="auth-stack">
-        ${notificationCenter}
-        <div class="viewer-pill">
-          <div class="avatar-circle">${escapeHtml((viewer.name || viewer.email || "?").slice(0, 1).toUpperCase())}</div>
-          <div class="viewer-copy">
-            <strong>${escapeHtml(viewer.name || viewer.email)}</strong>
-            <span>${escapeHtml(viewer.role === "admin" ? "관리자" : "로그인 사용자")}</span>
-          </div>
-          <button type="button" class="ghost-button" data-auth-action="logout">로그아웃</button>
+      <div class="viewer-pill">
+        <div class="avatar-circle">${escapeHtml((viewer.name || viewer.email || "?").slice(0, 1).toUpperCase())}</div>
+        <div class="viewer-copy">
+          <strong>${escapeHtml(viewer.name || viewer.email)}</strong>
+          <span>${escapeHtml(viewer.role === "admin" ? "관리자" : "로그인 사용자")}</span>
         </div>
+        <button type="button" class="ghost-button" data-auth-action="logout">로그아웃</button>
       </div>
     `;
     return;

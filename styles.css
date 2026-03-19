@@ -287,10 +287,9 @@ a {
   align-items: center;
 }
 
-.auth-stack {
+.notification-slot {
   display: flex;
   align-items: center;
-  gap: 10px;
 }
 
 .notification-shell {
@@ -2416,13 +2415,9 @@ a {
 
   .viewer-pill,
   .login-box,
-  .auth-stack {
+  .notification-slot {
     width: 100%;
     justify-content: space-between;
-  }
-
-  .auth-stack {
-    flex-wrap: wrap;
   }
 
   .notification-shell {
