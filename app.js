@@ -1229,7 +1229,6 @@ function buildTimelineRange(entries) {
 }
 
 function renderTimelineRow(entry, range, isActive) {
-  const viewer = state.bootstrap.viewer;
   const left = monthOffset(entry.start, range);
   const width = Math.max(6, monthSpan(entry.start, entry.end, range));
   const displayName = getProjectDisplayName(entry.project);
@@ -1249,7 +1248,7 @@ function renderTimelineRow(entry, range, isActive) {
     .join("");
 
   return `
-    <article class="timeline-project-row ${isActive ? "active" : ""}" tabindex="0" data-timeline-project="${escapeHtml(entry.project.id)}">
+    <article class="timeline-project-row timeline-project-row-compact ${isActive ? "active" : ""}" tabindex="0" data-timeline-project="${escapeHtml(entry.project.id)}">
       <div class="timeline-row-copy">
         <div class="timeline-row-top">
           <span class="badge ${entry.project.status === "in-progress" ? "warning" : "success"}">
@@ -1258,10 +1257,6 @@ function renderTimelineRow(entry, range, isActive) {
           <span class="timeline-row-label">${escapeHtml(entry.label)}</span>
         </div>
         <h3>${escapeHtml(displayName)}</h3>
-        <p>${escapeHtml(entry.story.challenge || entry.project.summary)}</p>
-        <div class="timeline-row-tags">
-          ${arrayOrEmpty(entry.project.tags).slice(0, 3).map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")}
-        </div>
       </div>
       <div class="timeline-row-track-wrap">
         <div class="timeline-row-scale" style="${boardWidthStyle}">
@@ -1272,26 +1267,12 @@ function renderTimelineRow(entry, range, isActive) {
             ${range.labels.map(() => `<span></span>`).join("")}
           </div>
           <span class="timeline-project-bar ${entry.project.status === "in-progress" ? "warning" : "success"}" style="left:${left}%; width:${width}%;">
-            <strong>${escapeHtml(getProjectCategory(entry.project))}</strong>
+            <strong>${escapeHtml(truncate(displayName, 30))}</strong>
           </span>
           ${difficultyMarkup}
           ${milestoneMarkup}
         </div>
-        ${
-          viewer?.role === "admin"
-            ? `<div class="timeline-row-actions"><button type="button" class="ghost-button compact" data-timeline-action="edit" data-project-id="${escapeHtml(entry.project.id)}">수정</button></div>`
-            : ""
-        }
       </div>
-      ${
-        isActive
-          ? `
-            <div class="timeline-row-expanded">
-              ${renderTimelineFocus(entry)}
-            </div>
-          `
-          : ""
-      }
     </article>
   `;
 }
