@@ -779,27 +779,93 @@ function renderProjectTimeline() {
     .sort((left, right) => getProjectRecentTimestamp(right.project) - getProjectRecentTimestamp(left.project));
 
   elements.timelineLegend.innerHTML = `
-    <span class="timeline-legend-pill"><i class="legend-dot active"></i>프로젝트 기간</span>
-    <span class="timeline-legend-pill"><i class="legend-dot difficulty"></i>난관 피크</span>
-    <span class="timeline-legend-pill"><i class="legend-dot milestone"></i>해결 전환점</span>
+    <span class="timeline-legend-copy">달력 칸에는 그달에 움직인 프로젝트 이름만 표시됩니다.</span>
   `;
 
-  elements.projectTimelineMap.innerHTML = renderTimelineGantt(enriched);
+  elements.projectTimelineMap.innerHTML = renderTimelineCalendar(enriched);
   renderProjectLineages();
 }
 
-function renderTimelineGantt(entries) {
+function renderTimelineCalendar(entries) {
   const range = buildTimelineRange(entries);
-  const boardWidth = Math.max(1320, range.labels.length * 124);
+  const months = range.labels.map((label) => buildTimelineMonthBucket(label, entries));
   return `
-    <div class="timeline-gantt-shell">
-      <div class="timeline-gantt-board" style="--timeline-board-width:${boardWidth}px;">
-        ${entries
-          .map((entry) => renderTimelineRow(entry, range, entry.project.id === state.currentTimelineProjectId))
-          .join("")}
-      </div>
+    <div class="timeline-calendar-grid">
+      ${months.map((month) => renderTimelineMonthCard(month)).join("")}
     </div>
   `;
+}
+
+function buildTimelineMonthBucket(label, entries) {
+  const monthLabel = label.toISOString().slice(0, 7).replace("-", ".");
+  const items = entries
+    .filter((entry) => isEntryActiveInMonth(entry, label))
+    .map((entry) => ({
+      project: entry.project,
+      label: getProjectDisplayName(entry.project),
+      hasDifficulty: entry.difficulties.some((item) => isMonthOverlap(label, item.start, item.end)),
+      hasMilestone: entry.milestones.some((item) => isSameMonth(label, item.date))
+    }))
+    .sort((left, right) => getProjectRecentTimestamp(right.project) - getProjectRecentTimestamp(left.project));
+
+  return {
+    key: monthLabel,
+    year: label.getFullYear(),
+    month: label.getMonth() + 1,
+    label: monthLabel,
+    items
+  };
+}
+
+function renderTimelineMonthCard(month) {
+  return `
+    <article class="timeline-month-card">
+      <header class="timeline-month-head">
+        <p>${escapeHtml(String(month.year))}</p>
+        <strong>${escapeHtml(String(month.month).padStart(2, "0"))}</strong>
+      </header>
+      ${
+        month.items.length
+          ? `
+            <div class="timeline-month-list">
+              ${month.items.map((item) => renderTimelineMonthItem(item)).join("")}
+            </div>
+          `
+          : `<p class="timeline-month-empty">표시할 프로젝트 없음</p>`
+      }
+    </article>
+  `;
+}
+
+function renderTimelineMonthItem(item) {
+  const markerClass = item.hasDifficulty ? "warning" : item.hasMilestone ? "milestone" : "active";
+  return `
+    <button type="button" class="timeline-month-item" data-timeline-project="${escapeHtml(item.project.id)}">
+      <span class="timeline-month-marker ${markerClass}" aria-hidden="true"></span>
+      <span class="timeline-month-name">${escapeHtml(item.label)}</span>
+    </button>
+  `;
+}
+
+function isEntryActiveInMonth(entry, monthDate) {
+  const month = monthStart(monthDate);
+  return entry.start <= monthEnd(month) && entry.end >= month;
+}
+
+function isMonthOverlap(monthDate, start, end) {
+  const month = monthStart(monthDate);
+  return start <= monthEnd(month) && end >= month;
+}
+
+function isSameMonth(monthDate, targetDate) {
+  if (!targetDate) return false;
+  const left = monthStart(monthDate);
+  const right = monthStart(targetDate);
+  return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth();
+}
+
+function monthEnd(date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
 }
 
 function renderTimelineChronicle(entries) {
