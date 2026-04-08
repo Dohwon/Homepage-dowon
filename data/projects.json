@@ -116,6 +116,130 @@
   },
   "projects": [
     {
+      "id": "execution-harness-system",
+      "name": "Execution Harness System",
+      "status": "in-progress",
+      "category": "Agent Workflow Orchestration",
+      "summary": "멀티 에이전트 결과물이 handoff에서 흐려지지 않도록, 구현·SQE·SQA를 실제 실행과 품질 게이트로 닫는 handoff-first 실행 하네스.",
+      "highlights": [
+        "HANDOFF_PACKET과 EXECUTION_PLAN을 함께 강제",
+        "implementer 단계에서 실제 로컬 파일 변경과 명령 실행",
+        "SQE와 SQA를 분리하고 로컬 UI면 preview URL 없이는 실패"
+      ],
+      "stack": [
+        "Python",
+        "Markdown",
+        "JSON",
+        "Agent Workflow"
+      ],
+      "tags": [
+        "Execution Harness",
+        "Handoff",
+        "SQE",
+        "SQA",
+        "AgentOps"
+      ],
+      "path": "docs/execution-harness-system",
+      "readme": "docs/execution-harness-system/README.md",
+      "pinned": true,
+      "manualOrder": 0,
+      "detail": {
+        "readmeSummary": [
+          "멀티 에이전트에서 가장 큰 손실 지점인 handoff drift를 먼저 막는 구조로 설계했습니다.",
+          "규칙 문서와 실행기를 분리하지 않고, 하네스가 규칙 위반을 직접 실패시키도록 바꿨습니다.",
+          "로컬 UI 과제는 localhost preview URL이 없으면 통과할 수 없게 강제했습니다."
+        ],
+        "workflow": [
+          {
+            "step": "입력 정렬",
+            "desc": "시작 스킬이 목표를 사업/우선순위 관점에서 정렬하고 manager가 실행 루프를 엽니다."
+          },
+          {
+            "step": "역할별 handoff",
+            "desc": "architect, implementer, SQE, SQA로 책임을 나누고 각 단계 보고서 끝에 HANDOFF_PACKET을 붙입니다."
+          },
+          {
+            "step": "실행 브리지",
+            "desc": "implementer가 EXECUTION_PLAN으로 파일 쓰기, 명령 실행, preview server 기동을 구조화해서 넘깁니다."
+          },
+          {
+            "step": "게이트 판정",
+            "desc": "SQE가 개발계 검증을, SQA가 최종 수용 판정을 맡고 실패 시 manager로 다시 되돌립니다."
+          }
+        ],
+        "keyFiles": [
+          "scripts/run_execution_harness.py",
+          "scripts/run_harness_template.py",
+          "skills/HANDOFF_PROTOCOL.md",
+          "skills/Executive Office/multi-agent-manager-ko/SKILL.md",
+          "skills/Core Delivery HQ/implementer-agent-ko/SKILL.md",
+          "skills/Core Delivery HQ/sqe-agent-ko/SKILL.md",
+          "skills/Core Delivery HQ/sqa-agent-ko/SKILL.md",
+          "projects/260405_execution_harness_system/README.md"
+        ],
+        "diagramCaption": "Goal -> Manager -> Architect -> Implementer -> EXECUTION_PLAN -> SQE -> SQA -> final_result 흐름"
+      },
+      "preview": {
+        "mode": "mock",
+        "poster": "",
+        "video": "",
+        "eyebrow": "Agent Workflow Orchestration",
+        "caption": "handoff-first 구조로 실행과 QA를 닫는 멀티 에이전트 하네스.",
+        "steps": [
+          {
+            "label": "Identity",
+            "value": "Handoff-first execution harness"
+          },
+          {
+            "label": "Bridge",
+            "value": "EXECUTION_PLAN for write/run/preview"
+          },
+          {
+            "label": "Gate",
+            "value": "SQE + SQA with localhost requirement"
+          }
+        ]
+      },
+      "story": {
+        "narrative": "멀티 에이전트 품질은 모델 수보다 handoff 손실과 실행 폐쇄성에서 갈린다고 보고, 문서와 실행기를 함께 바꾸는 하네스를 다시 설계했습니다.",
+        "challenge": "중간 단계에서 의미가 흐려지고 구현이 실제 파일 변경 없이 텍스트 보고로 끝나며, QA도 최종 확인 포인트를 남기지 못하던 구조가 반복됐습니다.",
+        "resolution": "HANDOFF_PACKET, EXECUTION_PLAN, SQE/SQA 분리, localhost preview 의무화, final_result.md와 LATEST_RUN 포인터를 추가해 실패와 성공 모두 다음 액션이 남도록 정리했습니다.",
+        "impact": [
+          "하네스가 실패해도 사용자가 어디를 열어봐야 하는지 바로 확인 가능",
+          "로컬 UI는 preview URL 없이는 통과하지 못하도록 강제",
+          "구현 단계가 실제 파일 변경과 명령 실행으로 닫히는 구조 확보"
+        ]
+      },
+      "createdAt": "2026-04-05T08:28:28Z",
+      "updatedAt": "2026-04-05T08:28:28Z"
+    },
+    {
+      "id": "central-memory-prompt-kit",
+      "name": "Central Memory Prompt Kit",
+      "status": "in-progress",
+      "category": "AI Workflow Memory System",
+      "summary": "여러 AI 툴에서 공통으로 쓰는 중앙 메모리(사용자 성향 + long/mid/short 작업 상태 + 핸드오버 패킷) 템플릿 키트.",
+      "highlights": [
+        "Tool-agnostic system prompt + profile compact 템플릿",
+        "AGENTS/CLAUDE/GEMINI/Cursor/Windsurf 어댑터 생성",
+        "프로젝트별 PROJECT_MEMORY_LINK로 중앙 참조 고정"
+      ],
+      "stack": [
+        "Markdown",
+        "JSON Schema",
+        "Python",
+        "Bash"
+      ],
+      "tags": [
+        "Memory",
+        "Prompt",
+        "Handover",
+        "AgentOps"
+      ],
+      "path": "projects/260324_central_memory_prompt_kit",
+      "readme": "projects/260324_central_memory_prompt_kit/README.md"
+    },
+    {
       "id": "gemini-multiturn-tester-v3",
       "name": "Gemini Multi-turn Tester v3",
       "status": "in-progress",
@@ -318,6 +442,198 @@
       ],
       "path": "projects/260212_feeling_traker",
       "readme": "projects/260212_feeling_traker/README.md"
+    },
+    {
+      "id": "wine-cellar-scan",
+      "name": "Wine Cellar Scan",
+      "status": "active",
+      "category": "Consumer AI MVP",
+      "summary": "와인 병 사진 한 장에서 라벨을 읽고 후보를 좁힌 뒤, 별점·코멘트·당도·도수와 재음용 여부까지 함께 남기는 개인 셀러 기록 앱.",
+      "highlights": [
+        "사진 업로드 → OCR/비전 추출 → 후보 3~5개 제안 흐름 구현",
+        "또 먹을 와인 / 다시 안 먹을 와인 분리 저장과 검색 탭 구성",
+        "당도, 평점, 코멘트, 도수(ABV), 국가 선호도까지 기록/시각화"
+      ],
+      "stack": [
+        "Node.js",
+        "Vanilla JS",
+        "OpenAI Vision",
+        "HTML",
+        "CSS"
+      ],
+      "tags": [
+        "Wine",
+        "OCR",
+        "Vision",
+        "MVP",
+        "Personal Data"
+      ],
+      "path": "projects/260401_wine_cellar_scan",
+      "readme": "projects/260401_wine_cellar_scan/README.md",
+      "detail": {
+        "readmeSummary": [
+          "이 프로젝트는 범용 이미지 검색을 붙이는 대신, 병 사진에서 producer, wine name, vintage를 먼저 읽고 그 결과로 후보를 좁히는 반자동 와인 기록 MVP입니다.",
+          "오탐 후보가 UX를 망치지 않도록 producer exact/prefix 우선, variety + country/region 보조, vintage는 마지막 신호로 쓰는 retrieval 규칙으로 바꿨습니다.",
+          "기록 단계에서는 별점과 코멘트만 끝내지 않고, 당도/드라이함, 다시 마실지 여부, 도수(ABV)까지 함께 남기도록 설계해 나중에 취향 축적용 데이터로 바로 이어지게 했습니다."
+        ],
+        "keyFiles": [
+          "projects/260401_wine_cellar_scan/server.js",
+          "projects/260401_wine_cellar_scan/main.js",
+          "projects/260401_wine_cellar_scan/index.html",
+          "projects/260401_wine_cellar_scan/styles.css"
+        ],
+        "diagramCaption": "OCR 추출, 엄격한 후보 검색, 셀러 저장, 취향 시각화를 한 화면 흐름으로 묶은 개인 와인 기록 MVP"
+      },
+      "preview": {
+        "eyebrow": "Wine Recognition MVP",
+        "caption": "병 사진에서 라벨을 읽고, 엄격한 후보 검색과 개인 취향 기록까지 한 번에 닫는 셀러 앱 구조.",
+        "steps": [
+          {
+            "label": "Input",
+            "value": "Bottle Label Photo"
+          },
+          {
+            "label": "Flow",
+            "value": "OCR → Retrieval → Confirm"
+          },
+          {
+            "label": "Impact",
+            "value": "Structured Cellar Memory"
+          }
+        ]
+      },
+      "story": {
+        "challenge": "네이버 같은 외부 검색에 기대면 이미지 업로드 흐름도 불안정하고 결과도 쉽게 깨져서, 제품용 MVP로는 지속 가능하지 않았습니다.",
+        "attempts": [
+          "사진 업로드 뒤 OCR/비전으로 producer, wine name, vintage, region, country를 구조화해 뽑았습니다.",
+          "retrieval은 producer exact/prefix를 우선하고, variety + country/region 조합이 맞지 않으면 후보를 아예 잘라 오탐을 줄였습니다.",
+          "기록 화면은 책 같은 셀러 UI로 바꾸고, 또 먹을 와인과 다시 안 먹을 와인을 탭으로 분리해 실제 사용 흐름에 맞췄습니다."
+        ],
+        "resolution": "결국 완전 자동 인식기가 아니라, 한 번만 확인하면 바로 내 셀러 기록으로 넘어가는 반자동 기록 앱으로 문제를 풀었습니다.",
+        "impact": [
+          "오탐 후보를 줄이는 retrieval 규칙 정립",
+          "취향 데이터 축적용 기록 스키마 확보",
+          "앱으로 확장 가능한 셀러 UX 초안 완성"
+        ]
+      },
+      "timeline": {
+        "start": "2026-04-01",
+        "end": "2026-04-02",
+        "label": "2026.04",
+        "difficultyWindows": [
+          {
+            "label": "OCR 성공 후 retrieval 실패 구간 재설계",
+            "start": "2026-04-01",
+            "end": "2026-04-01",
+            "severity": "high"
+          }
+        ],
+        "milestones": [
+          {
+            "label": "라벨 기반 셀러 기록 MVP 완료",
+            "date": "2026-04-02",
+            "tone": "success"
+          }
+        ]
+      },
+      "futureNote": "라벨 이미지를 별도 저장해서 The Cellar Book 카드 썸네일로 직접 보여주고, 이후 앱 형태로 재작업할 예정.",
+      "updatedAt": "2026-04-03T16:11:16Z"
+    },
+    {
+      "id": "ideal-type-editorial",
+      "name": "Ideal Type Editorial",
+      "status": "active",
+      "category": "Consumer AI MVP",
+      "summary": "좋아하는 인물 이름 몇 개만 고르면 외모와 성격 공통점을 에디토리얼 톤으로 정리하고, 최종 이상형 문장과 실사형 이미지, 수동 매칭 운영 화면까지 이어지는 이상형 분석 앱.",
+      "highlights": [
+        "외적 이상형 / 성격 이상형을 분리 수집하고 공통점을 한 줄 이상형 문장으로 종합",
+        "네이버 인물 검색과 로컬 seed를 함께 써서 후보 검색 안정화",
+        "관리자 화면에서 신청자, 동의 여부, 전화번호, 수동 후보 지정, 상호 매칭 엑셀 다운로드 운영"
+      ],
+      "stack": [
+        "Node.js",
+        "Vanilla JS",
+        "OpenAI Responses API",
+        "OpenAI Images",
+        "Naver Search API"
+      ],
+      "tags": [
+        "Dating MVP",
+        "Editorial UX",
+        "Image Generation",
+        "Search",
+        "Operations"
+      ],
+      "path": "projects/260408_ideal_type_editorial",
+      "readme": "projects/260408_ideal_type_editorial/README.md",
+      "detail": {
+        "readmeSummary": [
+          "이 프로젝트는 '너 이상형 뭐야?'라는 질문에 바로 말할 수 있는 문장을 만들어 주는 소비자용 AI MVP입니다.",
+          "이름 몇 개만 고르면 외모와 성격 공통점을 따로 분석하고, 두 결과를 합쳐 최종 이상형 정의와 실사형 포트레이트까지 연결했습니다.",
+          "여기서 끝내지 않고, 관리자 전용 운영 화면을 따로 두어 전화번호/동의 여부/수동 후보 지정/상호 매칭 엑셀까지 바로 관리할 수 있게 만들었습니다."
+        ],
+        "keyFiles": [
+          "projects/260408_ideal_type_editorial/server.js",
+          "projects/260408_ideal_type_editorial/public/app.js",
+          "projects/260408_ideal_type_editorial/public/admin.js",
+          "projects/260408_ideal_type_editorial/data/celebrity-seed.js"
+        ],
+        "diagramCaption": "이름 선택 → 외적/성격 분석 → 최종 문장 → 이미지 생성 → 관리자 매칭 운영으로 이어지는 소비자 AI MVP"
+      },
+      "preview": {
+        "eyebrow": "Ideal Type Analysis MVP",
+        "caption": "이름 몇 개만으로 취향 공통점을 뽑고, 최종 문장과 이미지, 운영용 매칭 화면까지 닫는 이상형 분석 앱.",
+        "steps": [
+          {
+            "label": "Input",
+            "value": "3-10 Celebrity Names"
+          },
+          {
+            "label": "Flow",
+            "value": "Selection → Analysis → Portrait"
+          },
+          {
+            "label": "Impact",
+            "value": "Manual Match Ops Ready"
+          }
+        ]
+      },
+      "story": {
+        "challenge": "가장 어려웠던 지점은 인물 검색 사전을 만드는 일이었습니다. 실제 사용자는 배우뿐 아니라 가수, 방송인, 개그맨까지 폭넓게 고르는데 검색 결과는 쉽게 틀어지고, 동명이인과 잘못된 썸네일이 UX를 바로 망쳤습니다.",
+        "attempts": [
+          "네이버 검색만 믿지 않고 로컬 celebrity seed를 따로 만들고, 본명/활동명/별칭까지 붙여 검색 축을 넓혔습니다.",
+          "외모형 인물에 치우치지 않도록 방송인과 개그맨 축을 추가해 성격 이상형 검색도 버티게 만들었습니다.",
+          "분석 결과는 설명형 문장만 남기지 않고 실사형 이미지 생성과 관리자 매칭 운영 화면으로 바로 이어지게 구성했습니다."
+        ],
+        "resolution": "결국 이 프로젝트는 단순 취향 테스트가 아니라, 소비자용 이상형 분석과 수동 소개팅 운영을 한 흐름으로 묶는 MVP로 정리됐습니다.",
+        "impact": [
+          "이름 몇 개만으로 최종 이상형 문장을 바로 만드는 UX 완성",
+          "이미지 생성과 관리자 운영 화면까지 연결되는 end-to-end MVP 확보",
+          "검색 seed를 분리해 이후 인물풀이 계속 커질 수 있는 구조 마련"
+        ]
+      },
+      "timeline": {
+        "start": "2026-04-08",
+        "end": "2026-04-08",
+        "label": "2026.04",
+        "difficultyWindows": [
+          {
+            "label": "인물 검색 사전과 썸네일 안정화",
+            "start": "2026-04-08",
+            "end": "2026-04-08",
+            "severity": "high"
+          }
+        ],
+        "milestones": [
+          {
+            "label": "Railway 공개 배포와 관리자 매칭 화면 완료",
+            "date": "2026-04-08",
+            "tone": "success"
+          }
+        ]
+      },
+      "futureNote": "향후에는 수동 소개팅 운영을 넘어서, 취향 벡터와 상호 선호도를 바탕으로 반자동 추천 매칭까지 확장할 예정입니다.",
+      "updatedAt": "2026-04-08T14:10:00Z"
     }
   ]
 }

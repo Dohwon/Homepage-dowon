@@ -30,8 +30,8 @@ const DEV_ALLOW_LOCAL_LOGIN = process.env.DEV_ALLOW_LOCAL_LOGIN === "true";
 const DEV_ADMIN_EMAIL = (process.env.DEV_ADMIN_EMAIL || "").trim().toLowerCase();
 const DEFAULT_PUBLIC_EMAIL = "dowonkim0612@naver.com";
 const DEFAULT_PROFILE_GITHUB = "https://github.com/Dohwon";
-const SITE_CONTENT_SEED_SYNC_VERSION = "2026-03-18-site-v1";
-const BLOG_POSTS_SEED_SYNC_VERSION = "2026-03-18-blog-v1";
+const SITE_CONTENT_SEED_SYNC_VERSION = "2026-04-08-site-v8";
+const BLOG_POSTS_SEED_SYNC_VERSION = "2026-04-05-blog-v4";
 
 const SESSION_COOKIE = "portfolio_session";
 const VISITOR_COOKIE = "portfolio_visitor";
@@ -417,6 +417,110 @@ const PROJECT_CONTENT_OVERRIDES = {
         }
       ]
     }
+  },
+  "260321-memento-mori-archive": {
+    category: "Wellness Product",
+    summary: "죽음의 유한성을 질문으로 삼아, 철학 오버레이와 산문 리비전으로 오늘의 감정을 다시 읽게 만드는 성찰형 기록 아카이브.",
+    highlights: [
+      "철학 지도(스토아/불교/실존) 기반 감정 재해석",
+      "Revisit Entry로 시간차 산문 리라이팅 흐름 설계",
+      "Hexagon Signal을 진단 점수가 아닌 행동 힌트로 사용"
+    ],
+    tags: ["Memento Mori", "Reflection", "Journal", "Philosophy"],
+    detail: {
+      readmeSummary: [
+        "정답을 추천하는 앱이 아니라, 기록을 다시 읽고 다시 쓰게 만드는 반성적 인터페이스가 핵심이다.",
+        "철학 지도와 인지심리 오버레이를 함께 두어 감정을 맞다/틀리다가 아닌 관점 전환 문제로 다룬다.",
+        "숫자 지표는 평가 점수가 아니라 다음 행동을 선택하기 위한 손잡이로만 제한해 설계했다."
+      ]
+    }
+  },
+  "260329-tmap-clone": {
+    status: "in-progress",
+    category: "Mobility UX Prototype",
+    summary: "네이티브 MapKit 앱으로 실제 지도·검색·경로 흐름을 붙이고, 별도 웹 프로토타입으로 설명형 경로 선택 UX를 검증하면서 T맵형 내비 경험을 두 갈래로 풀어낸 프로젝트.",
+    highlights: [
+      "초보/중수/고수 프리셋으로 경로 복잡도를 설명형 선택지로 전환",
+      "다음 10km 합류 선택과 카메라/구간단속/제한속도 레이어 설계",
+      "SwiftUI + MapKit 앱과 React/Leaflet 웹 목업을 병행해 흐름 검증"
+    ],
+    stack: ["SwiftUI", "MapKit", "React", "Leaflet", "Zustand"],
+    tags: ["Mobility", "Navigation", "Map UX", "Prototype"],
+    detail: {
+      readmeSummary: [
+        "SwiftUI + MapKit 쪽은 실제 검색, 경로 계산, 안내 오버레이 같은 '돌아가는 내비 기본 흐름'을 먼저 붙인 트랙이다.",
+        "React/Leaflet 쪽은 프리셋, 설명형 경로 카드, 다음 10km 합류 옵션처럼 정보량이 많은 선택 UX를 더 빠르게 실험하려고 분리한 트랙이다.",
+        "즉 하나의 완성 앱이라기보다, 실경로 처리와 설명형 UX 검증을 분리해서 동시에 밀어본 이중 프로토타입 프로젝트에 가깝다."
+      ],
+      workflow: [
+        { step: "장거리 운전자 시나리오 정의", desc: "막힘보다 흐름과 분기 이해를 중시하는 사용자 문제를 먼저 정리" },
+        { step: "설명형 경로 카드 설계", desc: "합류 수, 카메라 수, 대표 제한속도, 경로 설명 문구를 카드 구조로 설계" },
+        { step: "이중 프로토타입 구현", desc: "SwiftUI + MapKit 앱과 React/Leaflet 웹 목업으로 화면/상태 흐름을 병행 검증" },
+        { step: "목업 데이터 검증", desc: "실제 API 전 연동 단계에서 route/merge/camera mock 데이터로 정보 우선순위를 조정" }
+      ],
+      keyFiles: [
+        "projects/260329_tmap_clone/README.md",
+        "projects/260329_tmap_clone/project_memory/short-term/long-distance-driver-route-mvp-plan.md",
+        "projects/260329_tmap_clone/TmapClone/TmapClone/ViewModels/MapViewModel.swift",
+        "projects/260329_tmap_clone/TmapClone/TmapClone/Views/Navigation/RoutePreviewPanel.swift",
+        "projects/260329_tmap_clone/TmapCloneWeb/src/data/mockData.js",
+        "projects/260329_tmap_clone/TmapCloneWeb/src/store/appStore.js"
+      ],
+      diagramCaption: "설명형 경로 카드, 레이어 토글, 다음 10km 합류 선택을 묶어 장거리 운전자용 내비 흐름을 검증"
+    },
+    preview: {
+      eyebrow: "Mobility UX Prototype",
+      caption: "MapKit 네이티브 앱은 실제 길찾기 흐름을, 웹 프로토타입은 설명형 경로 선택 UI를 맡겨 T맵형 내비 경험을 분리 검증한 구조.",
+      steps: [
+        { label: "Focus", value: "실경로 + 설명형 UX 분리" },
+        { label: "Flow", value: "MapKit 앱 + React/Leaflet 목업" },
+        { label: "Impact", value: "T맵식 선택 경험 검증" }
+      ]
+    },
+    story: {
+      narrative: "MapKit 네이티브 앱과 React/Leaflet 웹 목업을 나눠서, 실제 길찾기 동작과 설명형 경로 선택 UX를 각각 검증한 이중 프로토타입 프로젝트.",
+      caseIds: ["navigation-ux-split-prototype"],
+      impact: [
+        "실경로 처리와 설명형 UX를 분리한 검증 구조 확보",
+        "경로 카드/프리셋/합류 옵션의 정보 구조 정리",
+        "실데이터 연동 전 단계에서도 T맵형 선택 경험을 빠르게 실험할 기반 마련"
+      ]
+    },
+    timeline: {
+      start: "2026-03-29",
+      difficultyWindows: [
+        {
+          label: "MapKit 경로를 설명형 카드로 번역",
+          start: "2026-03-29",
+          end: "2026-03-29",
+          severity: "high"
+        }
+      ],
+      milestones: [
+        {
+          label: "장거리 드라이버용 설명형 MVP 플랜 정리",
+          date: "2026-03-29",
+          tone: "success"
+        }
+      ]
+    }
+  },
+  "personal-essay-writer-ko": {
+    category: "Writing Skill",
+    summary: "사용자 말투와 감정 리듬을 반영해 일기·에세이·자기고백문 초안을 생성하고 문학적으로 다듬는 한국어 라이팅 스킬.",
+    highlights: [
+      "사용자 페르소나/말투를 우선 반영하는 글쓰기 프롬프트",
+      "감정 상태 기반 에세이/일기 초안 생성 및 정제",
+      "동일 화자 톤 유지 중심의 리라이팅 워크플로우"
+    ],
+    tags: ["Korean", "Writing", "Persona", "Prompt"],
+    detail: {
+      readmeSummary: [
+        "이 프로젝트는 일반 챗봇이 아니라, '내 말투로 써줘' 요청에 맞춰 화자 일관성을 유지하는 글쓰기 스킬이다.",
+        "일기, 에세이, 감정 정리문처럼 개인 서사 문장을 빠르게 초안화하고 재다듬는 데 초점을 둔다.",
+        "핵심 품질 기준은 문장 완성도보다도 사용자 감정과 리듬을 얼마나 보존하는지에 있다."
+      ]
+    }
   }
 };
 
@@ -476,12 +580,17 @@ async function syncStoredSeedContent() {
   if (!seeded || !Array.isArray(seeded.projects)) return;
 
   const hiddenProjectIds = new Set(arrayify(current.meta?.hiddenProjectIds));
-  const projects = appendMissingItemsById(current.projects || [], seeded.projects || [], hiddenProjectIds);
+  const projects = mergeSeededProjectsById(current.projects || [], seeded.projects || [], hiddenProjectIds);
 
   await writeJsonAtomic(SITE_CONTENT_PATH, {
     ...current,
+    site: seeded.site || current.site,
+    owner: seeded.owner || current.owner,
+    profile: seeded.profile || current.profile,
+    links: seeded.links || current.links,
     projects,
     meta: {
+      ...(seeded.meta || {}),
       ...(current.meta || {}),
       hiddenProjectIds: [...hiddenProjectIds],
       seedSyncVersion: SITE_CONTENT_SEED_SYNC_VERSION
@@ -586,6 +695,48 @@ function appendMissingItemsById(existingItems, seedItems, blockedIds = new Set()
   return nextItems;
 }
 
+function mergeSeededProjectsById(existingItems, seedItems, blockedIds = new Set()) {
+  const existingList = Array.isArray(existingItems) ? existingItems : [];
+  const seedList = Array.isArray(seedItems) ? seedItems : [];
+  const seedMap = new Map(
+    seedList.map((item) => [String(item?.id || slugify(item?.name || item?.title || "item")), item])
+  );
+  const merged = [];
+
+  for (const existing of existingList) {
+    const id = String(existing?.id || slugify(existing?.name || existing?.title || "item"));
+    if (!id || blockedIds.has(id)) continue;
+    const seeded = seedMap.get(id);
+    if (!seeded) {
+      merged.push(existing);
+      continue;
+    }
+    seedMap.delete(id);
+    const existingUpdated = Date.parse(existing?.updatedAt || existing?.createdAt || "") || 0;
+    const seededUpdated = Date.parse(seeded?.updatedAt || seeded?.createdAt || "") || 0;
+    if (seededUpdated > existingUpdated) {
+      merged.push({
+        ...existing,
+        ...seeded,
+        detail: seeded.detail || existing.detail,
+        preview: seeded.preview || existing.preview,
+        story: seeded.story || existing.story,
+        timeline: seeded.timeline || existing.timeline
+      });
+      continue;
+    }
+    merged.push(existing);
+  }
+
+  for (const seeded of seedMap.values()) {
+    const id = String(seeded?.id || slugify(seeded?.name || seeded?.title || "item"));
+    if (!id || blockedIds.has(id)) continue;
+    merged.push(seeded);
+  }
+
+  return merged;
+}
+
 function mergeProjectsByStatus(existingProjects, generatedProjects, statusOverrides = {}) {
   const generatedMap = new Map(
     generatedProjects.map((project) => [project.id || slugify(project.name || "project"), project])
@@ -601,7 +752,9 @@ function mergeProjectsByStatus(existingProjects, generatedProjects, statusOverri
       status: resolveProjectStatus(id, generated.status, project.status, statusOverrides),
       path: project.path || generated.path || "",
       readme: project.readme || generated.readme || "",
-      timeline: mergeProjectTimeline(project.timeline, generated.timeline)
+      timeline: mergeProjectTimeline(project.timeline, generated.timeline),
+      pinned: Boolean(project.pinned),
+      manualOrder: normalizeManualOrder(project.manualOrder)
     };
   });
 
@@ -624,7 +777,9 @@ function mergeProjectsByStatus(existingProjects, generatedProjects, statusOverri
         workflow: [],
         keyFiles: generated.path ? [generated.path] : [],
         diagramCaption: "원본 프로젝트 상태 동기화 카드"
-      }
+      },
+      pinned: false,
+      manualOrder: null
     });
   }
 
@@ -811,9 +966,16 @@ function normalizeProject(project, index) {
     preview,
     story,
     timeline,
+    pinned: Boolean(normalizedSource.pinned),
+    manualOrder: normalizeManualOrder(normalizedSource.manualOrder),
     createdAt: normalizedSource.createdAt || new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    updatedAt: normalizedSource.updatedAt || normalizedSource.createdAt || new Date().toISOString()
   };
+}
+
+function normalizeManualOrder(value) {
+  const nextValue = Number(value);
+  return Number.isInteger(nextValue) && nextValue >= 0 ? nextValue : null;
 }
 
 function normalizeDetail(detail, project) {
@@ -1195,6 +1357,15 @@ function signPayload(payload) {
   return crypto.createHmac("sha256", SESSION_SECRET).update(payload).digest("base64url");
 }
 
+function isAdminEmail(email) {
+  const normalized = String(email || "").trim().toLowerCase();
+  return Boolean(normalized) && (ADMIN_EMAILS.has(normalized) || normalized === DEV_ADMIN_EMAIL);
+}
+
+function deriveViewerRole(email) {
+  return isAdminEmail(email) ? "admin" : "member";
+}
+
 function encodeSession(viewer) {
   const payload = Buffer.from(JSON.stringify(viewer)).toString("base64url");
   return `${payload}.${signPayload(payload)}`;
@@ -1224,7 +1395,13 @@ function decodeSession(token) {
   try {
     const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
     if (!data.exp || Date.now() > data.exp) return null;
-    return data;
+    const email = String(data.email || "").trim().toLowerCase();
+    if (!email) return null;
+    return {
+      ...data,
+      email,
+      role: deriveViewerRole(email)
+    };
   } catch {
     return null;
   }
@@ -1359,7 +1536,9 @@ function sanitizeProjectInput(input, existingProject) {
       timeline: {
         ...(existingProject?.timeline || {}),
         ...(input.timeline || {})
-      }
+      },
+      pinned: input.pinned !== undefined ? Boolean(input.pinned) : existingProject?.pinned,
+      manualOrder: input.manualOrder !== undefined ? input.manualOrder : existingProject?.manualOrder
     },
     0
   );
@@ -1552,6 +1731,15 @@ function truncateText(value, maxLength) {
   return clean.length > maxLength ? `${clean.slice(0, maxLength - 1)}…` : clean;
 }
 
+function toLocalDayKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function prettifyNotificationProjectName(project) {
   return String(project.displayName || project.name || project.id || "Project")
     .replace(/\.[a-z0-9]+$/i, "")
@@ -1561,13 +1749,44 @@ function prettifyNotificationProjectName(project) {
     .trim();
 }
 
+function summarizePublicCounter(events) {
+  const todayKey = toLocalDayKey(new Date());
+  const uniqueTotal = new Set();
+  const uniqueToday = new Set();
+  let today = 0;
+
+  for (const event of events) {
+    const visitorId = String(event.visitorId || "");
+    if (visitorId) {
+      uniqueTotal.add(visitorId);
+    }
+    const eventDayKey = toLocalDayKey(event.timestamp);
+    if (eventDayKey !== todayKey) continue;
+    today += 1;
+    if (visitorId) {
+      uniqueToday.add(visitorId);
+    }
+  }
+
+  return {
+    today,
+    total: events.length,
+    uniqueToday: uniqueToday.size,
+    uniqueTotal: uniqueTotal.size,
+    date: todayKey
+  };
+}
+
 function summarizeAnalytics(events, content) {
   const uniqueVisitors = new Set();
   const uniqueLoggedIn = new Set();
+  const uniqueVisitorsToday = new Set();
   const projectCounts = new Map();
   const surfaceCounts = new Map();
   let authenticatedVisits = 0;
   let anonymousVisits = 0;
+  let todayVisits = 0;
+  const todayKey = toLocalDayKey(new Date());
 
   for (const event of events) {
     uniqueVisitors.add(event.visitorId);
@@ -1581,6 +1800,12 @@ function summarizeAnalytics(events, content) {
       projectCounts.set(event.projectId, (projectCounts.get(event.projectId) || 0) + 1);
     }
     surfaceCounts.set(event.surface || "home", (surfaceCounts.get(event.surface || "home") || 0) + 1);
+    if (toLocalDayKey(event.timestamp) === todayKey) {
+      todayVisits += 1;
+      if (event.visitorId) {
+        uniqueVisitorsToday.add(event.visitorId);
+      }
+    }
   }
 
   const byDay = new Map();
@@ -1609,7 +1834,9 @@ function summarizeAnalytics(events, content) {
 
   return {
     totalVisits: events.length,
+    todayVisits,
     uniqueVisitors: uniqueVisitors.size,
+    uniqueVisitorsToday: uniqueVisitorsToday.size,
     uniqueLoggedInVisitors: uniqueLoggedIn.size,
     authenticatedVisits,
     anonymousVisits,
@@ -1650,17 +1877,18 @@ async function verifyGoogleCredential(credential) {
     email,
     name: data.name || data.given_name || email.split("@")[0],
     picture: data.picture || "",
-    role: ADMIN_EMAILS.has(email) ? "admin" : "member"
+    role: deriveViewerRole(email)
   };
 }
 
 function createViewerSession(profile) {
   const now = Date.now();
+  const email = String(profile.email || "").trim().toLowerCase();
   return {
-    email: profile.email,
+    email,
     name: profile.name,
     picture: profile.picture,
-    role: profile.role,
+    role: deriveViewerRole(email),
     iat: now,
     exp: now + SESSION_TTL_SECONDS * 1000
   };
@@ -1746,8 +1974,7 @@ async function handleApi(req, res, url) {
     const session = createViewerSession({
       email,
       name: body.name || "Local Admin",
-      picture: "",
-      role: ADMIN_EMAILS.has(email) || email === DEV_ADMIN_EMAIL ? "admin" : "member"
+      picture: ""
     });
     setCookie(res, SESSION_COOKIE, encodeSession(session), {
       maxAge: SESSION_TTL_SECONDS,
@@ -1971,10 +2198,79 @@ async function handleApi(req, res, url) {
     return;
   }
 
+  if (req.method === "GET" && url.pathname === "/api/analytics/counter") {
+    const events = await loadAnalyticsEvents();
+    sendJson(res, 200, summarizePublicCounter(events));
+    return;
+  }
+
   if (req.method === "GET" && url.pathname === "/api/analytics/summary") {
     if (!requireAdmin(viewer, res)) return;
     const [content, events] = await Promise.all([loadContent(), loadAnalyticsEvents()]);
     sendJson(res, 200, summarizeAnalytics(events, content));
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/projects/pin") {
+    if (!requireAdmin(viewer, res)) return;
+    const body = await readBody(req);
+    const projectId = slugify(body.projectId || "");
+    if (!projectId) {
+      sendJson(res, 400, { error: "projectId_required" });
+      return;
+    }
+
+    const content = await loadContent();
+    const projectIndex = content.projects.findIndex((project) => project.id === projectId);
+    if (projectIndex < 0) {
+      sendJson(res, 404, { error: "project_not_found" });
+      return;
+    }
+
+    content.projects[projectIndex] = {
+      ...content.projects[projectIndex],
+      pinned: Boolean(body.pinned),
+      updatedAt: new Date().toISOString()
+    };
+    await saveContent(content);
+    sendJson(res, 200, { project: content.projects[projectIndex] });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/projects/order") {
+    if (!requireAdmin(viewer, res)) return;
+    const body = await readBody(req);
+    const orderedIds = Array.isArray(body.orderedIds)
+      ? body.orderedIds.map((item) => slugify(item)).filter(Boolean)
+      : [];
+    if (!orderedIds.length) {
+      sendJson(res, 400, { error: "orderedIds_required" });
+      return;
+    }
+
+    const content = await loadContent();
+    const projectMap = new Map(content.projects.map((project) => [project.id, project]));
+    const nextProjects = [];
+    const seen = new Set();
+
+    for (const projectId of orderedIds) {
+      const project = projectMap.get(projectId);
+      if (!project || seen.has(projectId)) continue;
+      seen.add(projectId);
+      nextProjects.push(project);
+    }
+
+    for (const project of content.projects) {
+      if (seen.has(project.id)) continue;
+      nextProjects.push(project);
+    }
+
+    content.projects = nextProjects.map((project, index) => ({
+      ...project,
+      manualOrder: index
+    }));
+    await saveContent(content);
+    sendJson(res, 200, { ok: true });
     return;
   }
 
