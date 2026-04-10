@@ -3691,36 +3691,44 @@ async function saveProjectPatch(projectId, patch) {
 }
 
 async function reorderProject(projectId, direction) {
-  const ordered = getVisibleProjects();
+  const ordered = getOrderedProjects(state.bootstrap.projects);
   const currentIndex = ordered.findIndex((project) => project.id === projectId);
   const nextIndex = currentIndex + direction;
   if (currentIndex < 0 || nextIndex < 0 || nextIndex >= ordered.length) return;
   const scrollLeft = elements.projectGrid?.scrollLeft || 0;
-
-  const normalized = ordered.map((project, index) => ({
-    ...project,
+  const nextOrdered = ordered.map((project, index) => ({
+    id: project.id,
     manualOrder: index
   }));
-  const current = normalized[currentIndex];
-  const target = normalized[nextIndex];
+  const current = nextOrdered[currentIndex];
+  const target = nextOrdered[nextIndex];
   const currentOrder = current.manualOrder;
-  const previousCurrentOrder = findProject(current.id)?.manualOrder ?? null;
-  const previousTargetOrder = findProject(target.id)?.manualOrder ?? null;
+  const previousOrders = new Map(
+    ordered.map((project) => [project.id, findProject(project.id)?.manualOrder ?? null])
+  );
 
   current.manualOrder = target.manualOrder;
   target.manualOrder = currentOrder;
-  patchProjectInState(current.id, { manualOrder: current.manualOrder });
-  patchProjectInState(target.id, { manualOrder: target.manualOrder });
+
+  nextOrdered.forEach((item) => {
+    patchProjectInState(item.id, { manualOrder: item.manualOrder });
+  });
   renderProjects({ preserveScroll: true, scrollLeft });
   renderOpenDetail();
   focusProjectCard(current.id);
 
   try {
-    await saveProjectPatch(current.id, { manualOrder: current.manualOrder });
-    await saveProjectPatch(target.id, { manualOrder: target.manualOrder });
+    for (const item of nextOrdered) {
+      const previousOrder = previousOrders.get(item.id);
+      if (previousOrder === item.manualOrder) continue;
+      await saveProjectPatch(item.id, { manualOrder: item.manualOrder });
+    }
   } catch (error) {
-    patchProjectInState(current.id, { manualOrder: previousCurrentOrder });
-    patchProjectInState(target.id, { manualOrder: previousTargetOrder });
+    ordered.forEach((project) => {
+      patchProjectInState(project.id, {
+        manualOrder: previousOrders.get(project.id) ?? null
+      });
+    });
     renderProjects({ preserveScroll: true, scrollLeft });
     renderOpenDetail();
     focusProjectCard(current.id);
