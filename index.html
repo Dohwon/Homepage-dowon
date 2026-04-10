@@ -224,28 +224,29 @@
       </div>
 
       <form id="project-editor-form" class="editor-form">
+        <p class="editor-form-hint">필수값: 카드 제목, 카테고리, 요약. 카드 ID는 비워두면 제목 기준으로 자동 생성됩니다.</p>
         <div class="editor-grid">
           <label>
-            카드 ID
-            <input name="id" type="text" required />
+            <span class="field-label">카드 ID <small class="field-optional">선택</small></span>
+            <input name="id" type="text" placeholder="비워두면 자동 생성" />
           </label>
           <label>
-            카드 제목
+            <span class="field-label">카드 제목 <strong class="field-required">*</strong></span>
             <input name="name" type="text" required />
           </label>
           <label>
-            카테고리
+            <span class="field-label">카테고리 <strong class="field-required">*</strong></span>
             <input name="category" type="text" required />
           </label>
           <label>
-            상태
+            <span class="field-label">상태</span>
             <select name="status">
               <option value="active">완료/운영</option>
               <option value="in-progress">진행중</option>
             </select>
           </label>
           <label class="editor-span-2">
-            요약
+            <span class="field-label">요약 <strong class="field-required">*</strong></span>
             <textarea name="summary" rows="3" required></textarea>
           </label>
           <label>

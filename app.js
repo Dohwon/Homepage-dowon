@@ -3475,14 +3475,35 @@ function setField(form, name, value) {
   }
 }
 
+function validateProjectEditorForm(form) {
+  const requiredFields = [
+    { name: "name", label: "카드 제목" },
+    { name: "category", label: "카테고리" },
+    { name: "summary", label: "요약" }
+  ];
+  const missing = requiredFields.filter(({ name }) => !String(form.elements.namedItem(name)?.value || "").trim());
+  if (!missing.length) return null;
+  return missing;
+}
+
 async function saveProject() {
+  const missing = validateProjectEditorForm(elements.editorForm);
+  if (missing) {
+    const firstField = elements.editorForm.elements.namedItem(missing[0].name);
+    firstField?.focus();
+    window.alert(`필수값을 입력해주세요: ${missing.map((item) => item.label).join(", ")}`);
+    return;
+  }
+
   const formData = new FormData(elements.editorForm);
+  const explicitId = String(formData.get("id") || "").trim();
+  const title = String(formData.get("name") || "").trim();
   const project = {
-    id: formData.get("id"),
-    name: formData.get("name"),
-    category: formData.get("category"),
+    id: explicitId || title,
+    name: title,
+    category: String(formData.get("category") || "").trim(),
     status: formData.get("status"),
-    summary: formData.get("summary"),
+    summary: String(formData.get("summary") || "").trim(),
     tags: splitComma(formData.get("tags")),
     stack: splitComma(formData.get("stack")),
     highlights: splitLines(formData.get("highlights")),

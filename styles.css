@@ -2025,6 +2025,13 @@ a {
   gap: 18px;
 }
 
+.editor-form-hint {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
 .editor-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2035,6 +2042,23 @@ a {
   display: grid;
   gap: 8px;
   color: var(--ink-soft);
+}
+
+.field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-required {
+  color: #5e82eb;
+  font-size: 0.84rem;
+}
+
+.field-optional {
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  font-weight: 500;
 }
 
 .editor-span-2 {
@@ -6011,11 +6035,10 @@ a {
 }
 
 .detail-meta-strip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 14px;
-  flex-wrap: wrap;
 }
 
 .detail-meta-primary {
@@ -6023,6 +6046,7 @@ a {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .detail-date-chip {
@@ -6039,7 +6063,10 @@ a {
 }
 
 .detail-admin-actions-inline {
-  margin-left: auto;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .detail-admin-actions-inline .ghost-button {
@@ -6514,7 +6541,7 @@ a {
   }
 
   .detail-meta-strip {
-    align-items: flex-start;
+    grid-template-columns: 1fr;
   }
 
   .detail-modal-panel {
