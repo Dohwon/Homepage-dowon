@@ -30,8 +30,8 @@ const DEV_ALLOW_LOCAL_LOGIN = process.env.DEV_ALLOW_LOCAL_LOGIN === "true";
 const DEV_ADMIN_EMAIL = (process.env.DEV_ADMIN_EMAIL || "").trim().toLowerCase();
 const DEFAULT_PUBLIC_EMAIL = "dowonkim0612@naver.com";
 const DEFAULT_PROFILE_GITHUB = "https://github.com/Dohwon";
-const SITE_CONTENT_SEED_SYNC_VERSION = "2026-04-10-site-v9";
-const BLOG_POSTS_SEED_SYNC_VERSION = "2026-04-10-blog-v5";
+const SITE_CONTENT_SEED_SYNC_VERSION = "2026-04-08-site-v8";
+const BLOG_POSTS_SEED_SYNC_VERSION = "2026-04-05-blog-v4";
 
 const SESSION_COOKIE = "portfolio_session";
 const VISITOR_COOKIE = "portfolio_visitor";
