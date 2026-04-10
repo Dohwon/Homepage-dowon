@@ -3175,40 +3175,51 @@ a {
 }
 
 #home-section .hero-controls {
-  max-width: 720px;
+  max-width: 760px;
   margin: 0 auto;
   grid-template-columns: minmax(0, 1fr) auto;
-  --home-control-height: 42px;
+  --home-control-height: 44px;
+  gap: 10px;
+  align-items: center;
 }
 
 #home-section .hero-searchbar {
   max-width: none;
-  margin: 2px 0 0;
+  margin: 0;
   min-height: var(--home-control-height);
   height: var(--home-control-height);
-  padding: 0 10px;
-  border-radius: 20px;
-  border: 2px solid rgba(89, 135, 244, 0.28);
+  padding: 0 8px 0 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(89, 135, 244, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 255, 0.94));
   box-shadow:
-    0 12px 24px rgba(63, 101, 186, 0.08),
-    inset 0 0 0 1px rgba(198, 214, 255, 0.28);
+    0 12px 24px rgba(63, 101, 186, 0.06),
+    inset 0 0 0 1px rgba(198, 214, 255, 0.24);
   box-sizing: border-box;
 }
 
 #home-section .hero-searchbar input {
-  min-height: 28px;
-  height: 28px;
-  padding: 0 12px;
-  font-size: 0.9rem;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 10px 0 2px;
+  font-size: 0.88rem;
+  color: #2e3b66;
   box-sizing: border-box;
 }
 
+#home-section .hero-searchbar input::placeholder {
+  color: rgba(77, 102, 167, 0.58);
+}
+
 #home-section .search-button {
-  min-width: 64px;
-  min-height: 32px;
-  height: 32px;
+  min-width: 56px;
+  min-height: 30px;
+  height: 30px;
   padding: 0 10px;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
+  border-radius: 14px;
+  box-shadow: none;
 }
 
 #home-section .filter-wrap {
@@ -3223,11 +3234,21 @@ a {
 
 #home-section .chip-row-status {
   max-width: none;
-  margin: 2px 0 0;
-  display: grid;
+  margin: 0;
+  display: inline-grid;
   grid-template-columns: repeat(3, minmax(66px, 84px));
-  gap: 6px;
+  gap: 4px;
   align-items: stretch;
+  min-height: var(--home-control-height);
+  padding: 4px;
+  border-radius: 18px;
+  border: 1px solid rgba(89, 135, 244, 0.16);
+  background:
+    linear-gradient(180deg, rgba(244, 247, 255, 0.98), rgba(237, 242, 255, 0.94));
+  box-shadow:
+    0 10px 20px rgba(63, 101, 186, 0.05),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  box-sizing: border-box;
 }
 
 #home-section .chip-button {
@@ -3238,17 +3259,35 @@ a {
 
 #home-section #status-filters .chip-button {
   width: 100%;
-  min-height: var(--home-control-height);
-  height: var(--home-control-height);
+  min-height: calc(var(--home-control-height) - 8px);
+  height: calc(var(--home-control-height) - 8px);
   padding: 0 10px;
-  font-size: 0.74rem;
+  font-size: 0.73rem;
+  font-weight: 600;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
   margin: 0;
-  border-radius: 18px;
+  border-radius: 14px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #6a79aa;
+}
+
+#home-section #status-filters .chip-button.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 10px 18px rgba(65, 112, 236, 0.22);
+}
+
+#home-section #status-filters .chip-button:not(.active):hover {
+  color: #3f61b7;
+  background: rgba(255, 255, 255, 0.72);
+  transform: none;
+  box-shadow: none;
 }
 
 #home-section #category-filters {
