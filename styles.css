@@ -729,6 +729,10 @@ a {
   justify-content: space-between;
 }
 
+.card-topline {
+  justify-content: flex-end;
+}
+
 .card-status-group {
   display: inline-flex;
   align-items: center;
@@ -3150,13 +3154,14 @@ a {
   max-width: 720px;
   margin: 0 auto;
   grid-template-columns: minmax(0, 1fr) auto;
+  --home-control-height: 42px;
 }
 
 #home-section .hero-searchbar {
   max-width: none;
   margin: 2px 0 0;
-  min-height: 46px;
-  height: 46px;
+  min-height: var(--home-control-height);
+  height: var(--home-control-height);
   padding: 0 10px;
   border-radius: 20px;
   border: 2px solid rgba(89, 135, 244, 0.28);
@@ -3167,18 +3172,19 @@ a {
 }
 
 #home-section .hero-searchbar input {
-  min-height: 32px;
-  height: 32px;
+  min-height: 28px;
+  height: 28px;
   padding: 0 12px;
   font-size: 0.9rem;
   box-sizing: border-box;
 }
 
 #home-section .search-button {
-  min-width: 70px;
-  min-height: 36px;
+  min-width: 64px;
+  min-height: 32px;
+  height: 32px;
   padding: 0 10px;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
 }
 
 #home-section .filter-wrap {
@@ -3197,6 +3203,7 @@ a {
   display: grid;
   grid-template-columns: repeat(3, minmax(66px, 84px));
   gap: 6px;
+  align-items: stretch;
 }
 
 #home-section .chip-button {
@@ -3207,15 +3214,17 @@ a {
 
 #home-section #status-filters .chip-button {
   width: 100%;
-  min-height: 46px;
-  height: 46px;
-  padding: 0 12px;
+  min-height: var(--home-control-height);
+  height: var(--home-control-height);
+  padding: 0 10px;
   font-size: 0.74rem;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+  margin: 0;
+  border-radius: 18px;
 }
 
 #home-section #category-filters {
@@ -6001,12 +6010,42 @@ a {
   gap: 10px;
 }
 
-.detail-hero-side {
-  min-width: 0;
-  display: grid;
-  justify-items: end;
-  align-content: start;
-  gap: 12px;
+.detail-meta-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.detail-meta-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.detail-date-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(103, 132, 205, 0.14);
+  background: rgba(243, 247, 255, 0.92);
+  color: #5d76b8;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+.detail-admin-actions-inline {
+  margin-left: auto;
+}
+
+.detail-admin-actions-inline .ghost-button {
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 0.78rem;
 }
 
 .detail-body-grid {
@@ -6474,8 +6513,8 @@ a {
     display: grid;
   }
 
-  .detail-hero-side {
-    justify-items: start;
+  .detail-meta-strip {
+    align-items: flex-start;
   }
 
   .detail-modal-panel {

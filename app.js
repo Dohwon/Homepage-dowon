@@ -204,6 +204,10 @@ const PROJECT_LINK_OVERRIDES = {
     }
   ],
   "todack": [
+    {
+      label: "GitHub",
+      url: "https://github.com/silogood/Todack#"
+    }
   ],
   "personal-essay-writer-ko": [
   ]
@@ -1935,11 +1939,14 @@ function renderAdminPanel() {
   `;
 }
 
-function renderProjects() {
+function renderProjects(options = {}) {
+  const preserveScroll = Boolean(options.preserveScroll);
+  const nextScrollLeft = preserveScroll
+    ? Number(options.scrollLeft ?? elements.projectGrid?.scrollLeft ?? 0)
+    : 0;
   const projects = getVisibleProjects();
   elements.collectionMeta.innerHTML = `
     <span class="collection-pill">현재 ${escapeHtml(String(projects.length))}개</span>
-    <span class="collection-pill subtle">카테고리 ${escapeHtml(String(new Set(projects.map((project) => getProjectCategory(project))).size))}개</span>
   `;
 
   if (!projects.length) {
@@ -1951,7 +1958,7 @@ function renderProjects() {
   elements.projectGrid.innerHTML = projects.map(renderProjectCard).join("");
   requestAnimationFrame(() => {
     if (elements.projectGrid) {
-      elements.projectGrid.scrollTo({ left: 0, top: 0, behavior: "auto" });
+      elements.projectGrid.scrollTo({ left: nextScrollLeft, top: 0, behavior: "auto" });
     }
     syncProjectCarouselControls();
   });
@@ -2066,7 +2073,6 @@ function renderProjectCard(project) {
   return `
     <article class="project-card" tabindex="0" data-project-id="${escapeHtml(project.id)}">
       <div class="card-topline">
-        <span class="badge category">${escapeHtml(getProjectCategory(project))}</span>
         <div class="card-status-group">
           ${project.pinned ? `<span class="badge pinned">📌 고정됨</span>` : ""}
           <span class="badge ${project.status === "in-progress" ? "warning" : "success"}">
@@ -2698,32 +2704,29 @@ function renderOpenDetail() {
     <article class="detail-shell">
       <header class="detail-hero-card">
         <div class="detail-hero-copy">
-          <div class="detail-badges">
-            <span class="badge category">${escapeHtml(getProjectCategory(project))}</span>
-            <div class="card-status-group">
+          <div class="detail-meta-strip">
+            <div class="detail-meta-primary">
               ${project.pinned ? `<span class="badge pinned">📌 고정됨</span>` : ""}
               <span class="badge ${project.status === "in-progress" ? "warning" : "success"}">
                 ${project.status === "in-progress" ? "진행중" : "완료/운영"}
               </span>
+              <span class="detail-date-chip">${escapeHtml(timelineEntry.label)}</span>
             </div>
+            ${
+              viewer?.role === "admin"
+                ? `
+                  <div class="detail-admin-actions detail-admin-actions-inline">
+                    <button type="button" class="ghost-button" data-detail-action="edit">편집</button>
+                    <button type="button" class="ghost-button danger" data-detail-action="delete">삭제</button>
+                  </div>
+                `
+                : ""
+            }
           </div>
           <div id="detail-title-anchor">
             ${renderDisplayTitle(project, "detail")}
           </div>
           <p class="panel-summary">${escapeHtml(project.summary)}</p>
-        </div>
-        <div class="detail-hero-side">
-          <span class="collection-pill">${escapeHtml(timelineEntry.label)}</span>
-          ${
-            viewer?.role === "admin"
-              ? `
-                <div class="detail-admin-actions">
-                  <button type="button" class="ghost-button" data-detail-action="edit">편집</button>
-                  <button type="button" class="ghost-button danger" data-detail-action="delete">삭제</button>
-                </div>
-              `
-              : ""
-          }
         </div>
       </header>
 
@@ -3369,6 +3372,12 @@ function fillEditor(project) {
     highlights: [],
     path: "",
     readme: "",
+    links: {
+      github: "",
+      live: "",
+      docs: "",
+      notion: ""
+    },
     detail: {
       readmeSummary: [],
       workflow: [],
@@ -3409,6 +3418,10 @@ function fillEditor(project) {
   setField(form, "highlights", arrayOrEmpty(source.highlights).join("\n"));
   setField(form, "path", source.path || "");
   setField(form, "readme", source.readme || "");
+  setField(form, "linksGithub", source.links?.github || "");
+  setField(form, "linksLive", source.links?.live || "");
+  setField(form, "linksDocs", source.links?.docs || "");
+  setField(form, "linksNotion", source.links?.notion || "");
   setField(form, "previewVideo", source.preview?.video || "");
   setField(form, "previewPoster", source.preview?.poster || "");
   setField(form, "previewEyebrow", source.preview?.eyebrow || "");
@@ -3475,6 +3488,12 @@ async function saveProject() {
     highlights: splitLines(formData.get("highlights")),
     path: formData.get("path"),
     readme: formData.get("readme"),
+    links: {
+      github: formData.get("linksGithub"),
+      live: formData.get("linksLive"),
+      docs: formData.get("linksDocs"),
+      notion: formData.get("linksNotion")
+    },
     preview: {
       video: formData.get("previewVideo"),
       poster: formData.get("previewPoster"),
@@ -3676,6 +3695,7 @@ async function reorderProject(projectId, direction) {
   const currentIndex = ordered.findIndex((project) => project.id === projectId);
   const nextIndex = currentIndex + direction;
   if (currentIndex < 0 || nextIndex < 0 || nextIndex >= ordered.length) return;
+  const scrollLeft = elements.projectGrid?.scrollLeft || 0;
 
   const normalized = ordered.map((project, index) => ({
     ...project,
@@ -3684,15 +3704,26 @@ async function reorderProject(projectId, direction) {
   const current = normalized[currentIndex];
   const target = normalized[nextIndex];
   const currentOrder = current.manualOrder;
+  const previousCurrentOrder = findProject(current.id)?.manualOrder ?? null;
+  const previousTargetOrder = findProject(target.id)?.manualOrder ?? null;
 
   current.manualOrder = target.manualOrder;
   target.manualOrder = currentOrder;
+  patchProjectInState(current.id, { manualOrder: current.manualOrder });
+  patchProjectInState(target.id, { manualOrder: target.manualOrder });
+  renderProjects({ preserveScroll: true, scrollLeft });
+  renderOpenDetail();
+  focusProjectCard(current.id);
 
   try {
     await saveProjectPatch(current.id, { manualOrder: current.manualOrder });
     await saveProjectPatch(target.id, { manualOrder: target.manualOrder });
-    await refreshApp();
   } catch (error) {
+    patchProjectInState(current.id, { manualOrder: previousCurrentOrder });
+    patchProjectInState(target.id, { manualOrder: previousTargetOrder });
+    renderProjects({ preserveScroll: true, scrollLeft });
+    renderOpenDetail();
+    focusProjectCard(current.id);
     window.alert(`순서 변경 실패: ${error.message}`);
   }
 }
@@ -3701,6 +3732,7 @@ async function toggleProjectPin(projectId) {
   const ordered = getOrderedProjects(state.bootstrap.projects);
   const target = ordered.find((project) => project.id === projectId);
   if (!target) return;
+  const scrollLeft = elements.projectGrid?.scrollLeft || 0;
 
   const orders = ordered
     .map((project) => {
@@ -3714,16 +3746,53 @@ async function toggleProjectPin(projectId) {
   const minOrder = orders.length ? Math.min(...orders) : 0;
   const maxOrder = orders.length ? Math.max(...orders) : ordered.length;
   const nextPinned = !target.pinned;
+  const nextManualOrder = nextPinned ? minOrder - 1 : maxOrder + 1;
+  const previousPinned = target.pinned;
+  const previousManualOrder = target.manualOrder ?? null;
+  patchProjectInState(projectId, {
+    pinned: nextPinned,
+    manualOrder: nextManualOrder
+  });
+  renderProjects({ preserveScroll: true, scrollLeft });
+  renderOpenDetail();
+  focusProjectCard(projectId);
 
   try {
     await saveProjectPatch(projectId, {
       pinned: nextPinned,
-      manualOrder: nextPinned ? minOrder - 1 : maxOrder + 1
+      manualOrder: nextManualOrder
     });
-    await refreshApp();
   } catch (error) {
+    patchProjectInState(projectId, {
+      pinned: previousPinned,
+      manualOrder: previousManualOrder
+    });
+    renderProjects({ preserveScroll: true, scrollLeft });
+    renderOpenDetail();
+    focusProjectCard(projectId);
     window.alert(`핀 변경 실패: ${error.message}`);
   }
+}
+
+function patchProjectInState(projectId, patch) {
+  state.bootstrap.projects = arrayOrEmpty(state.bootstrap.projects).map((project) =>
+    project.id === projectId
+      ? {
+          ...project,
+          ...patch,
+          updatedAt: new Date().toISOString()
+        }
+      : project
+  );
+}
+
+function focusProjectCard(projectId) {
+  window.requestAnimationFrame(() => {
+    const card = elements.projectGrid?.querySelector(`[data-project-id="${projectId}"]`);
+    if (!card) return;
+    card.focus({ preventScroll: true });
+    card.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+  });
 }
 
 async function recordVisit(surface, projectId = "") {
