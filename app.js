@@ -8,6 +8,7 @@ const state = {
   },
   currentProjectId: null,
   currentTimelineProjectId: null,
+  currentTimelineMonthKey: null,
   currentBlogId: null,
   commentsByProject: new Map(),
   blogCommentsByPost: new Map(),
@@ -338,6 +339,35 @@ function bindEvents() {
   });
 
   elements.projectTimelineMap.addEventListener("click", (event) => {
+    const calendarAction = event.target.closest("[data-calendar-action]");
+    if (calendarAction) {
+      const groups = groupTimelineEntriesByMonth(
+        getTimelineProjects()
+          .map((project) => ({ project, start: getProjectStartDate(project) }))
+          .sort((left, right) => left.start.getTime() - right.start.getTime())
+      );
+      if (!groups.length) return;
+      const currentIndex = Math.max(0, groups.findIndex((group) => group.key === state.currentTimelineMonthKey));
+      if (calendarAction.dataset.calendarAction === "prev-month") {
+        const nextIndex = (currentIndex - 1 + groups.length) % groups.length;
+        state.currentTimelineMonthKey = groups[nextIndex].key;
+        renderProjectTimeline();
+      }
+      if (calendarAction.dataset.calendarAction === "next-month") {
+        const nextIndex = (currentIndex + 1) % groups.length;
+        state.currentTimelineMonthKey = groups[nextIndex].key;
+        renderProjectTimeline();
+      }
+      return;
+    }
+
+    const calendarMonth = event.target.closest("[data-calendar-month]");
+    if (calendarMonth) {
+      state.currentTimelineMonthKey = calendarMonth.dataset.calendarMonth;
+      renderProjectTimeline();
+      return;
+    }
+
     const action = event.target.closest("[data-timeline-action]");
     if (action) {
       const projectId = action.dataset.projectId || state.currentTimelineProjectId;
@@ -533,8 +563,19 @@ function bindDecorativeMotion() {
 async function refreshApp() {
   state.bootstrap = await api("/api/bootstrap");
   const timelineProjects = getTimelineProjects();
+  const timelineMonthGroups = groupTimelineEntriesByMonth(
+    timelineProjects
+      .map((project) => ({
+        project,
+        start: getProjectStartDate(project)
+      }))
+      .sort((left, right) => left.start.getTime() - right.start.getTime())
+  );
   if (!findProject(state.currentTimelineProjectId)) {
     state.currentTimelineProjectId = timelineProjects[0]?.id || null;
+  }
+  if (!timelineMonthGroups.some((group) => group.key === state.currentTimelineMonthKey)) {
+    state.currentTimelineMonthKey = timelineMonthGroups.at(-1)?.key || null;
   }
   if (!findBlogPost(state.currentBlogId)) {
     state.currentBlogId = null;
@@ -748,7 +789,11 @@ function renderProjectTimeline() {
     }))
     .sort((left, right) => left.start.getTime() - right.start.getTime());
 
-  elements.projectTimelineMap.innerHTML = renderProjectCalendar(entries);
+  const monthGroups = groupTimelineEntriesByMonth(entries);
+  const activeMonth = monthGroups.find((group) => group.key === state.currentTimelineMonthKey) || monthGroups.at(-1);
+  state.currentTimelineMonthKey = activeMonth?.key || null;
+
+  elements.projectTimelineMap.innerHTML = renderProjectCalendar(monthGroups, activeMonth);
 }
 
 function getProjectStartDate(project) {
@@ -760,11 +805,29 @@ function getProjectStartDate(project) {
   );
 }
 
-function renderProjectCalendar(entries) {
-  const groups = groupTimelineEntriesByMonth(entries);
+function renderProjectCalendar(groups, activeMonth) {
   return `
     <div class="project-calendar-shell">
-      ${groups.map((group) => renderProjectCalendarMonth(group)).join("")}
+      <div class="project-calendar-toolbar">
+        <button type="button" class="ghost-button compact" data-calendar-action="prev-month">‹</button>
+        <div class="project-calendar-month-pills">
+          ${groups
+            .map(
+              (group) => `
+                <button
+                  type="button"
+                  class="project-calendar-month-pill ${activeMonth?.key === group.key ? "active" : ""}"
+                  data-calendar-month="${escapeHtml(group.key)}"
+                >
+                  ${escapeHtml(`${group.year}.${String(group.month).padStart(2, "0")}`)}
+                </button>
+              `
+            )
+            .join("")}
+        </div>
+        <button type="button" class="ghost-button compact" data-calendar-action="next-month">›</button>
+      </div>
+      ${activeMonth ? renderProjectCalendarMonth(activeMonth) : ""}
     </div>
   `;
 }

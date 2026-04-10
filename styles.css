@@ -543,8 +543,8 @@ a {
 }
 
 .chip-button {
-  min-height: 52px;
-  padding: 10px 18px;
+  min-height: 44px;
+  padding: 8px 14px;
 }
 
 .chip-button.subtle {
@@ -1221,6 +1221,10 @@ a {
   min-height: 48px;
 }
 
+.card-section-tools {
+  min-height: 76px;
+}
+
 .card-section-summary .card-summary {
   min-height: 4.8em;
   display: -webkit-box;
@@ -1233,9 +1237,18 @@ a {
   min-height: 238px;
 }
 
+.card-section-summary {
+  min-height: 132px;
+}
+
+.card-section-links {
+  min-height: 120px;
+}
+
 .project-link-row {
   display: grid;
   gap: 8px;
+  align-content: start;
 }
 
 .project-link-chip {
@@ -2381,8 +2394,37 @@ a {
 
 .project-calendar-shell {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+}
+
+.project-calendar-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.project-calendar-month-pills {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.project-calendar-month-pill {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(103, 132, 205, 0.16);
+  background: rgba(247, 250, 255, 0.96);
+  cursor: pointer;
+}
+
+.project-calendar-month-pill.active {
+  color: white;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
 }
 
 .project-calendar-month {
@@ -3069,10 +3111,15 @@ a {
   max-width: none;
   margin: 2px 0 0;
   justify-content: flex-end;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(92px, 112px));
+  gap: 8px;
 }
 
 #home-section .chip-button {
-  padding: 10px 16px;
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 12px;
   background: rgba(255, 255, 255, 0.92);
   border-color: rgba(111, 138, 214, 0.18);
   box-shadow: 0 8px 16px rgba(53, 77, 134, 0.06);
@@ -3104,6 +3151,10 @@ a {
   border: 1px solid rgba(117, 143, 205, 0.16);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 255, 0.96));
   box-shadow: 0 18px 34px rgba(43, 66, 121, 0.08);
+}
+
+#home-section .card-heading {
+  min-height: 110px;
 }
 
 #home-section .project-card:hover,
@@ -4466,17 +4517,17 @@ a {
 }
 
 .case-related-pills {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 8px;
 }
 
 .case-project-pill {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 8px 12px;
-  border-radius: 999px;
+  width: 100%;
+  border-radius: 16px;
   border: 1px solid rgba(103, 132, 205, 0.16);
   background: rgba(247, 250, 255, 0.96);
   color: var(--ink);
@@ -4570,7 +4621,7 @@ a {
 
 .career-wide-dot {
   position: absolute;
-  top: 80px;
+  top: 86px;
   left: 20px;
   width: 14px;
   height: 14px;
@@ -5232,6 +5283,7 @@ a {
   #home-section .card-body {
     display: grid;
     flex: 1;
+    grid-template-rows: 76px 132px 284px 120px 96px auto;
     gap: 12px;
   }
 
@@ -5466,6 +5518,10 @@ a {
     margin: 0;
   }
 
+  #home-section .chip-row-status {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   #home-section .chip-button {
     white-space: normal;
   }
@@ -5530,6 +5586,7 @@ a {
 
   #home-section .card-body {
     display: grid;
+    grid-template-rows: 76px 132px 250px 120px 96px auto;
     gap: 10px;
   }
 
@@ -5618,7 +5675,7 @@ a {
   }
 
   .career-wide-dot {
-    top: 42px;
+    top: 46px;
     left: 12px;
     width: 10px;
     height: 10px;
@@ -5734,6 +5791,10 @@ a {
     display: flex;
     flex-direction: column;
     min-height: 720px;
+  }
+
+  #home-section .card-body {
+    grid-template-rows: 76px 132px 210px 120px 96px auto;
   }
 
   #home-section .preview-surface {
@@ -6432,7 +6493,7 @@ a {
   }
 
   .career-wide-dot {
-    top: 24px;
+    top: 12px;
     left: -19px;
   }
 
