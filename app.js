@@ -2018,6 +2018,11 @@ function renderProjectCard(project) {
 
   return `
     <article class="project-card" tabindex="0" data-project-id="${escapeHtml(project.id)}">
+      ${
+        viewer?.role === "admin" && project.pinned
+          ? `<span class="project-pin-indicator" aria-label="고정된 카드">📌 고정됨</span>`
+          : ""
+      }
       <div class="card-topline">
         <span class="badge category">${escapeHtml(getProjectCategory(project))}</span>
         <span class="badge ${project.status === "in-progress" ? "warning" : "success"}">
@@ -2074,7 +2079,7 @@ function renderProjectCard(project) {
         viewer?.role === "admin"
           ? `
             <div class="card-actions">
-              <button type="button" class="icon-button subtle ${project.pinned ? "active" : ""}" data-card-action="pin">${project.pinned ? "핀 해제" : "핀 고정"}</button>
+              <button type="button" class="icon-button subtle ${project.pinned ? "active" : ""}" data-card-action="pin">${project.pinned ? "📌 고정됨" : "📌 핀 고정"}</button>
               <button type="button" class="icon-button" data-card-action="move-left">◀</button>
               <button type="button" class="icon-button" data-card-action="move-right">▶</button>
               <button type="button" class="icon-button" data-card-action="edit">편집</button>
@@ -3636,10 +3641,8 @@ async function reorderProject(projectId, direction) {
   target.manualOrder = currentOrder;
 
   try {
-    await Promise.all([
-      saveProjectPatch(current.id, { manualOrder: current.manualOrder }),
-      saveProjectPatch(target.id, { manualOrder: target.manualOrder })
-    ]);
+    await saveProjectPatch(current.id, { manualOrder: current.manualOrder });
+    await saveProjectPatch(target.id, { manualOrder: target.manualOrder });
     await refreshApp();
   } catch (error) {
     window.alert(`순서 변경 실패: ${error.message}`);

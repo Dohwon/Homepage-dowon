@@ -1309,7 +1309,7 @@ async function readJsonWithFallback(fileName, fallback) {
 }
 
 async function writeJsonAtomic(filePath, data) {
-  const tempPath = `${filePath}.${process.pid}.tmp`;
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
   await fsp.writeFile(tempPath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
   await fsp.rename(tempPath, filePath);
 }

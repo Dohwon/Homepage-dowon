@@ -1055,6 +1055,21 @@ a {
   outline: 0;
 }
 
+.project-pin-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(39, 72, 158, 0.1);
+  border: 1px solid rgba(60, 96, 197, 0.16);
+  color: #305fce;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .card-actions {
   position: absolute;
   top: 18px;
