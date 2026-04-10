@@ -3136,7 +3136,8 @@ a {
 #home-section .hero-searchbar {
   max-width: none;
   margin: 2px 0 0;
-  padding: 7px 10px;
+  min-height: 52px;
+  padding: 0 10px;
   border-radius: 20px;
   border: 2px solid rgba(89, 135, 244, 0.28);
   box-shadow:
@@ -3146,7 +3147,7 @@ a {
 
 #home-section .hero-searchbar input {
   min-height: 36px;
-  padding: 0 10px 0 12px;
+  padding: 0 12px;
   font-size: 0.9rem;
 }
 
@@ -3183,23 +3184,22 @@ a {
 
 #home-section #status-filters .chip-button {
   width: 100%;
-  min-height: 36px;
-  padding: 6px 9px;
+  min-height: 52px;
+  padding: 0 10px;
   font-size: 0.74rem;
+  line-height: 1;
 }
 
 #home-section #category-filters {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   max-width: 900px;
-  justify-content: flex-start;
   gap: 6px;
-  row-gap: 7px;
+  align-items: stretch;
 }
 
 #home-section #category-filters .chip-button {
-  flex: 0 0 auto;
-  width: auto;
+  width: 100%;
   min-height: 31px;
   padding: 4px 10px;
   font-size: 0.76rem;
@@ -4704,7 +4704,7 @@ a {
 
 .career-wide-dot {
   position: absolute;
-  top: 92px;
+  top: 93px;
   left: 20px;
   width: 14px;
   height: 14px;
@@ -4721,7 +4721,7 @@ a {
   color: #6077b8;
   font-size: 0.84rem;
   font-weight: 700;
-  transform: translate(-8px, 30px);
+  transform: translate(-8px, 10px);
 }
 
 .career-wide-card {
