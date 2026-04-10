@@ -8,12 +8,7 @@ const state = {
   },
   currentProjectId: null,
   currentTimelineProjectId: null,
-  currentTimelineYear: null,
   currentBlogId: null,
-  notifications: [],
-  notificationOpen: false,
-  notificationPollId: null,
-  pendingNotificationCommentId: null,
   commentsByProject: new Map(),
   blogCommentsByPost: new Map(),
   trackedProjects: new Set()
@@ -25,19 +20,16 @@ const elements = {
   ownerPrimary: document.getElementById("owner-primary"),
   ownerHeadline: document.getElementById("owner-headline"),
   externalLink: document.getElementById("external-link"),
-  notificationSlot: document.getElementById("notification-slot"),
   authArea: document.getElementById("auth-area"),
   newProjectButton: document.getElementById("new-project-button"),
   heroBadge: document.getElementById("hero-badge"),
   heroTitle: document.getElementById("hero-title"),
   heroDescription: document.getElementById("hero-description"),
   heroNote: document.getElementById("hero-note"),
-  nowBuildingBar: document.getElementById("now-building-bar"),
   heroMiniStats: document.getElementById("hero-mini-stats"),
   aboutTitle: document.getElementById("about-title"),
   ownerSummary: document.getElementById("owner-summary"),
   aboutContactList: document.getElementById("about-contact-list"),
-  aboutCoreStrengths: document.getElementById("about-core-strengths"),
   aboutMetrics: document.getElementById("about-metrics"),
   focusTags: document.getElementById("focus-tags"),
   valueProps: document.getElementById("value-props"),
@@ -52,7 +44,6 @@ const elements = {
   projectGrid: document.getElementById("project-grid"),
   timelineLegend: document.getElementById("timeline-legend"),
   projectTimelineMap: document.getElementById("project-timeline-map"),
-  projectLineageMap: document.getElementById("project-lineage-map"),
   adminPanel: document.getElementById("admin-panel"),
   newBlogButton: document.getElementById("new-blog-button"),
   blogGrid: document.getElementById("blog-grid"),
@@ -72,7 +63,6 @@ const PROJECT_TITLE_OVERRIDES = {
   "mood-tracker": "감정의 흐름을 기록하는 무드 트래커",
   "260218-ope-log-anlayze": "로그 속 숨은 운영 이슈를 건져낸 분석기",
   "260315-moe-prompt-routing": "질문마다 맞는 프롬프트를 고르는 라우팅 엔진",
-  "260319-llm-tool-hub": "도구를 갈아타도 기억과 프롬프트가 이어지는 운영 허브",
   "dowon-codex-manager-memory-work-summary-v4": "에이전트 작업기억을 한 장으로 묶는 실험",
   "gemini-multiturn-tester-v3": "멀티턴 LLM을 끝까지 흔드는 테스트 벤치",
   "a2a-family-classifier-experts": "Agent-to-Agent로 가기 위한 1차 분류기와 Expert 묶음",
@@ -92,12 +82,6 @@ const PROJECT_LINK_OVERRIDES = {
     {
       label: "Colab",
       url: "https://colab.research.google.com/drive/1OHqEr4OaIbO67_xJQc8KYXb91wwUoDIz"
-    }
-  ],
-  "260319-llm-tool-hub": [
-    {
-      label: "Live",
-      url: "https://celebrated-enjoyment-production.up.railway.app/"
     }
   ]
 };
@@ -133,85 +117,6 @@ const ABOUT_METRIC_OVERRIDES = [
     value: "5건",
     note: "2025년 기준 음성인식 관련 임시 출원"
   }
-];
-
-const ABOUT_CORE_STRENGTHS = [
-  {
-    title: "문제 구조화",
-    description: "흐릿한 현상을 로그, 조건, 가설로 쪼개 팀이 바로 움직일 수 있게 만듭니다."
-  },
-  {
-    title: "품질 기준 설계",
-    description: "감으로 말하던 품질 이슈를 합의 가능한 기준과 지표로 바꿉니다."
-  },
-  {
-    title: "실험 루프 구축",
-    description: "한 번성 분석으로 끝내지 않고, 반복 검증 가능한 루프까지 연결합니다."
-  }
-];
-
-const REPEATED_STRENGTH_CLUSTERS = [
-  {
-    id: "problem-structuring",
-    title: "문제 구조화",
-    summary: "복잡한 현상을 바로 움직일 수 있는 문제 단위로 다시 정의하는 영역입니다.",
-    narrative: "운영 로그, 발화 스펙, 프로젝트 기록처럼 흐릿한 입력을 구조화해 backlog와 실험 설계로 넘깁니다.",
-    projects: ["260218-ope-log-anlayze", "operation-log-analyzer", "semantic-verb-schema", "260319-llm-tool-hub"],
-    blogs: ["why-i-built-this-homepage"],
-    cases: ["log-driven-debug", "utterance-spec-expansion"]
-  },
-  {
-    id: "quality-criteria",
-    title: "품질 기준 설계",
-    summary: "팀이 같은 품질을 바라보게 만드는 기준과 수치 축을 직접 세우는 영역입니다.",
-    narrative: "CER, 유사도, 판정 스키마처럼 설명 가능한 기준을 먼저 만들고 그 위에서 개선을 반복합니다.",
-    projects: ["calc-stt-cer-colab", "morpheme-analysis-notebook", "utterance-similarity-notebook", "prompt-auto-evaluation"],
-    blogs: [],
-    cases: ["stt-physical-explainability", "nlu-robustness"]
-  },
-  {
-    id: "experiment-loop",
-    title: "실험 루프 구축",
-    summary: "큰 시스템을 분리하고 다시 검증 가능한 루프로 만드는 영역입니다.",
-    narrative: "라우팅, judge, stage 분리를 통해 구조가 바뀌어도 바로 다시 확인할 수 있는 실험 체계를 만듭니다.",
-    projects: ["gemini-multiturn-tester-v3", "260315-moe-prompt-routing", "a2a-family-classifier-experts"],
-    blogs: ["stitch-figma-codex-design-workflow"],
-    cases: ["tooling-bottleneck"]
-  }
-];
-
-const PROJECT_LINEAGE_ROUTES = [
-  {
-    id: "ops-to-routing",
-    title: "운영 문제를 라우팅 구조로 끌어올린 흐름",
-    summary: "운영 로그 분석에서 출발해, 평가 기준과 expert 분리 구조까지 이어진 계보입니다.",
-    projects: ["260218-ope-log-anlayze", "prompt-auto-evaluation", "260315-moe-prompt-routing", "a2a-family-classifier-experts"]
-  },
-  {
-    id: "quality-to-schema",
-    title: "품질 설명력을 데이터 기준으로 고정한 흐름",
-    summary: "음성/NLU 품질을 숫자와 데이터 기준으로 다시 묶어 설명력을 만든 계보입니다.",
-    projects: ["calc-stt-cer-colab", "morpheme-analysis-notebook", "utterance-similarity-notebook", "semantic-verb-schema"]
-  },
-  {
-    id: "personal-tools",
-    title: "직접 쓰는 도구를 제품으로 만든 흐름",
-    summary: "기록과 운영 도구를 실제 인터페이스와 사용 흐름으로 다듬어온 계보입니다.",
-    projects: ["mood-tracker", "todack", "260317-desktop-scheduler"]
-  },
-  {
-    id: "routing-to-memory-hub",
-    title: "라우팅 실험을 공통 메모리 허브로 확장한 흐름",
-    summary: "분류와 expert orchestration 경험을, 모델 추천과 공유 handover 구조를 다루는 운영 허브로 확장한 계보입니다.",
-    projects: ["260315-moe-prompt-routing", "a2a-family-classifier-experts", "260319-llm-tool-hub"]
-  }
-];
-
-const NOW_BUILDING_PRIORITY_IDS = [
-  "260319-llm-tool-hub",
-  "a2a-family-classifier-experts",
-  "260315-moe-prompt-routing",
-  "260317-desktop-scheduler"
 ];
 
 const CAREER_HIGHLIGHT_OVERRIDES = {
@@ -297,12 +202,6 @@ function bindEvents() {
     renderProjects();
   });
 
-  elements.nowBuildingBar?.addEventListener("click", (event) => {
-    const target = event.target.closest("[data-project-link]");
-    if (!target) return;
-    openDetail(target.dataset.projectLink);
-  });
-
   elements.projectGrid.addEventListener("click", (event) => {
     const actionButton = event.target.closest("[data-card-action]");
     if (actionButton) {
@@ -330,34 +229,7 @@ function bindEvents() {
     openDetail(card.dataset.projectId);
   });
 
-  elements.caseGrid?.addEventListener("click", (event) => {
-    const projectLink = event.target.closest("[data-project-link]");
-    if (projectLink) {
-      openDetail(projectLink.dataset.projectLink);
-      return;
-    }
-    const blogLink = event.target.closest("[data-blog-link]");
-    if (blogLink) {
-      openBlogDetail(blogLink.dataset.blogLink);
-    }
-  });
-
-  elements.projectLineageMap?.addEventListener("click", (event) => {
-    const projectLink = event.target.closest("[data-project-link]");
-    if (!projectLink) return;
-    openDetail(projectLink.dataset.projectLink);
-  });
-
   elements.projectTimelineMap.addEventListener("click", (event) => {
-    const yearNav = event.target.closest("[data-timeline-year-nav]");
-    if (yearNav) {
-      const nextYear = Number(yearNav.dataset.timelineYearNav);
-      if (!Number.isNaN(nextYear)) {
-        state.currentTimelineYear = nextYear;
-        renderProjectTimeline();
-      }
-      return;
-    }
     const action = event.target.closest("[data-timeline-action]");
     if (action) {
       const projectId = action.dataset.projectId || state.currentTimelineProjectId;
@@ -429,30 +301,7 @@ function bindEvents() {
   elements.newProjectButton.addEventListener("click", () => openEditor(null));
   elements.newBlogButton?.addEventListener("click", () => openBlogEditor(null));
 
-  elements.notificationSlot?.addEventListener("click", (event) => {
-    const notificationToggle = event.target.closest("[data-notification-action='toggle']");
-    if (notificationToggle) {
-      state.notificationOpen = !state.notificationOpen;
-      renderTopbar();
-      renderAuthArea();
-      return;
-    }
-
-    const notificationReadAll = event.target.closest("[data-notification-action='read-all']");
-    if (notificationReadAll) {
-      void markNotificationsRead("all");
-      return;
-    }
-
-    const notificationItem = event.target.closest("[data-notification-id]");
-    if (notificationItem) {
-      void openNotificationItem(notificationItem.dataset.notificationId);
-      return;
-    }
-  });
-
   elements.authArea.addEventListener("click", (event) => {
-
     const logoutButton = event.target.closest("[data-auth-action='logout']");
     if (logoutButton) {
       void logout();
@@ -539,22 +388,11 @@ function bindEvents() {
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      state.notificationOpen = false;
-      renderTopbar();
-      renderAuthArea();
       closeDetail();
       closeEditor();
       closeBlogDetail();
       closeBlogEditor();
     }
-  });
-
-  document.addEventListener("click", (event) => {
-    if (!state.notificationOpen) return;
-    if (event.target.closest(".notification-shell")) return;
-    state.notificationOpen = false;
-    renderTopbar();
-    renderAuthArea();
   });
 }
 
@@ -587,24 +425,10 @@ async function refreshApp() {
   if (!findBlogPost(state.currentBlogId)) {
     state.currentBlogId = null;
   }
-  const timelineYears = timelineProjects
-    .map((project) => buildTimelineEntry(project))
-    .flatMap((entry) => [entry.start.getFullYear(), entry.end.getFullYear()]);
-  if (timelineYears.length) {
-    const latestYear = Math.max(...timelineYears);
-    if (!state.currentTimelineYear || !timelineYears.includes(state.currentTimelineYear)) {
-      state.currentTimelineYear = latestYear;
-    }
-  }
   if (state.bootstrap.viewer?.role === "admin") {
     state.analytics = await api("/api/analytics/summary").catch(() => null);
-    await refreshNotifications();
-    startNotificationPolling();
   } else {
     state.analytics = null;
-    stopNotificationPolling();
-    state.notifications = [];
-    state.notificationOpen = false;
   }
   renderAll();
   initializeGoogleButton();
@@ -643,9 +467,6 @@ function renderTopbar() {
 
   elements.newProjectButton.classList.toggle("hidden", state.bootstrap.viewer?.role !== "admin");
   elements.newBlogButton?.classList.toggle("hidden", state.bootstrap.viewer?.role !== "admin");
-  if (elements.notificationSlot) {
-    elements.notificationSlot.innerHTML = state.bootstrap.viewer?.role === "admin" ? renderNotificationCenter() : "";
-  }
 }
 
 function renderHero() {
@@ -664,8 +485,6 @@ function renderHero() {
   elements.focusTags.innerHTML = arrayOrEmpty(owner.focusAreas)
     .map((item) => `<span class="tag-pill">${escapeHtml(item)}</span>`)
     .join("");
-
-  renderNowBuildingBar();
 
   const statItems = [
     { label: "프로젝트", value: String(stats.total), ratio: 1, tone: "neutral" },
@@ -688,34 +507,6 @@ function renderHero() {
       `
     )
     .join("");
-}
-
-function renderNowBuildingBar() {
-  if (!elements.nowBuildingBar) return;
-  const project = getNowBuildingProject();
-  if (!project) {
-    elements.nowBuildingBar.classList.add("hidden");
-    elements.nowBuildingBar.innerHTML = "";
-    return;
-  }
-
-  const story = buildProjectStory(project);
-  const focusCopy = arrayOrEmpty(project.highlights)[0] || story.challenge || project.summary;
-  const statusCopy = project.timeline?.label || formatBlogDate(project.updatedAt || project.createdAt || new Date().toISOString());
-
-  elements.nowBuildingBar.classList.remove("hidden");
-  elements.nowBuildingBar.innerHTML = `
-    <div class="now-building-copy">
-      <p class="panel-kicker">NOW BUILDING</p>
-      <h2>${escapeHtml(getProjectDisplayName(project))}</h2>
-      <p>${escapeHtml(focusCopy)}</p>
-    </div>
-    <div class="now-building-meta">
-      <span class="badge warning">진행중</span>
-      <strong>${escapeHtml(statusCopy)}</strong>
-      <button type="button" class="primary-button" data-project-link="${escapeHtml(project.id)}">지금 보는 작업 열기</button>
-    </div>
-  `;
 }
 
 function renderFilters() {
@@ -769,9 +560,6 @@ function renderProfile() {
   elements.valueProps.innerHTML = valueProps
     .map((item) => `<article class="value-card">${escapeHtml(item)}</article>`)
     .join("");
-  if (elements.aboutCoreStrengths) {
-    elements.aboutCoreStrengths.innerHTML = ABOUT_CORE_STRENGTHS.map(renderAboutCoreStrength).join("");
-  }
   if (elements.aboutContactList) {
     elements.aboutContactList.innerHTML = aboutContacts.map(renderAboutContactCard).join("");
   }
@@ -787,15 +575,6 @@ function renderProfile() {
       `
     )
     .join("");
-}
-
-function renderAboutCoreStrength(item) {
-  return `
-    <article class="about-core-card">
-      <strong>${escapeHtml(item.title)}</strong>
-      <p>${escapeHtml(item.description)}</p>
-    </article>
-  `;
 }
 
 function renderCareerTimeline() {
@@ -834,193 +613,65 @@ function renderProjectTimeline() {
   if (!projects.length) {
     elements.timelineLegend.innerHTML = "";
     elements.projectTimelineMap.innerHTML = `<article class="empty-state">타임라인 데이터가 없습니다.</article>`;
-    if (elements.projectLineageMap) {
-      elements.projectLineageMap.innerHTML = `<article class="empty-state">프로젝트 연결선 데이터가 없습니다.</article>`;
-    }
     return;
   }
 
   const enriched = projects
     .map((project) => buildTimelineEntry(project))
-    .sort((left, right) => getProjectRecentTimestamp(right.project) - getProjectRecentTimestamp(left.project));
+    .sort((left, right) => left.start.getTime() - right.start.getTime());
 
   elements.timelineLegend.innerHTML = `
-    <span class="timeline-legend-copy">달력 칸에는 그달에 움직인 프로젝트 이름만 표시됩니다.</span>
-    <span class="timeline-legend-pill"><i class="legend-dot active"></i>기본 진행</span>
-    <span class="timeline-legend-pill"><i class="legend-dot difficulty"></i>난관 구간</span>
+    <span class="timeline-legend-pill"><i class="legend-dot active"></i>프로젝트 시점</span>
+    <span class="timeline-legend-pill"><i class="legend-dot difficulty"></i>난관 피크</span>
     <span class="timeline-legend-pill"><i class="legend-dot milestone"></i>해결 전환점</span>
   `;
 
-  elements.projectTimelineMap.innerHTML = renderTimelineCalendar(enriched);
-  renderProjectLineages();
-}
-
-function renderTimelineCalendar(entries) {
-  const range = buildTimelineRange(entries);
-  const years = buildTimelineCalendarYears(range, entries);
-  const activeYear = years.find((item) => item.year === state.currentTimelineYear) || years[years.length - 1];
-  const currentIndex = years.findIndex((item) => item.year === activeYear.year);
-  const prevYear = years[currentIndex - 1] || null;
-  const nextYear = years[currentIndex + 1] || null;
-  return `
-    ${renderTimelineYearBoard(activeYear, prevYear, nextYear)}
-  `;
-}
-
-function buildTimelineCalendarYears(range, entries) {
-  const years = [];
-  for (let year = range.start.getFullYear(); year <= range.end.getFullYear(); year += 1) {
-    const months = [];
-    for (let monthIndex = 0; monthIndex < 12; monthIndex += 1) {
-      const label = new Date(year, monthIndex, 1);
-      const inRange = label >= range.start && label <= range.end;
-      months.push(buildTimelineMonthBucket(label, entries, inRange));
-    }
-    years.push({ year, months });
-  }
-  return years;
-}
-
-function buildTimelineMonthBucket(label, entries, inRange = true) {
-  const monthLabel = label.toISOString().slice(0, 7).replace("-", ".");
-  const items = entries
-    .filter((entry) => inRange && isEntryActiveInMonth(entry, label))
-    .map((entry) => ({
-      project: entry.project,
-      label: getProjectDisplayName(entry.project),
-      hasDifficulty: entry.difficulties.some((item) => isMonthOverlap(label, item.start, item.end)),
-      hasMilestone: entry.milestones.some((item) => isSameMonth(label, item.date))
-    }))
-    .sort((left, right) => getProjectRecentTimestamp(right.project) - getProjectRecentTimestamp(left.project));
-
-  return {
-    key: monthLabel,
-    year: label.getFullYear(),
-    month: label.getMonth() + 1,
-    label: monthLabel,
-    inRange,
-    items
-  };
-}
-
-function renderTimelineYearBoard(year, prevYear, nextYear) {
-  return `
-    <section class="timeline-year-board">
-      <header class="timeline-year-head">
-        <div>
-          <p class="panel-kicker">Project Calendar</p>
-          <h3>${escapeHtml(String(year.year))}</h3>
-        </div>
-        <div class="timeline-year-nav">
-          <button type="button" class="timeline-year-button" aria-label="이전 연도" ${prevYear ? `data-timeline-year-nav="${prevYear.year}"` : "disabled"}>
-            <span aria-hidden="true">‹</span>
-          </button>
-          <span class="timeline-year-current">${escapeHtml(String(year.year))}</span>
-          <button type="button" class="timeline-year-button" aria-label="다음 연도" ${nextYear ? `data-timeline-year-nav="${nextYear.year}"` : "disabled"}>
-            <span aria-hidden="true">›</span>
-          </button>
-        </div>
-      </header>
-      <div class="timeline-calendar-grid">
-        ${year.months.map((month) => renderTimelineMonthCard(month)).join("")}
-      </div>
-    </section>
-  `;
-}
-
-function renderTimelineMonthCard(month) {
-  const countLabel = month.inRange ? `${month.items.length}개` : "";
-  return `
-    <article class="timeline-month-card ${month.inRange ? "" : "muted"}">
-      <header class="timeline-month-head">
-        <p>${escapeHtml(`${month.month}월`)}</p>
-        <strong>${escapeHtml(countLabel)}</strong>
-      </header>
-      ${
-        !month.inRange
-          ? `<p class="timeline-month-empty muted">범위 밖</p>`
-          : month.items.length
-          ? `
-            <div class="timeline-month-list">
-              ${month.items.map((item) => renderTimelineMonthItem(item)).join("")}
-            </div>
-          `
-          : `<p class="timeline-month-empty">표시할 프로젝트 없음</p>`
-      }
-    </article>
-  `;
-}
-
-function renderTimelineMonthItem(item) {
-  const markerClass = item.hasDifficulty ? "warning" : item.hasMilestone ? "milestone" : "active";
-  return `
-    <button type="button" class="timeline-month-item" data-timeline-project="${escapeHtml(item.project.id)}">
-      <span class="timeline-month-marker ${markerClass}" aria-hidden="true"></span>
-      <span class="timeline-month-name">${escapeHtml(item.label)}</span>
-    </button>
-  `;
-}
-
-function isEntryActiveInMonth(entry, monthDate) {
-  const month = monthStart(monthDate);
-  return entry.start <= monthEnd(month) && entry.end >= month;
-}
-
-function isMonthOverlap(monthDate, start, end) {
-  const month = monthStart(monthDate);
-  return start <= monthEnd(month) && end >= month;
-}
-
-function isSameMonth(monthDate, targetDate) {
-  if (!targetDate) return false;
-  const left = monthStart(monthDate);
-  const right = monthStart(targetDate);
-  return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth();
-}
-
-function monthEnd(date) {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  elements.projectTimelineMap.innerHTML = renderTimelineChronicle(enriched);
 }
 
 function renderTimelineChronicle(entries) {
   const range = buildTimelineRange(entries);
-  const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1440;
-  const width = Math.max(2200, entries.length * 300, range.labels.length * 280, viewportWidth * 1.9);
-  const height = 540;
+  const width = Math.max(1480, entries.length * 164);
+  const height = 430;
   const wavePoints = buildTimelineWavePoints(entries, range, width, height);
   const wavePath = buildSmoothPath(wavePoints);
   const areaPath = `${wavePath} L ${width - 52} ${height - 50} L 52 ${height - 50} Z`;
-  const eventLayouts = buildTimelineEventLayouts(entries, range, width, height);
   const labelIndexes = range.labels
     .map((label, index) => ({ label, index }))
     .filter(({ index }) => index === 0 || index === range.labels.length - 1 || index % 2 === 0);
 
   return `
     <div class="timeline-wave-shell">
-      <div class="timeline-wave-board" style="width:${width}px; height:${height}px;">
-        <svg class="timeline-wave-bg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
-          <path class="timeline-wave-axis-line" d="M 52 ${height - 50} H ${width - 52}"></path>
-          <path class="timeline-wave-area" d="${areaPath}"></path>
-          <path class="timeline-wave-line" d="${wavePath}"></path>
-        </svg>
-        <div class="timeline-wave-axis">
-          ${labelIndexes
-            .map(({ label }) => {
-              const ratio = graphRatio(label, range.start, range.end, 0.12, 0.88);
-              return `<span style="left:${(ratio * width).toFixed(1)}px;">${escapeHtml(label.toISOString().slice(0, 7).replace("-", "."))}</span>`;
-            })
-            .join("")}
-        </div>
-        <div class="timeline-wave-events">
-          ${eventLayouts.map((layout) => renderTimelineWaveEvent(layout)).join("")}
+      <div class="timeline-wave-scroll">
+        <div class="timeline-wave-board" style="width:${width}px; height:${height}px;">
+          <svg class="timeline-wave-bg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+            <path class="timeline-wave-axis-line" d="M 52 ${height - 50} H ${width - 52}"></path>
+            <path class="timeline-wave-area" d="${areaPath}"></path>
+            <path class="timeline-wave-line" d="${wavePath}"></path>
+          </svg>
+          <div class="timeline-wave-axis">
+            ${labelIndexes
+              .map(({ label }) => {
+                const ratio = graphRatio(label, range.start, range.end, 0.08, 0.92);
+                return `<span style="left:${(ratio * width).toFixed(1)}px;">${escapeHtml(label.toISOString().slice(0, 7).replace("-", "."))}</span>`;
+              })
+              .join("")}
+          </div>
+          <div class="timeline-wave-events">
+            ${entries.map((entry, index) => renderTimelineWaveEvent(entry, index, entries, range, width, height)).join("")}
+          </div>
         </div>
       </div>
     </div>
   `;
 }
 
-function renderTimelineWaveEvent(layout) {
-  const { entry, x, cardTop, direction } = layout;
+function renderTimelineWaveEvent(entry, index, entries, range, width, height) {
+  const ratio = graphRatio(entry.start, range.start, range.end, 0.08, 0.92);
+  const x = ratio * width;
+  const y = computeTimelineWaveY(ratio, entries, range, height);
+  const direction = index % 2 === 0 ? "above" : "below";
+  const cardTop = clampNumber(direction === "above" ? y - 150 : y + 36, 22, height - 148);
   const difficultyCopy = entry.difficulties[0]?.label || "핵심 이슈";
   const summaryCopy = arrayOrEmpty(entry.story.impact)[0] || entry.story.challenge || entry.project.summary;
   return `
@@ -1044,41 +695,10 @@ function renderTimelineWaveEvent(layout) {
   `;
 }
 
-function buildTimelineEventLayouts(entries, range, width, height) {
-  const laneAnchors = [
-    (y) => y - 162,
-    (y) => y - 264,
-    (y) => y + 34,
-    (y) => y + 136
-  ];
-  const laneDirections = ["above", "above", "below", "below"];
-  const laneLastX = [-Infinity, -Infinity, -Infinity, -Infinity];
-  const minimumGap = 248;
-
-  return entries
-    .map((entry) => {
-      const ratio = graphRatio(entry.start, range.start, range.end, 0.12, 0.88);
-      const x = ratio * width;
-      const y = computeTimelineWaveY(ratio, entries, range, height);
-      let laneIndex = laneLastX.findIndex((lastX) => x - lastX >= minimumGap);
-      if (laneIndex === -1) {
-        laneIndex = laneLastX.indexOf(Math.min(...laneLastX));
-      }
-      laneLastX[laneIndex] = x;
-      return {
-        entry,
-        x,
-        direction: laneDirections[laneIndex],
-        cardTop: clampNumber(laneAnchors[laneIndex](y), 28, height - 170)
-      };
-    })
-    .sort((left, right) => left.x - right.x);
-}
-
 function buildTimelineWavePoints(entries, range, width, height) {
   const points = [];
   for (let index = 0; index <= 72; index += 1) {
-    const ratio = 0.12 + 0.76 * (index / 72);
+    const ratio = 0.08 + 0.84 * (index / 72);
     points.push({
       x: ratio * width,
       y: computeTimelineWaveY(ratio, entries, range, height)
@@ -1227,139 +847,38 @@ function renderSkills() {
 }
 
 function renderCases() {
-  const clusters = buildRepeatedStrengthClusters();
-  elements.caseGrid.innerHTML = clusters.length
-    ? clusters.map(renderRepeatedStrengthCluster).join("")
-    : `<article class="empty-state">문제 해결 사례 데이터가 없습니다.</article>`;
-}
-
-function buildRepeatedStrengthClusters() {
   const cases = arrayOrEmpty(state.bootstrap.cases);
-  return REPEATED_STRENGTH_CLUSTERS.map((cluster) => ({
-    ...cluster,
-    projectItems: cluster.projects.map((id) => findProject(id)).filter(Boolean),
-    blogItems: cluster.blogs.map((id) => findBlogPost(id)).filter(Boolean),
-    caseItems: cluster.cases.map((id) => cases.find((item) => item.id === id)).filter(Boolean)
-  })).filter((cluster) => cluster.projectItems.length || cluster.blogItems.length || cluster.caseItems.length);
-}
-
-function renderRepeatedStrengthCluster(cluster) {
-  const counts = [
-    cluster.projectItems.length ? `프로젝트 ${cluster.projectItems.length}` : "",
-    cluster.caseItems.length ? `케이스 ${cluster.caseItems.length}` : "",
-    cluster.blogItems.length ? `블로그 ${cluster.blogItems.length}` : ""
-  ].filter(Boolean);
-
-  return `
-    <article class="strength-map-card">
-      <div class="strength-map-head">
-        <div>
-          <p class="panel-kicker">Repeated Strength</p>
-          <h3>${escapeHtml(cluster.title)}</h3>
-        </div>
-        <span class="strength-map-count">${escapeHtml(counts.join(" · "))}</span>
-      </div>
-      <p class="strength-map-summary">${escapeHtml(cluster.summary)}</p>
-      <p class="strength-map-narrative">${escapeHtml(cluster.narrative)}</p>
-      <div class="strength-map-columns">
-        <section class="strength-evidence-block">
-          <p class="panel-kicker">Projects</p>
-          <div class="strength-link-list">
-            ${cluster.projectItems.map(renderStrengthProjectLink).join("")}
-          </div>
-        </section>
-        <section class="strength-evidence-block">
-          <p class="panel-kicker">Problem Record</p>
-          <ul class="support-list tight strength-record-list">
-            ${cluster.caseItems.map((item) => `<li><strong>${escapeHtml(item.title || "")}</strong> ${escapeHtml(item.result || "")}</li>`).join("")}
-          </ul>
-        </section>
-        ${
-          cluster.blogItems.length
-            ? `
-              <section class="strength-evidence-block">
-                <p class="panel-kicker">Blog Notes</p>
-                <div class="strength-link-list">
-                  ${cluster.blogItems.map(renderStrengthBlogLink).join("")}
-                </div>
-              </section>
-            `
-            : ""
-        }
-      </div>
-    </article>
-  `;
-}
-
-function renderStrengthProjectLink(project) {
-  return `
-    <button type="button" class="strength-link-card" data-project-link="${escapeHtml(project.id)}">
-      <strong>${escapeHtml(getProjectDisplayName(project))}</strong>
-      <span>${escapeHtml(truncate(project.summary || "", 70))}</span>
-    </button>
-  `;
-}
-
-function renderStrengthBlogLink(post) {
-  return `
-    <button type="button" class="strength-link-card subtle" data-blog-link="${escapeHtml(post.id)}">
-      <strong>${escapeHtml(post.title)}</strong>
-      <span>${escapeHtml(truncate(post.excerpt || "", 72))}</span>
-    </button>
-  `;
-}
-
-function renderProjectLineages() {
-  if (!elements.projectLineageMap) return;
-  const routes = PROJECT_LINEAGE_ROUTES.map((route) => ({
-    ...route,
-    projectItems: route.projects.map((id) => findProject(id)).filter(Boolean)
-  })).filter((route) => route.projectItems.length > 1);
-
-  elements.projectLineageMap.innerHTML = routes.length
-    ? routes.map(renderProjectLineageRoute).join("")
-    : `<article class="empty-state">프로젝트 연결선 데이터가 없습니다.</article>`;
-}
-
-function renderProjectLineageRoute(route) {
-  return `
-    <article class="lineage-route-card">
-      <div class="lineage-route-head">
-        <div>
-          <p class="panel-kicker">Project Lineage</p>
-          <h3>${escapeHtml(route.title)}</h3>
-        </div>
-        <p class="lineage-route-summary">${escapeHtml(route.summary)}</p>
-      </div>
-      <div class="lineage-track">
-        ${route.projectItems
-          .map(
-            (project, index) => `
-              ${index ? `<span class="lineage-connector" aria-hidden="true">→</span>` : ""}
-              <button type="button" class="lineage-node-card" data-project-link="${escapeHtml(project.id)}">
-                <small>${escapeHtml(project.timeline?.label || getProjectCategory(project))}</small>
-                <strong>${escapeHtml(truncate(getProjectDisplayName(project), 24))}</strong>
-              </button>
-            `
-          )
-          .join("")}
-      </div>
-    </article>
-  `;
+  elements.caseGrid.innerHTML = cases.length
+    ? cases
+        .map(
+          (item) => `
+            <article class="case-card">
+              <div class="case-head">
+                <h3>${escapeHtml(item.title || "")}</h3>
+                <span class="case-badge">Case</span>
+              </div>
+              <p><strong>문제</strong> ${escapeHtml(item.problem || "")}</p>
+              <p><strong>시도</strong></p>
+              <ul class="support-list tight">
+                ${arrayOrEmpty(item.attempts).map((attempt) => `<li>${escapeHtml(attempt)}</li>`).join("")}
+              </ul>
+              <p><strong>결과</strong> ${escapeHtml(item.result || "")}</p>
+              <div class="flow-track">
+                ${arrayOrEmpty(item.flow).map((step) => `<span class="flow-node">${escapeHtml(step)}</span>`).join("")}
+              </div>
+            </article>
+          `
+        )
+        .join("")
+    : `<article class="empty-state">문제 해결 사례 데이터가 없습니다.</article>`;
 }
 
 function getTimelineProjects() {
   return [...(state.bootstrap?.projects || [])].sort((left, right) => {
-    return getProjectRecentTimestamp(right) - getProjectRecentTimestamp(left);
+    const leftDate = parseTimelineDate(left.timeline?.start || left.createdAt)?.getTime() || 0;
+    const rightDate = parseTimelineDate(right.timeline?.start || right.createdAt)?.getTime() || 0;
+    return rightDate - leftDate;
   });
-}
-
-function getNowBuildingProject() {
-  const inProgress = [...arrayOrEmpty(state.bootstrap?.projects)]
-    .filter((project) => project.status === "in-progress")
-    .sort((left, right) => getProjectRecentTimestamp(right) - getProjectRecentTimestamp(left));
-  const preferred = inProgress.filter((project) => NOW_BUILDING_PRIORITY_IDS.includes(project.id));
-  return preferred[0] || inProgress[0] || null;
 }
 
 function buildTimelineEntry(project) {
@@ -1409,10 +928,10 @@ function buildTimelineRange(entries) {
 }
 
 function renderTimelineRow(entry, range, isActive) {
+  const viewer = state.bootstrap.viewer;
   const left = monthOffset(entry.start, range);
   const width = Math.max(6, monthSpan(entry.start, entry.end, range));
   const displayName = getProjectDisplayName(entry.project);
-  const boardWidthStyle = `width:var(--timeline-board-width);min-width:var(--timeline-board-width);`;
   const difficultyMarkup = entry.difficulties
     .map((item) => {
       const diffLeft = monthOffset(item.start, range);
@@ -1428,7 +947,7 @@ function renderTimelineRow(entry, range, isActive) {
     .join("");
 
   return `
-    <article class="timeline-project-row timeline-project-row-compact ${isActive ? "active" : ""}" tabindex="0" data-timeline-project="${escapeHtml(entry.project.id)}">
+    <article class="timeline-project-row ${isActive ? "active" : ""}" tabindex="0" data-timeline-project="${escapeHtml(entry.project.id)}">
       <div class="timeline-row-copy">
         <div class="timeline-row-top">
           <span class="badge ${entry.project.status === "in-progress" ? "warning" : "success"}">
@@ -1437,22 +956,40 @@ function renderTimelineRow(entry, range, isActive) {
           <span class="timeline-row-label">${escapeHtml(entry.label)}</span>
         </div>
         <h3>${escapeHtml(displayName)}</h3>
+        <p>${escapeHtml(entry.story.challenge || entry.project.summary)}</p>
+        <div class="timeline-row-tags">
+          ${arrayOrEmpty(entry.project.tags).slice(0, 3).map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")}
+        </div>
       </div>
       <div class="timeline-row-track-wrap">
-        <div class="timeline-row-scale" style="${boardWidthStyle}">
+        <div class="timeline-row-scale">
           ${range.labels.map((label) => `<span>${escapeHtml(label.toISOString().slice(2, 7).replace("-", "."))}</span>`).join("")}
         </div>
-        <div class="timeline-row-track" style="${boardWidthStyle}">
+        <div class="timeline-row-track">
           <div class="timeline-grid-lines">
             ${range.labels.map(() => `<span></span>`).join("")}
           </div>
           <span class="timeline-project-bar ${entry.project.status === "in-progress" ? "warning" : "success"}" style="left:${left}%; width:${width}%;">
-            <strong>${escapeHtml(truncate(displayName, 30))}</strong>
+            <strong>${escapeHtml(getProjectCategory(entry.project))}</strong>
           </span>
           ${difficultyMarkup}
           ${milestoneMarkup}
         </div>
+        ${
+          viewer?.role === "admin"
+            ? `<div class="timeline-row-actions"><button type="button" class="ghost-button compact" data-timeline-action="edit" data-project-id="${escapeHtml(entry.project.id)}">수정</button></div>`
+            : ""
+        }
       </div>
+      ${
+        isActive
+          ? `
+            <div class="timeline-row-expanded">
+              ${renderTimelineFocus(entry)}
+            </div>
+          `
+          : ""
+      }
     </article>
   `;
 }
@@ -2439,33 +1976,7 @@ function bindRailNavigation() {
     targets.forEach(({ section }) => observer.observe(section));
   }
 
-  let scrollTicking = false;
-  const syncRailOnScroll = () => {
-    const focusY = window.scrollY + window.innerHeight * 0.32;
-    let activeSectionId = targets[0].section.id;
-    targets.forEach(({ section }) => {
-      const absoluteTop = section.getBoundingClientRect().top + window.scrollY;
-      if (absoluteTop <= focusY) {
-        activeSectionId = section.id;
-      }
-    });
-    activateRailButton(activeSectionId);
-  };
-
-  window.addEventListener(
-    "scroll",
-    () => {
-      if (scrollTicking) return;
-      scrollTicking = true;
-      window.requestAnimationFrame(() => {
-        syncRailOnScroll();
-        scrollTicking = false;
-      });
-    },
-    { passive: true }
-  );
-  window.addEventListener("resize", syncRailOnScroll);
-  syncRailOnScroll();
+  activateRailButton(targets[0].section.id);
 }
 
 function getProjectExternalLinks(project) {
@@ -2870,7 +2381,7 @@ function renderOpenDetail() {
                   ? comments
                       .map(
                         (comment) => `
-                          <article class="comment-card detail-comment-card" data-comment-id="${escapeHtml(comment.id)}">
+                          <article class="comment-card detail-comment-card">
                             <div class="comment-author">
                               <div class="avatar-circle">${escapeHtml((comment.authorName || "?").slice(0, 1).toUpperCase())}</div>
                               <div>
@@ -3112,7 +2623,7 @@ function renderOpenBlog() {
 
 function renderBlogCommentCard(comment, viewer) {
   return `
-    <article class="blog-comment-card" data-comment-id="${escapeHtml(comment.id)}">
+    <article class="blog-comment-card">
       <div class="blog-comment-avatar">${escapeHtml((comment.authorName || "?").slice(0, 1).toUpperCase())}</div>
       <div class="blog-comment-copy">
         <div class="blog-comment-meta-line">
@@ -3164,7 +2675,6 @@ async function loadComments(projectId) {
     if (state.currentProjectId === projectId) {
       renderOpenDetail();
     }
-    focusPendingNotificationComment();
   } catch (error) {
     console.error(error);
   }
@@ -3177,35 +2687,8 @@ async function loadBlogComments(blogId) {
     if (state.currentBlogId === blogId) {
       renderOpenBlog();
     }
-    focusPendingNotificationComment();
   } catch (error) {
     console.error(error);
-  }
-}
-
-async function refreshNotifications() {
-  if (state.bootstrap.viewer?.role !== "admin") return;
-  try {
-    const data = await api("/api/notifications");
-    state.notifications = data.notifications || [];
-    renderTopbar();
-    renderAuthArea();
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-function startNotificationPolling() {
-  stopNotificationPolling();
-  state.notificationPollId = window.setInterval(() => {
-    void refreshNotifications();
-  }, 30000);
-}
-
-function stopNotificationPolling() {
-  if (state.notificationPollId) {
-    window.clearInterval(state.notificationPollId);
-    state.notificationPollId = null;
   }
 }
 
@@ -3233,95 +2716,6 @@ function renderAuthArea() {
     <div class="login-box">
       <div id="google-button-slot" class="google-button-slot"></div>
       ${devLoginButton}
-    </div>
-  `;
-}
-
-async function markNotificationsRead(mode, notificationId = "") {
-  if (state.bootstrap.viewer?.role !== "admin") return;
-  try {
-    await api("/api/notifications/read", {
-      method: "POST",
-      body:
-        mode === "all"
-          ? { readAll: true }
-          : {
-              ids: [notificationId]
-            }
-    });
-    await refreshNotifications();
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-async function openNotificationItem(notificationId) {
-  const notification = state.notifications.find((item) => item.id === notificationId);
-  if (!notification) return;
-  state.notificationOpen = false;
-  await markNotificationsRead("single", notificationId);
-  state.pendingNotificationCommentId = notification.commentId;
-  if (notification.surface === "blog") {
-    openBlogDetail(notification.blogId);
-    return;
-  }
-  openDetail(notification.projectId);
-}
-
-function focusPendingNotificationComment() {
-  if (!state.pendingNotificationCommentId) return;
-  const selector = `[data-comment-id="${CSS.escape(state.pendingNotificationCommentId)}"]`;
-  const target =
-    elements.detailModalBody.querySelector(selector) || elements.blogModalBody?.querySelector(selector) || null;
-  if (!target) return;
-  state.pendingNotificationCommentId = null;
-  target.classList.add("notification-target");
-  target.scrollIntoView({ behavior: "smooth", block: "center" });
-  window.setTimeout(() => target.classList.remove("notification-target"), 2600);
-}
-
-function renderNotificationCenter() {
-  const unreadCount = state.notifications.filter((item) => !item.readAt).length;
-  const items = state.notifications.length
-    ? state.notifications
-        .map(
-          (item) => `
-            <button
-              type="button"
-              class="notification-item ${item.readAt ? "read" : ""}"
-              data-notification-id="${escapeHtml(item.id)}"
-            >
-              <div class="notification-item-head">
-                <strong>${escapeHtml(item.title)}</strong>
-                <span>${escapeHtml(formatRelativeTime(item.createdAt))}</span>
-              </div>
-              <p>${escapeHtml(item.message)}</p>
-              <small>${escapeHtml(item.authorName)} · ${escapeHtml(item.surfaceLabel)}</small>
-            </button>
-          `
-        )
-        .join("")
-    : `<article class="notification-empty">새 댓글 알람이 없습니다.</article>`;
-
-  return `
-    <div class="notification-shell ${state.notificationOpen ? "open" : ""}">
-      <button type="button" class="notification-toggle" data-notification-action="toggle" aria-label="알람 열기">
-        <span class="notification-bell">🔔</span>
-        ${unreadCount ? `<span class="notification-count">${escapeHtml(String(unreadCount))}</span>` : ""}
-      </button>
-      ${
-        state.notificationOpen
-          ? `
-            <section class="notification-popover">
-              <div class="notification-popover-head">
-                <strong>새 댓글 알람</strong>
-                <button type="button" class="ghost-button compact" data-notification-action="read-all">전체 확인</button>
-              </div>
-              <div class="notification-list">${items}</div>
-            </section>
-          `
-          : ""
-      }
     </div>
   `;
 }
@@ -3652,7 +3046,6 @@ async function submitComment() {
     }
     await loadComments(state.currentProjectId);
     await refreshCommentCounts();
-    await refreshNotifications();
   } catch (error) {
     window.alert(`댓글 등록 실패: ${error.message}`);
   }
@@ -3692,7 +3085,6 @@ async function submitBlogComment() {
       passwordInput.value = "";
     }
     await loadBlogComments(state.currentBlogId);
-    await refreshNotifications();
   } catch (error) {
     window.alert(`블로그 댓글 등록 실패: ${error.message}`);
   }
@@ -3770,10 +3162,9 @@ function getVisibleProjects() {
 }
 
 function getProjectRecentTimestamp(project) {
-  const timelineEnd = parseTimelineDate(project.timeline?.end || "")?.getTime() || 0;
-  const timelineStart = parseTimelineDate(project.timeline?.start || "")?.getTime() || 0;
-  const createdAt = parseTimelineDate(project.createdAt || "")?.getTime() || 0;
-  return Math.max(timelineEnd, timelineStart, createdAt);
+  return (
+    parseTimelineDate(project.timeline?.end || project.timeline?.start || project.createdAt)?.getTime() || 0
+  );
 }
 
 function findProject(projectId) {

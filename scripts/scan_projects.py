@@ -22,7 +22,6 @@ EXCLUDED_TOP_LEVEL_DIRS = {"notion"}
 
 IN_PROGRESS_PATTERNS = [
     r"\bin\s*[- ]?progress\b",
-    r"\bin_progress\b",
     r"진행중",
     r"미완성",
     r"wip",
@@ -36,7 +35,6 @@ DONE_PATTERNS = [
 ]
 
 CATEGORY_RULES = [
-    ("AI Workflow Hub", ["llm_tool_hub", "tool_hub"]),
     ("LLM Evaluation Tooling", ["gemini", "multiturn", "tester"]),
     ("Prompt Evaluation", ["prompt", "judge", "evaluation"]),
     ("Operational Analytics", ["operation", "log", "analy"]),
@@ -99,18 +97,6 @@ def detect_status(readme_text: str, folder_name: str) -> str:
     if "v3" in folder_name.lower() and "tester" in folder_name.lower():
         return "in-progress"
     return "active"
-
-
-def load_status_context(project_dir: Path, readme_text: str) -> str:
-    parts = [readme_text]
-    candidate_files = [project_dir / "manager_memory" / "short-term" / "active-tasks.md"]
-    for candidate in candidate_files:
-        if candidate.exists() and candidate.is_file():
-            try:
-                parts.append(candidate.read_text(encoding="utf-8", errors="ignore"))
-            except OSError:
-                continue
-    return "\n".join(filter(None, parts))
 
 
 def detect_category(name: str) -> str:
@@ -352,11 +338,10 @@ def build_projects() -> List[Entry]:
         readme_candidates = list(child.glob("README*")) + list(child.glob("readme*"))
         readme = readme_candidates[0] if readme_candidates else None
         readme_text = readme.read_text(encoding="utf-8", errors="ignore") if readme else ""
-        status_context = load_status_context(child, readme_text)
 
         rel_path = str(child.relative_to(ROOT))
         existing = existing_by_path.get(rel_path)
-        status = detect_status(status_context, child.name)
+        status = detect_status(readme_text, child.name)
         category = existing["category"] if existing else detect_category(child.name)
         tags = existing["tags"] if existing else default_tags(category)
         files = [p for p in child.rglob("*") if p.is_file() and not is_excluded_file(p)]

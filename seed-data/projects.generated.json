@@ -162,7 +162,7 @@
         "keyFiles": [
           "projects/(SKM)Calc_STT_CER_ipynb의_사본.ipynb"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-12",
@@ -221,7 +221,7 @@
         "keyFiles": [
           "projects/250731_학습데이터_형태소분석기.ipynb"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-11-09",
@@ -291,11 +291,11 @@
           "projects/260212_feeling_traker/branding/calm_slime_favicon_final_2026-02-15/README.md",
           "projects/260212_feeling_traker/server.py"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-12",
-        "end": "2026-03-19",
+        "end": "2026-03-17",
         "label": "2026.02 - 2026.03",
         "difficultyWindows": [],
         "milestones": []
@@ -351,7 +351,7 @@
           "projects/260218_ope_log_anlayze/dynamodb_테이블정의서 (2).xlsx",
           "projects/260218_ope_log_anlayze/250107-운영계-대화기록-1월_7일.csv"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-01-07",
@@ -364,7 +364,7 @@
     {
       "id": "260315-moe-prompt-routing",
       "name": "260315_MoE_Prompt_Routing",
-      "status": "in-progress",
+      "status": "active",
       "category": "Prompt Evaluation",
       "summary": "260315_MoE_Prompt_Routing 프로젝트 자산.",
       "highlights": [
@@ -384,10 +384,10 @@
       "readme": "projects/260315_MoE_Prompt_Routing/README.md",
       "detail": {
         "readmeSummary": [
-          "이 프로젝트는 `온디바이스 dictionary gate -> 1차 family classifier -> 2차 specialist expert/RAG/system -> selector -> session manager`로 이어지는 `A2A-ready 음성 라우팅 구조`를 개인 주도로 설계하고 검증하는 작업이다.",
-          "핵심은 `한 번의 거대한 시스템 프롬프트`로 모든 요청을 처리하는 대신, 사용자의 음성을 `일상대화 / search / device_qna / unsupported / schedule` 같은 책임 단위로 나누고, 각 전용 처리기로 안정적으로 넘기는 것이다. 즉 이 폴더는 단순 프롬프트 모음이 아니라 `음성 에이전트 오케스트레이션 설계 + 평가 자산 + 회귀 테스트 체계`를 함께 관리하는 작업 폴더다.",
-          "단일 LLM 응답기가 아니라 `agent to agent에 가까운 음성 오케스트레이션 구조`를 목표로 한다.",
-          "스케줄처럼 slot-filling이 필요한 기능은 별도 expert로 분리하고, 일반 대화/미지원 안내/search도 각각 다른 책임으로 분리했다."
+          "이 폴더는 `음성 클라우드 라우팅 설계`, `실행 프롬프트`, `평가용 judge`, `엑셀 기반 테스트`를 한곳에서 관리하는 작업 폴더다.",
+          "가장 중요한 기준 파일은 아래 4개다.",
+          "구조 설명: docs/architecture/routing-blueprint.current.md",
+          "실제 runtime 프롬프트: prompts/runtime"
         ],
         "workflow": [
           {
@@ -415,11 +415,11 @@
           "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/harness.py",
           "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/workbook.py"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-10-28",
-        "end": "2026-03-19",
+        "end": "2026-03-17",
         "label": "2025.10 - 2026.03",
         "difficultyWindows": [],
         "milestones": []
@@ -475,73 +475,11 @@
           "projects/260317_desktop_scheduler/src/__init__.py",
           "projects/260317_desktop_scheduler/src/reminders.py"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-03-17",
-        "end": "2026-03-19",
-        "label": "2026.03",
-        "difficultyWindows": [],
-        "milestones": []
-      }
-    },
-    {
-      "id": "260319-llm-tool-hub",
-      "name": "260319_llm_tool_hub",
-      "status": "in-progress",
-      "category": "AI Workflow Hub",
-      "summary": "260319_llm_tool_hub 프로젝트 자산.",
-      "highlights": [
-        "프로젝트 스캔 기반 기본 요약"
-      ],
-      "stack": [
-        "Python",
-        "YAML",
-        "JSON"
-      ],
-      "tags": [
-        "Project"
-      ],
-      "path": "projects/260319_llm_tool_hub",
-      "readme": "projects/260319_llm_tool_hub/README.md",
-      "detail": {
-        "readmeSummary": [
-          "LLM 모델, 코딩 에이전트 툴, 프로젝트 런타임, 전역 메모리 어댑터를 한 화면에서 관리하는 경량 허브다.",
-          "Public URL: `https://celebrated-enjoyment-production.up.railway.app/`",
-          "주요 LLM 모델과 툴의 최신 버전/강점/약점/추천 상황을 한 곳에 정리",
-          "프로젝트별로 어떤 모델/툴 조합이 맞는지 빠르게 추천"
-        ],
-        "workflow": [
-          {
-            "step": "입력 준비",
-            "desc": "README 기준 입력 파일/파라미터를 준비"
-          },
-          {
-            "step": "핵심 실행",
-            "desc": "메인 스크립트 또는 엔트리포인트를 실행"
-          },
-          {
-            "step": "결과 저장",
-            "desc": "산출물 파일(JSON/CSV/로그 등) 생성"
-          },
-          {
-            "step": "검토",
-            "desc": "결과를 검토해 다음 개선 작업으로 연결"
-          }
-        ],
-        "keyFiles": [
-          "projects/260319_llm_tool_hub/README.md",
-          "projects/260319_llm_tool_hub/server.py",
-          "projects/260319_llm_tool_hub/AGENTS.md",
-          "projects/260319_llm_tool_hub/docs/memory-bridge.md",
-          "projects/260319_llm_tool_hub/scripts/update_registry.py",
-          "projects/260319_llm_tool_hub/scripts/sync_global_memory.py"
-        ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
-      },
-      "timeline": {
-        "start": "2026-03-19",
-        "end": "2026-03-19",
+        "end": "2026-03-17",
         "label": "2026.03",
         "difficultyWindows": [],
         "milestones": []
@@ -589,7 +527,7 @@
         "keyFiles": [
           "projects/dowon_codex_manager_memory_work_summary.v4.md"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-12",
@@ -657,11 +595,11 @@
           "projects/gemini_multiturn_tester_v3/app/logger.py",
           "projects/gemini_multiturn_tester_v3/app/client.py"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-10",
-        "end": "2026-03-19",
+        "end": "2026-03-17",
         "label": "2026.02 - 2026.03",
         "difficultyWindows": [],
         "milestones": []
@@ -722,7 +660,7 @@
           "projects/Operation_log_analayzer/manager_memory/short-term/active-tasks.md",
           "projects/Operation_log_analayzer/manager_memory/long-term/strategy-roadmap.md"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-12-31",
@@ -774,7 +712,7 @@
         "keyFiles": [
           "projects/PROJECT_NAMING_RULE.md"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-12",
@@ -842,7 +780,7 @@
           "projects/Prompt_Auto_Evaluation/env.template",
           "projects/Prompt_Auto_Evaluation/judge_prompt.txt"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-11-04",
@@ -895,7 +833,7 @@
           "projects/scripts/create_project.sh",
           "projects/scripts/version_work_summary.sh"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-12",
@@ -959,11 +897,11 @@
           "projects/Semantic_Verb_Schema/fc_json_to_tsv.py",
           "projects/Semantic_Verb_Schema/retag_with_kiwi.py"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-10-28",
-        "end": "2026-03-19",
+        "end": "2026-03-10",
         "label": "2025.10 - 2026.03",
         "difficultyWindows": [],
         "milestones": []
@@ -1021,11 +959,11 @@
           "projects/Todack/calm_slime_favicon_final_2026-02-15/README.md",
           "projects/Todack/branding/calm_slime_favicon_final_2026-02-15/README.md"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-15",
-        "end": "2026-03-19",
+        "end": "2026-03-17",
         "label": "2026.02 - 2026.03",
         "difficultyWindows": [],
         "milestones": []
@@ -1074,7 +1012,7 @@
           "projects/work_summary_versions/dowon_codex_manager_memory_work_summary.v6.md",
           "projects/work_summary_versions/dowon_codex_manager_memory_work_summary.v5.md"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-12",
@@ -1133,7 +1071,7 @@
         "keyFiles": [
           "projects/형태소분석기_기반_사용자_발화_유사도_분석(2).ipynb"
         ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+        "diagramCaption": "입력 → 처리 → 평가/검증 → 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-11-09",

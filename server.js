@@ -30,8 +30,8 @@ const DEV_ALLOW_LOCAL_LOGIN = process.env.DEV_ALLOW_LOCAL_LOGIN === "true";
 const DEV_ADMIN_EMAIL = (process.env.DEV_ADMIN_EMAIL || "").trim().toLowerCase();
 const DEFAULT_PUBLIC_EMAIL = "dowonkim0612@naver.com";
 const DEFAULT_PROFILE_GITHUB = "https://github.com/Dohwon";
-const SITE_CONTENT_SEED_SYNC_VERSION = "2026-04-08-site-v8";
-const BLOG_POSTS_SEED_SYNC_VERSION = "2026-04-05-blog-v4";
+const SITE_CONTENT_SEED_SYNC_VERSION = "2026-03-18-site-v1";
+const BLOG_POSTS_SEED_SYNC_VERSION = "2026-03-18-blog-v1";
 
 const SESSION_COOKIE = "portfolio_session";
 const VISITOR_COOKIE = "portfolio_visitor";
@@ -355,172 +355,6 @@ const PROJECT_CONTENT_OVERRIDES = {
         "후속 NLU 보정 근거 확보"
       ]
     }
-  },
-  "260319-llm-tool-hub": {
-    status: "in-progress",
-    category: "AI Workflow Hub",
-    summary: "모델 추천, 공통 메모리, 프롬프트 번역기를 한곳에 묶어 도구를 갈아타도 작업 맥락과 실행 지시가 끊기지 않게 만드는 LLM 운영 허브.",
-    highlights: [
-      "상황별 모델·툴 추천 규칙을 레지스트리로 고정",
-      "Codex·Claude·Gemini·Cursor용 공통 메모리 어댑터 동기화",
-      "프롬프트 번역기와 목표 기반 프롬프트 생성기 설계"
-    ],
-    stack: ["Node.js", "Registry", "Memory Adapter", "Prompt Compiler"],
-    tags: ["LLM", "Tooling", "Memory", "Prompt Ops"],
-    detail: {
-      readmeSummary: [
-        "이 프로젝트의 핵심은 모델 리스트를 모아두는 것이 아니라, 상황이 바뀌어도 어떤 조합을 써야 하는지 추천 규칙으로 남기는 데 있다.",
-        "동시에 Codex, Claude Code, Gemini CLI, Cursor, Windsurf처럼 도구가 달라도 같은 기억을 이어받게 공통 메모리 레이어를 만들고 있다.",
-        "다음 단계는 프롬프트를 도구별 문법과 제약에 맞게 다시 바꾸는 번역기와, 업무 목표와 실패 피드백을 받아 프롬프트를 다시 짜주는 생성기까지 붙여 사람 handover 없이도 작업 맥락이 이어지게 만드는 것이다."
-      ]
-    },
-    preview: {
-      eyebrow: "AI Workflow Hub",
-      caption: "도구는 달라도 기억은 하나로 이어지고, 프롬프트는 각 런타임에 맞게 번역되거나 다시 생성되는 운영 허브.",
-      steps: [
-        { label: "Focus", value: "모델·툴 추천 규칙" },
-        { label: "Flow", value: "공통 기억 + 프롬프트 번역/생성" },
-        { label: "Impact", value: "handover 없이 이어지는 작업 맥락" }
-      ]
-    },
-    story: {
-      challenge: "모델 추천은 사람 감에 의존하고, 작업 메모리는 도구마다 따로 놀아서 툴을 바꾸는 순간 맥락이 끊기는 게 가장 큰 문제였다.",
-      attempts: [
-        "모델/툴 레지스트리를 만들고 추천 규칙을 JSON으로 분리해 선택 근거를 남겼다.",
-        "Codex, Claude Code, Gemini CLI, Cursor, Windsurf용 공통 메모리 어댑터를 한 번에 재생성하는 흐름을 붙였다.",
-        "프롬프트를 각 도구의 입력 형식과 제약에 맞게 다시 바꾸는 번역기와, 업무 목표와 실패 피드백을 받아 다시 조이는 생성기를 함께 설계해 같은 의도를 다른 런타임에서도 유지하려고 했다."
-      ],
-      resolution: "결국 이 문제는 좋은 모델 하나를 찾는 게 아니라, 어떤 툴로 넘어가도 기억은 하나로 이어지고 프롬프트도 번역되거나 다시 빚어지는 운영 체계를 만드는 일로 다시 정의됐다.",
-      impact: [
-        "모델 선택 근거를 감이 아니라 규칙으로 고정",
-        "도구별 컨텍스트 단절을 줄이는 공통 기억 체계 확보",
-        "프롬프트 이식성과 handover 재현성 개선 기반 마련"
-      ]
-    },
-    timeline: {
-      start: "2026-03-19",
-      end: "2026-03-19",
-      label: "2026.03",
-      difficultyWindows: [
-        {
-          label: "공통 메모리 정규화 구조 정리",
-          start: "2026-03-19",
-          end: "2026-03-19",
-          severity: "medium"
-        }
-      ],
-      milestones: [
-        {
-          label: "Railway 공개 배포와 허브 초안 오픈",
-          date: "2026-03-19",
-          tone: "success"
-        }
-      ]
-    }
-  },
-  "260321-memento-mori-archive": {
-    category: "Wellness Product",
-    summary: "죽음의 유한성을 질문으로 삼아, 철학 오버레이와 산문 리비전으로 오늘의 감정을 다시 읽게 만드는 성찰형 기록 아카이브.",
-    highlights: [
-      "철학 지도(스토아/불교/실존) 기반 감정 재해석",
-      "Revisit Entry로 시간차 산문 리라이팅 흐름 설계",
-      "Hexagon Signal을 진단 점수가 아닌 행동 힌트로 사용"
-    ],
-    tags: ["Memento Mori", "Reflection", "Journal", "Philosophy"],
-    detail: {
-      readmeSummary: [
-        "정답을 추천하는 앱이 아니라, 기록을 다시 읽고 다시 쓰게 만드는 반성적 인터페이스가 핵심이다.",
-        "철학 지도와 인지심리 오버레이를 함께 두어 감정을 맞다/틀리다가 아닌 관점 전환 문제로 다룬다.",
-        "숫자 지표는 평가 점수가 아니라 다음 행동을 선택하기 위한 손잡이로만 제한해 설계했다."
-      ]
-    }
-  },
-  "260329-tmap-clone": {
-    status: "in-progress",
-    category: "Mobility UX Prototype",
-    summary: "네이티브 MapKit 앱으로 실제 지도·검색·경로 흐름을 붙이고, 별도 웹 프로토타입으로 설명형 경로 선택 UX를 검증하면서 T맵형 내비 경험을 두 갈래로 풀어낸 프로젝트.",
-    highlights: [
-      "초보/중수/고수 프리셋으로 경로 복잡도를 설명형 선택지로 전환",
-      "다음 10km 합류 선택과 카메라/구간단속/제한속도 레이어 설계",
-      "SwiftUI + MapKit 앱과 React/Leaflet 웹 목업을 병행해 흐름 검증"
-    ],
-    stack: ["SwiftUI", "MapKit", "React", "Leaflet", "Zustand"],
-    tags: ["Mobility", "Navigation", "Map UX", "Prototype"],
-    detail: {
-      readmeSummary: [
-        "SwiftUI + MapKit 쪽은 실제 검색, 경로 계산, 안내 오버레이 같은 '돌아가는 내비 기본 흐름'을 먼저 붙인 트랙이다.",
-        "React/Leaflet 쪽은 프리셋, 설명형 경로 카드, 다음 10km 합류 옵션처럼 정보량이 많은 선택 UX를 더 빠르게 실험하려고 분리한 트랙이다.",
-        "즉 하나의 완성 앱이라기보다, 실경로 처리와 설명형 UX 검증을 분리해서 동시에 밀어본 이중 프로토타입 프로젝트에 가깝다."
-      ],
-      workflow: [
-        { step: "장거리 운전자 시나리오 정의", desc: "막힘보다 흐름과 분기 이해를 중시하는 사용자 문제를 먼저 정리" },
-        { step: "설명형 경로 카드 설계", desc: "합류 수, 카메라 수, 대표 제한속도, 경로 설명 문구를 카드 구조로 설계" },
-        { step: "이중 프로토타입 구현", desc: "SwiftUI + MapKit 앱과 React/Leaflet 웹 목업으로 화면/상태 흐름을 병행 검증" },
-        { step: "목업 데이터 검증", desc: "실제 API 전 연동 단계에서 route/merge/camera mock 데이터로 정보 우선순위를 조정" }
-      ],
-      keyFiles: [
-        "projects/260329_tmap_clone/README.md",
-        "projects/260329_tmap_clone/project_memory/short-term/long-distance-driver-route-mvp-plan.md",
-        "projects/260329_tmap_clone/TmapClone/TmapClone/ViewModels/MapViewModel.swift",
-        "projects/260329_tmap_clone/TmapClone/TmapClone/Views/Navigation/RoutePreviewPanel.swift",
-        "projects/260329_tmap_clone/TmapCloneWeb/src/data/mockData.js",
-        "projects/260329_tmap_clone/TmapCloneWeb/src/store/appStore.js"
-      ],
-      diagramCaption: "설명형 경로 카드, 레이어 토글, 다음 10km 합류 선택을 묶어 장거리 운전자용 내비 흐름을 검증"
-    },
-    preview: {
-      eyebrow: "Mobility UX Prototype",
-      caption: "MapKit 네이티브 앱은 실제 길찾기 흐름을, 웹 프로토타입은 설명형 경로 선택 UI를 맡겨 T맵형 내비 경험을 분리 검증한 구조.",
-      steps: [
-        { label: "Focus", value: "실경로 + 설명형 UX 분리" },
-        { label: "Flow", value: "MapKit 앱 + React/Leaflet 목업" },
-        { label: "Impact", value: "T맵식 선택 경험 검증" }
-      ]
-    },
-    story: {
-      narrative: "MapKit 네이티브 앱과 React/Leaflet 웹 목업을 나눠서, 실제 길찾기 동작과 설명형 경로 선택 UX를 각각 검증한 이중 프로토타입 프로젝트.",
-      caseIds: ["navigation-ux-split-prototype"],
-      impact: [
-        "실경로 처리와 설명형 UX를 분리한 검증 구조 확보",
-        "경로 카드/프리셋/합류 옵션의 정보 구조 정리",
-        "실데이터 연동 전 단계에서도 T맵형 선택 경험을 빠르게 실험할 기반 마련"
-      ]
-    },
-    timeline: {
-      start: "2026-03-29",
-      difficultyWindows: [
-        {
-          label: "MapKit 경로를 설명형 카드로 번역",
-          start: "2026-03-29",
-          end: "2026-03-29",
-          severity: "high"
-        }
-      ],
-      milestones: [
-        {
-          label: "장거리 드라이버용 설명형 MVP 플랜 정리",
-          date: "2026-03-29",
-          tone: "success"
-        }
-      ]
-    }
-  },
-  "personal-essay-writer-ko": {
-    category: "Writing Skill",
-    summary: "사용자 말투와 감정 리듬을 반영해 일기·에세이·자기고백문 초안을 생성하고 문학적으로 다듬는 한국어 라이팅 스킬.",
-    highlights: [
-      "사용자 페르소나/말투를 우선 반영하는 글쓰기 프롬프트",
-      "감정 상태 기반 에세이/일기 초안 생성 및 정제",
-      "동일 화자 톤 유지 중심의 리라이팅 워크플로우"
-    ],
-    tags: ["Korean", "Writing", "Persona", "Prompt"],
-    detail: {
-      readmeSummary: [
-        "이 프로젝트는 일반 챗봇이 아니라, '내 말투로 써줘' 요청에 맞춰 화자 일관성을 유지하는 글쓰기 스킬이다.",
-        "일기, 에세이, 감정 정리문처럼 개인 서사 문장을 빠르게 초안화하고 재다듬는 데 초점을 둔다.",
-        "핵심 품질 기준은 문장 완성도보다도 사용자 감정과 리듬을 얼마나 보존하는지에 있다."
-      ]
-    }
   }
 };
 
@@ -580,17 +414,12 @@ async function syncStoredSeedContent() {
   if (!seeded || !Array.isArray(seeded.projects)) return;
 
   const hiddenProjectIds = new Set(arrayify(current.meta?.hiddenProjectIds));
-  const projects = mergeSeededProjectsById(current.projects || [], seeded.projects || [], hiddenProjectIds);
+  const projects = appendMissingItemsById(current.projects || [], seeded.projects || [], hiddenProjectIds);
 
   await writeJsonAtomic(SITE_CONTENT_PATH, {
     ...current,
-    site: seeded.site || current.site,
-    owner: seeded.owner || current.owner,
-    profile: seeded.profile || current.profile,
-    links: seeded.links || current.links,
     projects,
     meta: {
-      ...(seeded.meta || {}),
       ...(current.meta || {}),
       hiddenProjectIds: [...hiddenProjectIds],
       seedSyncVersion: SITE_CONTENT_SEED_SYNC_VERSION
@@ -695,48 +524,6 @@ function appendMissingItemsById(existingItems, seedItems, blockedIds = new Set()
   return nextItems;
 }
 
-function mergeSeededProjectsById(existingItems, seedItems, blockedIds = new Set()) {
-  const existingList = Array.isArray(existingItems) ? existingItems : [];
-  const seedList = Array.isArray(seedItems) ? seedItems : [];
-  const seedMap = new Map(
-    seedList.map((item) => [String(item?.id || slugify(item?.name || item?.title || "item")), item])
-  );
-  const merged = [];
-
-  for (const existing of existingList) {
-    const id = String(existing?.id || slugify(existing?.name || existing?.title || "item"));
-    if (!id || blockedIds.has(id)) continue;
-    const seeded = seedMap.get(id);
-    if (!seeded) {
-      merged.push(existing);
-      continue;
-    }
-    seedMap.delete(id);
-    const existingUpdated = Date.parse(existing?.updatedAt || existing?.createdAt || "") || 0;
-    const seededUpdated = Date.parse(seeded?.updatedAt || seeded?.createdAt || "") || 0;
-    if (seededUpdated > existingUpdated) {
-      merged.push({
-        ...existing,
-        ...seeded,
-        detail: seeded.detail || existing.detail,
-        preview: seeded.preview || existing.preview,
-        story: seeded.story || existing.story,
-        timeline: seeded.timeline || existing.timeline
-      });
-      continue;
-    }
-    merged.push(existing);
-  }
-
-  for (const seeded of seedMap.values()) {
-    const id = String(seeded?.id || slugify(seeded?.name || seeded?.title || "item"));
-    if (!id || blockedIds.has(id)) continue;
-    merged.push(seeded);
-  }
-
-  return merged;
-}
-
 function mergeProjectsByStatus(existingProjects, generatedProjects, statusOverrides = {}) {
   const generatedMap = new Map(
     generatedProjects.map((project) => [project.id || slugify(project.name || "project"), project])
@@ -752,9 +539,7 @@ function mergeProjectsByStatus(existingProjects, generatedProjects, statusOverri
       status: resolveProjectStatus(id, generated.status, project.status, statusOverrides),
       path: project.path || generated.path || "",
       readme: project.readme || generated.readme || "",
-      timeline: mergeProjectTimeline(project.timeline, generated.timeline),
-      pinned: Boolean(project.pinned),
-      manualOrder: normalizeManualOrder(project.manualOrder)
+      timeline: mergeProjectTimeline(project.timeline, generated.timeline)
     };
   });
 
@@ -777,9 +562,7 @@ function mergeProjectsByStatus(existingProjects, generatedProjects, statusOverri
         workflow: [],
         keyFiles: generated.path ? [generated.path] : [],
         diagramCaption: "원본 프로젝트 상태 동기화 카드"
-      },
-      pinned: false,
-      manualOrder: null
+      }
     });
   }
 
@@ -966,16 +749,9 @@ function normalizeProject(project, index) {
     preview,
     story,
     timeline,
-    pinned: Boolean(normalizedSource.pinned),
-    manualOrder: normalizeManualOrder(normalizedSource.manualOrder),
     createdAt: normalizedSource.createdAt || new Date().toISOString(),
-    updatedAt: normalizedSource.updatedAt || normalizedSource.createdAt || new Date().toISOString()
+    updatedAt: new Date().toISOString()
   };
-}
-
-function normalizeManualOrder(value) {
-  const nextValue = Number(value);
-  return Number.isInteger(nextValue) && nextValue >= 0 ? nextValue : null;
 }
 
 function normalizeDetail(detail, project) {
@@ -1357,15 +1133,6 @@ function signPayload(payload) {
   return crypto.createHmac("sha256", SESSION_SECRET).update(payload).digest("base64url");
 }
 
-function isAdminEmail(email) {
-  const normalized = String(email || "").trim().toLowerCase();
-  return Boolean(normalized) && (ADMIN_EMAILS.has(normalized) || normalized === DEV_ADMIN_EMAIL);
-}
-
-function deriveViewerRole(email) {
-  return isAdminEmail(email) ? "admin" : "member";
-}
-
 function encodeSession(viewer) {
   const payload = Buffer.from(JSON.stringify(viewer)).toString("base64url");
   return `${payload}.${signPayload(payload)}`;
@@ -1395,13 +1162,7 @@ function decodeSession(token) {
   try {
     const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
     if (!data.exp || Date.now() > data.exp) return null;
-    const email = String(data.email || "").trim().toLowerCase();
-    if (!email) return null;
-    return {
-      ...data,
-      email,
-      role: deriveViewerRole(email)
-    };
+    return data;
   } catch {
     return null;
   }
@@ -1536,9 +1297,7 @@ function sanitizeProjectInput(input, existingProject) {
       timeline: {
         ...(existingProject?.timeline || {}),
         ...(input.timeline || {})
-      },
-      pinned: input.pinned !== undefined ? Boolean(input.pinned) : existingProject?.pinned,
-      manualOrder: input.manualOrder !== undefined ? input.manualOrder : existingProject?.manualOrder
+      }
     },
     0
   );
@@ -1699,94 +1458,13 @@ function commentCounts(comments) {
   return counts;
 }
 
-function buildNotifications(comments, content, posts) {
-  const projectMap = new Map((content.projects || []).map((project) => [project.id, project]));
-  const blogMap = new Map((posts || []).map((post) => [post.id, post]));
-
-  return comments
-    .map((comment) => {
-      const isBlog = Boolean(comment.blogId);
-      const target = isBlog ? blogMap.get(comment.blogId) : projectMap.get(comment.projectId);
-      if (!target) return null;
-      return {
-        id: comment.id,
-        commentId: comment.id,
-        surface: isBlog ? "blog" : "project",
-        surfaceLabel: isBlog ? "블로그 댓글" : "프로젝트 댓글",
-        projectId: comment.projectId || "",
-        blogId: comment.blogId || "",
-        title: isBlog ? String(target.title || "블로그") : prettifyNotificationProjectName(target),
-        message: truncateText(String(comment.message || ""), 90),
-        authorName: String(comment.authorName || "Visitor"),
-        createdAt: comment.createdAt,
-        readAt: comment.adminReadAt || ""
-      };
-    })
-    .filter(Boolean)
-    .sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")));
-}
-
-function truncateText(value, maxLength) {
-  const clean = String(value || "").replace(/\s+/g, " ").trim();
-  return clean.length > maxLength ? `${clean.slice(0, maxLength - 1)}…` : clean;
-}
-
-function toLocalDayKey(value = new Date()) {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function prettifyNotificationProjectName(project) {
-  return String(project.displayName || project.name || project.id || "Project")
-    .replace(/\.[a-z0-9]+$/i, "")
-    .replace(/^[0-9]{6,8}[_-]*/, "")
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function summarizePublicCounter(events) {
-  const todayKey = toLocalDayKey(new Date());
-  const uniqueTotal = new Set();
-  const uniqueToday = new Set();
-  let today = 0;
-
-  for (const event of events) {
-    const visitorId = String(event.visitorId || "");
-    if (visitorId) {
-      uniqueTotal.add(visitorId);
-    }
-    const eventDayKey = toLocalDayKey(event.timestamp);
-    if (eventDayKey !== todayKey) continue;
-    today += 1;
-    if (visitorId) {
-      uniqueToday.add(visitorId);
-    }
-  }
-
-  return {
-    today,
-    total: events.length,
-    uniqueToday: uniqueToday.size,
-    uniqueTotal: uniqueTotal.size,
-    date: todayKey
-  };
-}
-
 function summarizeAnalytics(events, content) {
   const uniqueVisitors = new Set();
   const uniqueLoggedIn = new Set();
-  const uniqueVisitorsToday = new Set();
   const projectCounts = new Map();
   const surfaceCounts = new Map();
   let authenticatedVisits = 0;
   let anonymousVisits = 0;
-  let todayVisits = 0;
-  const todayKey = toLocalDayKey(new Date());
 
   for (const event of events) {
     uniqueVisitors.add(event.visitorId);
@@ -1800,12 +1478,6 @@ function summarizeAnalytics(events, content) {
       projectCounts.set(event.projectId, (projectCounts.get(event.projectId) || 0) + 1);
     }
     surfaceCounts.set(event.surface || "home", (surfaceCounts.get(event.surface || "home") || 0) + 1);
-    if (toLocalDayKey(event.timestamp) === todayKey) {
-      todayVisits += 1;
-      if (event.visitorId) {
-        uniqueVisitorsToday.add(event.visitorId);
-      }
-    }
   }
 
   const byDay = new Map();
@@ -1834,9 +1506,7 @@ function summarizeAnalytics(events, content) {
 
   return {
     totalVisits: events.length,
-    todayVisits,
     uniqueVisitors: uniqueVisitors.size,
-    uniqueVisitorsToday: uniqueVisitorsToday.size,
     uniqueLoggedInVisitors: uniqueLoggedIn.size,
     authenticatedVisits,
     anonymousVisits,
@@ -1877,18 +1547,17 @@ async function verifyGoogleCredential(credential) {
     email,
     name: data.name || data.given_name || email.split("@")[0],
     picture: data.picture || "",
-    role: deriveViewerRole(email)
+    role: ADMIN_EMAILS.has(email) ? "admin" : "member"
   };
 }
 
 function createViewerSession(profile) {
   const now = Date.now();
-  const email = String(profile.email || "").trim().toLowerCase();
   return {
-    email,
+    email: profile.email,
     name: profile.name,
     picture: profile.picture,
-    role: deriveViewerRole(email),
+    role: profile.role,
     iat: now,
     exp: now + SESSION_TTL_SECONDS * 1000
   };
@@ -1974,7 +1643,8 @@ async function handleApi(req, res, url) {
     const session = createViewerSession({
       email,
       name: body.name || "Local Admin",
-      picture: ""
+      picture: "",
+      role: ADMIN_EMAILS.has(email) || email === DEV_ADMIN_EMAIL ? "admin" : "member"
     });
     setCookie(res, SESSION_COOKIE, encodeSession(session), {
       maxAge: SESSION_TTL_SECONDS,
@@ -2040,14 +1710,6 @@ async function handleApi(req, res, url) {
     return;
   }
 
-  if (req.method === "GET" && url.pathname === "/api/notifications") {
-    if (!requireAdmin(viewer, res)) return;
-    const [content, posts, comments] = await Promise.all([loadContent(), loadBlogPosts(), loadComments()]);
-    const notifications = buildNotifications(comments, content, posts);
-    sendJson(res, 200, { notifications });
-    return;
-  }
-
   if (req.method === "POST" && url.pathname === "/api/comments") {
     const body = await readBody(req);
     const projectId = String(body.projectId || "");
@@ -2093,7 +1755,6 @@ async function handleApi(req, res, url) {
       authorImage: viewer?.picture || "",
       authorRole: viewer?.role || "guest",
       password,
-      adminReadAt: "",
       createdAt: new Date().toISOString()
     };
     comments.push(comment);
@@ -2148,33 +1809,11 @@ async function handleApi(req, res, url) {
       authorImage: viewer?.picture || "",
       authorRole: viewer?.role || "guest",
       password,
-      adminReadAt: "",
       createdAt: new Date().toISOString()
     };
     comments.push(comment);
     await saveComments(comments);
     sendJson(res, 201, { comment });
-    return;
-  }
-
-  if (req.method === "POST" && url.pathname === "/api/notifications/read") {
-    if (!requireAdmin(viewer, res)) return;
-    const body = await readBody(req).catch(() => ({}));
-    const readAll = Boolean(body.readAll);
-    const ids = Array.isArray(body.ids) ? body.ids.map((item) => String(item)) : [];
-    const comments = await loadComments();
-    const now = new Date().toISOString();
-    let changed = false;
-    const nextComments = comments.map((comment) => {
-      const shouldMark = readAll || ids.includes(String(comment.id));
-      if (!shouldMark || comment.adminReadAt) return comment;
-      changed = true;
-      return { ...comment, adminReadAt: now };
-    });
-    if (changed) {
-      await saveComments(nextComments);
-    }
-    sendJson(res, 200, { ok: true });
     return;
   }
 
@@ -2198,79 +1837,10 @@ async function handleApi(req, res, url) {
     return;
   }
 
-  if (req.method === "GET" && url.pathname === "/api/analytics/counter") {
-    const events = await loadAnalyticsEvents();
-    sendJson(res, 200, summarizePublicCounter(events));
-    return;
-  }
-
   if (req.method === "GET" && url.pathname === "/api/analytics/summary") {
     if (!requireAdmin(viewer, res)) return;
     const [content, events] = await Promise.all([loadContent(), loadAnalyticsEvents()]);
     sendJson(res, 200, summarizeAnalytics(events, content));
-    return;
-  }
-
-  if (req.method === "POST" && url.pathname === "/api/projects/pin") {
-    if (!requireAdmin(viewer, res)) return;
-    const body = await readBody(req);
-    const projectId = slugify(body.projectId || "");
-    if (!projectId) {
-      sendJson(res, 400, { error: "projectId_required" });
-      return;
-    }
-
-    const content = await loadContent();
-    const projectIndex = content.projects.findIndex((project) => project.id === projectId);
-    if (projectIndex < 0) {
-      sendJson(res, 404, { error: "project_not_found" });
-      return;
-    }
-
-    content.projects[projectIndex] = {
-      ...content.projects[projectIndex],
-      pinned: Boolean(body.pinned),
-      updatedAt: new Date().toISOString()
-    };
-    await saveContent(content);
-    sendJson(res, 200, { project: content.projects[projectIndex] });
-    return;
-  }
-
-  if (req.method === "POST" && url.pathname === "/api/projects/order") {
-    if (!requireAdmin(viewer, res)) return;
-    const body = await readBody(req);
-    const orderedIds = Array.isArray(body.orderedIds)
-      ? body.orderedIds.map((item) => slugify(item)).filter(Boolean)
-      : [];
-    if (!orderedIds.length) {
-      sendJson(res, 400, { error: "orderedIds_required" });
-      return;
-    }
-
-    const content = await loadContent();
-    const projectMap = new Map(content.projects.map((project) => [project.id, project]));
-    const nextProjects = [];
-    const seen = new Set();
-
-    for (const projectId of orderedIds) {
-      const project = projectMap.get(projectId);
-      if (!project || seen.has(projectId)) continue;
-      seen.add(projectId);
-      nextProjects.push(project);
-    }
-
-    for (const project of content.projects) {
-      if (seen.has(project.id)) continue;
-      nextProjects.push(project);
-    }
-
-    content.projects = nextProjects.map((project, index) => ({
-      ...project,
-      manualOrder: index
-    }));
-    await saveContent(content);
-    sendJson(res, 200, { ok: true });
     return;
   }
 
