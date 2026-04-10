@@ -3180,7 +3180,11 @@ a {
   grid-template-columns: minmax(0, 1fr) auto;
   --home-control-height: 46px;
   gap: 10px;
-  align-items: center;
+  align-items: stretch;
+}
+
+#home-section .hero-controls > * {
+  min-height: var(--home-control-height);
 }
 
 #home-section .hero-searchbar {
@@ -3265,6 +3269,7 @@ a {
     0 14px 28px rgba(63, 101, 186, 0.08),
     inset 0 0 0 1px rgba(255, 255, 255, 0.56);
   box-sizing: border-box;
+  align-self: stretch;
 }
 
 #home-section .chip-button {
@@ -3312,16 +3317,20 @@ a {
 #home-section #category-filters {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(2, 34px);
   max-width: 980px;
   gap: 6px;
   align-items: stretch;
   grid-auto-rows: 34px;
+  max-height: 74px;
+  overflow: hidden;
 }
 
 #home-section #category-filters .chip-button {
   width: 100%;
   min-height: 34px;
   height: 34px;
+  max-height: 34px;
   padding: 0 10px;
   font-size: 0.74rem;
   line-height: 1;
@@ -3329,6 +3338,7 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
   justify-content: center;
+  align-self: stretch;
 }
 
 #home-section .library-section .panel-kicker {
