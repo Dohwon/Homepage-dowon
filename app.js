@@ -245,7 +245,17 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+window.addEventListener(
+  "load",
+  () => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  },
+  { once: true }
+);
+
 async function init() {
+  window.history.scrollRestoration = "manual";
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   bindEvents();
   await refreshApp();
   void recordVisit("home");
@@ -385,6 +395,26 @@ function bindEvents() {
     const timelineItem = event.target.closest("[data-timeline-project]");
     if (!timelineItem) return;
     openDetail(timelineItem.dataset.timelineProject);
+  });
+
+  elements.projectTimelineMap.addEventListener("change", (event) => {
+    const select = event.target.closest("[data-calendar-select]");
+    if (!select) return;
+    const groups = groupTimelineEntriesByMonth(
+      getTimelineProjects()
+        .map((project) => ({ project, start: getProjectStartDate(project) }))
+        .sort((left, right) => left.start.getTime() - right.start.getTime())
+    );
+    if (!groups.length) return;
+
+    const activeMonth = groups.find((group) => group.key === state.currentTimelineMonthKey) || groups.at(-1);
+    const nextYear = select.dataset.calendarSelect === "year" ? Number(select.value) : activeMonth?.year;
+    const nextMonth = select.dataset.calendarSelect === "month" ? Number(select.value) : activeMonth?.month;
+    const matched = groups.find((group) => group.year === nextYear && group.month === nextMonth)
+      || groups.find((group) => group.year === nextYear)
+      || activeMonth;
+    state.currentTimelineMonthKey = matched?.key || null;
+    renderProjectTimeline();
   });
 
   elements.caseGrid?.addEventListener("click", (event) => {
@@ -806,24 +836,44 @@ function getProjectStartDate(project) {
 }
 
 function renderProjectCalendar(groups, activeMonth) {
+  const years = [...new Set(groups.map((group) => group.year))].sort((left, right) => left - right);
+  const months = groups
+    .filter((group) => group.year === activeMonth?.year)
+    .map((group) => group.month)
+    .sort((left, right) => left - right);
   return `
     <div class="project-calendar-shell">
       <div class="project-calendar-toolbar">
         <button type="button" class="ghost-button compact" data-calendar-action="prev-month">‹</button>
-        <div class="project-calendar-month-pills">
-          ${groups
-            .map(
-              (group) => `
-                <button
-                  type="button"
-                  class="project-calendar-month-pill ${activeMonth?.key === group.key ? "active" : ""}"
-                  data-calendar-month="${escapeHtml(group.key)}"
-                >
-                  ${escapeHtml(`${group.year}.${String(group.month).padStart(2, "0")}`)}
-                </button>
-              `
-            )
-            .join("")}
+        <div class="project-calendar-selects">
+          <label class="project-calendar-select-wrap">
+            <span>연도</span>
+            <select data-calendar-select="year">
+              ${years
+                .map(
+                  (year) => `
+                    <option value="${escapeHtml(String(year))}" ${year === activeMonth?.year ? "selected" : ""}>
+                      ${escapeHtml(String(year))}
+                    </option>
+                  `
+                )
+                .join("")}
+            </select>
+          </label>
+          <label class="project-calendar-select-wrap">
+            <span>월</span>
+            <select data-calendar-select="month">
+              ${months
+                .map(
+                  (month) => `
+                    <option value="${escapeHtml(String(month))}" ${month === activeMonth?.month ? "selected" : ""}>
+                      ${escapeHtml(String(month).padStart(2, "0"))}
+                    </option>
+                  `
+                )
+                .join("")}
+            </select>
+          </label>
         </div>
         <button type="button" class="ghost-button compact" data-calendar-action="next-month">›</button>
       </div>
@@ -1468,59 +1518,8 @@ function getAboutValueProps(profile) {
 }
 
 function getAboutMetrics(profile) {
-  const projects = arrayOrEmpty(state.bootstrap?.projects);
-  if (!projects.length) {
-    const metrics = ABOUT_METRIC_OVERRIDES.length ? ABOUT_METRIC_OVERRIDES : arrayOrEmpty(profile.coreMetrics);
-    return metrics.slice(0, 4);
-  }
-
-  const total = projects.length;
-  const activeCount = projects.filter((project) => project.status !== "in-progress").length;
-  const notebookCount = projects.filter((project) => String(project.path || "").toLowerCase().endsWith(".ipynb")).length;
-  const regressionRows = projects.reduce((max, project) => {
-    const text = [
-      project.summary,
-      ...arrayOrEmpty(project.highlights),
-      project.story?.challenge,
-      ...arrayOrEmpty(project.story?.attempts),
-      project.story?.resolution
-    ]
-      .join(" ")
-      .match(/(\d+)\s*행/g);
-    if (!text?.length) return max;
-    const localMax = Math.max(
-      ...text.map((item) => Number.parseInt(String(item).replace(/[^\d]/g, ""), 10)).filter(Number.isFinite)
-    );
-    return Math.max(max, localMax || 0);
-  }, 632);
-  const analysisCount = projects.filter((project) =>
-    /(analysis|analytics|schema|log|notebook|evaluation|metrics)/i.test(
-      [project.category, project.name, project.path, ...arrayOrEmpty(project.tags)].join(" ")
-    )
-  ).length;
-
-  return [
-    {
-      label: "회귀 테스트 자산",
-      value: `${regressionRows}+행`,
-      note: "라우팅 및 평가 워크북에서 반복 검증한 기준"
-    },
-    {
-      label: "노트북 기반 실험 비중",
-      value: `${Math.round((notebookCount / total) * 100)}%`,
-      note: `${notebookCount}개 프로젝트가 분석 노트북 중심으로 축적`
-    },
-    {
-      label: "완료/운영 아카이브",
-      value: `${Math.round((activeCount / total) * 100)}%`,
-      note: `${activeCount}/${total} 프로젝트가 완료 혹은 운영 상태`
-    },
-    {
-      label: "분석형 문제 해결 축",
-      value: `${analysisCount}건`,
-      note: "로그·형태소·평가·스키마 기반으로 구조화한 작업 수"
-    }
-  ];
+  const metrics = ABOUT_METRIC_OVERRIDES.length ? ABOUT_METRIC_OVERRIDES : arrayOrEmpty(profile.coreMetrics);
+  return metrics.slice(0, 4);
 }
 
 function buildCareerHighlights(item) {
@@ -2293,8 +2292,8 @@ function renderPreviewDiagram(diagram) {
 }
 
 function renderDisplayTitle(project, variant) {
-  const parts = splitDisplayTitle(getProjectDisplayName(project));
   const titleTag = variant === "detail" ? "h2" : "h3";
+  const title = getProjectDisplayName(project);
   const supportCopy =
     arrayOrEmpty(project.highlights)[0] ||
     arrayOrEmpty(project.tags)[0] ||
@@ -2304,12 +2303,28 @@ function renderDisplayTitle(project, variant) {
   return `
     <div class="display-title ${variant}">
       <${titleTag} class="display-title-text">
-        <span class="title-lead">${escapeHtml(parts.lead)}</span>
-        ${parts.rest ? `<span class="title-rest">${escapeHtml(parts.rest)}</span>` : ""}
+        ${variant === "card" ? buildHighlightedTitleMarkup(title) : escapeHtml(title)}
       </${titleTag}>
       <p class="display-title-sub">${escapeHtml(supportCopy)}</p>
     </div>
   `;
+}
+
+function buildHighlightedTitleMarkup(title) {
+  const text = String(title || "").trim();
+  if (!text) return escapeHtml("Project");
+
+  const keywordPattern =
+    /(LLM|AI|RAG|STT|CER|NLU|Agent|Prompt|Routing|Log|Archive|Notebook|Schema|Scheduler|Calendar|Toolkit|Morphology|Similarity|Metrics|Automation|형태소|감정|로그|프롬프트|라우팅|스키마|유사도|음성|기록|자동화|평가|달력|스케줄러|아카이브|툴박스)/gi;
+  const segments = text.split(keywordPattern).filter(Boolean);
+
+  return segments
+    .map((segment) => {
+      const isKeyword = keywordPattern.test(segment);
+      keywordPattern.lastIndex = 0;
+      return `<span class="${isKeyword ? "title-keyword" : "title-plain"}">${escapeHtml(segment)}</span>`;
+    })
+    .join("");
 }
 
 function splitDisplayTitle(name) {

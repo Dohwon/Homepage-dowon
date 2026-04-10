@@ -1211,7 +1211,10 @@ a {
 }
 
 .card-section-label {
+  display: block;
+  min-height: 14px;
   font-size: 0.74rem;
+  line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #5a72b5;
@@ -1249,6 +1252,7 @@ a {
   display: grid;
   gap: 8px;
   align-content: start;
+  min-height: 84px;
 }
 
 .project-link-chip {
@@ -1757,13 +1761,24 @@ a {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 10px;
+  gap: 0;
   font-family: "Sora", sans-serif;
   line-height: 1.08;
 }
 
 .display-title.card .display-title-text {
   font-size: clamp(1.22rem, 1.5vw, 1.5rem);
+}
+
+.title-keyword {
+  color: #2a67ee;
+  font-weight: 700;
+  text-shadow: 0 10px 18px rgba(62, 105, 233, 0.12);
+}
+
+.title-plain {
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .display-title.detail .display-title-text {
@@ -2402,6 +2417,36 @@ a {
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
+}
+
+.project-calendar-selects {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.project-calendar-select-wrap {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.project-calendar-select-wrap span {
+  color: #627bbb;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.project-calendar-select-wrap select {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(103, 132, 205, 0.16);
+  background: rgba(248, 251, 255, 0.98);
+  color: var(--ink);
+  font: inherit;
 }
 
 .project-calendar-month-pills {
@@ -3072,7 +3117,7 @@ a {
 }
 
 #home-section .hero-controls {
-  max-width: 1180px;
+  max-width: 600px;
   margin: 0 auto;
   grid-template-columns: minmax(0, 1fr) auto;
 }
@@ -3080,8 +3125,8 @@ a {
 #home-section .hero-searchbar {
   max-width: none;
   margin: 2px 0 0;
-  padding: 12px 14px;
-  border-radius: 26px;
+  padding: 6px 8px;
+  border-radius: 18px;
   border: 2px solid rgba(89, 135, 244, 0.28);
   box-shadow:
     0 12px 24px rgba(63, 101, 186, 0.08),
@@ -3089,12 +3134,16 @@ a {
 }
 
 #home-section .hero-searchbar input {
-  padding-left: 18px;
+  min-height: 30px;
+  padding: 0 8px 0 10px;
+  font-size: 0.82rem;
 }
 
 #home-section .search-button {
-  min-width: 108px;
-  padding-inline: 18px;
+  min-width: 60px;
+  min-height: 30px;
+  padding: 0 8px;
+  font-size: 0.74rem;
 }
 
 #home-section .filter-wrap {
@@ -3103,26 +3152,48 @@ a {
 }
 
 #home-section .chip-row {
-  max-width: 980px;
+  max-width: 760px;
   margin: 0 auto;
 }
 
 #home-section .chip-row-status {
   max-width: none;
   margin: 2px 0 0;
-  justify-content: flex-end;
   display: grid;
-  grid-template-columns: repeat(3, minmax(92px, 112px));
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(62px, 74px));
+  gap: 5px;
 }
 
 #home-section .chip-button {
-  width: 100%;
-  min-height: 42px;
-  padding: 8px 12px;
   background: rgba(255, 255, 255, 0.92);
   border-color: rgba(111, 138, 214, 0.18);
   box-shadow: 0 8px 16px rgba(53, 77, 134, 0.06);
+}
+
+#home-section #status-filters .chip-button {
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 7px;
+  font-size: 0.72rem;
+}
+
+#home-section #category-filters {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 760px;
+  justify-content: flex-start;
+  gap: 5px;
+  row-gap: 6px;
+}
+
+#home-section #category-filters .chip-button {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 26px;
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 #home-section .library-section .panel-kicker {
@@ -4501,6 +4572,7 @@ a {
 
 .card-proof-line span {
   color: var(--ink-soft);
+  font-size: 0.88rem;
   line-height: 1.55;
 }
 
@@ -4606,7 +4678,7 @@ a {
 .career-wide-track::before {
   content: "";
   position: absolute;
-  inset: 86px 18px auto 18px;
+  inset: 92px 18px auto 18px;
   height: 2px;
   background: linear-gradient(90deg, rgba(87, 128, 237, 0.2), rgba(87, 128, 237, 0.55), rgba(87, 128, 237, 0.18));
 }
@@ -4621,7 +4693,7 @@ a {
 
 .career-wide-dot {
   position: absolute;
-  top: 86px;
+  top: 92px;
   left: 20px;
   width: 14px;
   height: 14px;
@@ -4638,11 +4710,11 @@ a {
   color: #6077b8;
   font-size: 0.84rem;
   font-weight: 700;
-  transform: translate(-8px, 20px);
+  transform: translate(-8px, 30px);
 }
 
 .career-wide-card {
-  margin-top: 30px;
+  margin-top: 42px;
   padding: 18px 18px 20px;
   border-radius: 24px;
   border: 1px solid rgba(103, 132, 205, 0.12);
@@ -5219,7 +5291,7 @@ a {
   }
 
   #home-section .card-heading {
-    min-height: 94px;
+    min-height: 102px;
   }
 
   #home-section .display-title.card {
@@ -5227,22 +5299,18 @@ a {
   }
 
   #home-section .display-title.card .display-title-text {
-    display: block;
+    display: -webkit-box;
+    min-height: 2.5em;
     font-size: clamp(1.14rem, 1.12vw, 1.32rem);
     line-height: 1.22;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
-  #home-section .display-title.card .title-lead,
-  #home-section .display-title.card .title-rest {
-    display: block;
-  }
-
-  #home-section .display-title.card .title-rest {
-    margin-top: 6px;
-  }
-
-  #home-section .display-title.card .title-lead::after {
-    display: none;
+  #home-section .display-title.card .title-keyword,
+  #home-section .display-title.card .title-plain {
+    display: inline;
   }
 
   #home-section .display-title-sub {
@@ -5304,6 +5372,7 @@ a {
   #home-section .card-proof-line span {
     display: -webkit-box;
     overflow: hidden;
+    font-size: 0.86rem;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
   }
@@ -5495,17 +5564,19 @@ a {
   #home-section .hero-searchbar {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 10px;
-    padding: 12px;
+    gap: 8px;
+    padding: 8px;
   }
 
   #home-section .hero-searchbar input {
-    padding: 12px 0;
+    min-height: 30px;
+    padding: 8px 0;
   }
 
   #home-section .search-button {
     width: 100%;
     min-width: 0;
+    min-height: 30px;
   }
 
   #home-section .filter-wrap {
@@ -5562,26 +5633,22 @@ a {
   }
 
   #home-section .card-heading {
-    min-height: 0;
+    min-height: 96px;
   }
 
   #home-section .display-title.card .display-title-text {
-    display: block;
+    display: -webkit-box;
+    min-height: 2.5em;
     font-size: 1.08rem;
     line-height: 1.22;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
-  #home-section .display-title.card .title-lead,
-  #home-section .display-title.card .title-rest {
-    display: block;
-  }
-
-  #home-section .display-title.card .title-rest {
-    margin-top: 6px;
-  }
-
-  #home-section .display-title.card .title-lead::after {
-    display: none;
+  #home-section .display-title.card .title-keyword,
+  #home-section .display-title.card .title-plain {
+    display: inline;
   }
 
   #home-section .card-body {
@@ -5594,6 +5661,7 @@ a {
   #home-section .card-proof-line span {
     display: -webkit-box;
     overflow: hidden;
+    font-size: 0.84rem;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
   }
@@ -6493,7 +6561,7 @@ a {
   }
 
   .career-wide-dot {
-    top: 12px;
+    top: 8px;
     left: -19px;
   }
 
