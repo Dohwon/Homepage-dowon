@@ -82,7 +82,23 @@ const PROJECT_TITLE_OVERRIDES = {
 };
 
 const PROJECT_LINK_OVERRIDES = {
+  "execution-harness-system": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/260331_execution-harness-system"
+    }
+  ],
+  "central-memory-prompt-kit": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/260324_central_memory_prompt_kit"
+    }
+  ],
   "calc-stt-cer-colab": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/computing-Korean-STT-error-rates"
+    },
     {
       label: "Colab",
       url: "https://colab.research.google.com/drive/1OHqEr4OaIbO67_xJQc8KYXb91wwUoDIz"
@@ -104,6 +120,24 @@ const PROJECT_LINK_OVERRIDES = {
     {
       label: "GitHub",
       url: "https://github.com/Dohwon/260212_feeling_traker"
+    }
+  ],
+  "260218-ope-log-anlayze": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/260218_ope_log_anlayze"
+    }
+  ],
+  "260315-moe-prompt-routing": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/260315-moe-prompt-routing-a2a"
+    }
+  ],
+  "260317-desktop-scheduler": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/260317_desktop_scheduler"
     }
   ],
   "gemini-multiturn-tester-v3": [
@@ -136,11 +170,39 @@ const PROJECT_LINK_OVERRIDES = {
       url: "https://github.com/Dohwon/260315-moe-prompt-routing-a2a"
     }
   ],
+  "260319-llm-tool-hub": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/260319_llm_tool_hub"
+    }
+  ],
+  "260321-memento-mori-archive": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/260321_memento_mori_archive"
+    }
+  ],
   "dowon-codex-manager-memory-work-summary-v4": [
     {
       label: "GitHub",
       url: "https://github.com/Dohwon/260324_central_memory_prompt_kit"
     }
+  ],
+  "wine-cellar-scan": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/260401-wine-cellar-scan"
+    }
+  ],
+  "ideal-type-editorial": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/260408_ideal_type_editorial"
+    }
+  ],
+  "todack": [
+  ],
+  "personal-essay-writer-ko": [
   ]
 };
 
@@ -2447,19 +2509,6 @@ function getProjectExternalLinks(project) {
       url: item.url
     });
   });
-
-  if (project.path && !PROJECT_AUTO_LINK_BLOCKLIST.has(project.id)) {
-    const mode = /\.[^/]+$/.test(String(project.path)) ? "blob" : "tree";
-    const encodedPath = String(project.path)
-      .split("/")
-      .map((part) => encodeURIComponent(part))
-      .join("/");
-    links.push({
-      label: "GitHub",
-      text: `AI-Agent-Project/${prettifyProjectName(project.name || project.id)}`,
-      url: `${DEFAULT_PROJECT_GITHUB_ROOT}/${mode}/main/${encodedPath}`
-    });
-  }
 
   return links.filter((item, index, array) => array.findIndex((candidate) => candidate.url === item.url) === index);
 }
