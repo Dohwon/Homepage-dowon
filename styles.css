@@ -6629,11 +6629,15 @@ a {
 }
 
 #home-section .carousel-button {
-  min-width: 52px;
-  min-height: 52px;
+  min-width: 56px;
+  min-height: 56px;
   padding: 0;
-  font-size: 1.8rem;
+  font-size: 2.05rem;
   line-height: 1;
+  color: #2d63e8;
+  border-color: rgba(77, 134, 255, 0.28);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 24px rgba(62, 96, 180, 0.16);
 }
 
 #home-section .carousel-button[disabled] {
@@ -6643,29 +6647,55 @@ a {
 
 #home-section .project-carousel-shell {
   position: relative;
+  overflow: hidden;
 }
 
 #home-section .project-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
   gap: 18px;
   padding: 4px 4px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 #home-section .project-card {
-  min-width: 0;
+  flex: 0 0 calc((100% - 36px) / 3);
+  min-width: 320px;
   height: 100%;
+  scroll-snap-align: start;
+}
+
+#home-section .project-grid::-webkit-scrollbar {
+  height: 10px;
+}
+
+#home-section .project-grid::-webkit-scrollbar-track {
+  background: rgba(218, 228, 255, 0.6);
+  border-radius: 999px;
+}
+
+#home-section .project-grid::-webkit-scrollbar-thumb {
+  background: rgba(77, 134, 255, 0.42);
+  border-radius: 999px;
+}
+
+#home-section .project-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(77, 134, 255, 0.62);
 }
 
 @media (min-width: 1620px) {
-  #home-section .project-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+  #home-section .project-card {
+    flex-basis: calc((100% - 54px) / 4);
   }
 }
 
 @media (max-width: 1119px) {
-  #home-section .project-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  #home-section .project-card {
+    flex-basis: calc((100% - 18px) / 2);
   }
 }
 
@@ -6684,6 +6714,11 @@ a {
 
   #home-section .project-grid {
     gap: 14px;
-    grid-template-columns: 1fr;
+    padding-bottom: 10px;
+  }
+
+  #home-section .project-card {
+    flex-basis: 100%;
+    min-width: calc(100vw - 56px);
   }
 }

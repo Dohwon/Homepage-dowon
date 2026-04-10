@@ -368,8 +368,24 @@ function bindEvents() {
     scrollProjectCarousel(1);
   });
 
+  elements.projectGrid?.addEventListener(
+    "wheel",
+    (event) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      if (elements.projectGrid.scrollWidth <= elements.projectGrid.clientWidth + 4) return;
+      event.preventDefault();
+      elements.projectGrid.scrollBy({ left: event.deltaY, behavior: "auto" });
+      syncProjectCarouselControls();
+    },
+    { passive: false }
+  );
+
+  elements.projectGrid?.addEventListener("scroll", () => {
+    syncProjectCarouselControls();
+  });
+
   window.addEventListener("resize", () => {
-    renderProjects();
+    syncProjectCarouselControls();
   });
 
   elements.projectGrid.addEventListener("click", (event) => {
@@ -1913,38 +1929,41 @@ function renderAdminPanel() {
 
 function renderProjects() {
   const projects = getVisibleProjects();
-  const total = state.bootstrap.projects.length;
-  const slotCount = getProjectCarouselSlotCount();
-  const displayedProjects = getProjectCarouselWindow(projects, slotCount);
   elements.collectionMeta.innerHTML = `
-    <span class="collection-pill">현재 ${escapeHtml(String(displayedProjects.length))}개 / 전체 ${escapeHtml(String(projects.length))}개</span>
+    <span class="collection-pill">현재 ${escapeHtml(String(projects.length))}개</span>
     <span class="collection-pill subtle">카테고리 ${escapeHtml(String(new Set(projects.map((project) => getProjectCategory(project))).size))}개</span>
   `;
 
   if (!projects.length) {
     elements.projectGrid.innerHTML = `<article class="empty-state">현재 필터에 맞는 프로젝트가 없습니다.</article>`;
-    updateProjectCarouselControls();
+    syncProjectCarouselControls();
     return;
   }
 
-  elements.projectGrid.innerHTML = displayedProjects.map(renderProjectCard).join("");
-  updateProjectCarouselControls(projects.length, slotCount);
+  elements.projectGrid.innerHTML = projects.map(renderProjectCard).join("");
+  requestAnimationFrame(() => {
+    if (elements.projectGrid) {
+      elements.projectGrid.scrollTo({ left: 0, top: 0, behavior: "auto" });
+    }
+    syncProjectCarouselControls();
+  });
 }
 
-function updateProjectCarouselControls(totalCount = getVisibleProjects().length, slotCount = getProjectCarouselSlotCount()) {
+function syncProjectCarouselControls() {
   if (!elements.projectCarouselPrev || !elements.projectCarouselNext || !elements.projectGrid) return;
-  const canRotate = totalCount > slotCount;
-  elements.projectCarouselPrev.disabled = !canRotate;
-  elements.projectCarouselNext.disabled = !canRotate;
+  const { scrollLeft, scrollWidth, clientWidth } = elements.projectGrid;
+  const canScroll = scrollWidth > clientWidth + 4;
+  elements.projectCarouselPrev.disabled = !canScroll || scrollLeft <= 4;
+  elements.projectCarouselNext.disabled = !canScroll || scrollLeft + clientWidth >= scrollWidth - 4;
 }
 
 function scrollProjectCarousel(direction) {
-  const projects = getVisibleProjects();
-  const slotCount = getProjectCarouselSlotCount();
-  if (projects.length <= slotCount) return;
-  const length = projects.length;
-  state.carouselStartIndex = (state.carouselStartIndex + direction + length) % length;
-  renderProjects();
+  if (!elements.projectGrid) return;
+  const amount = Math.max(320, Math.floor(elements.projectGrid.clientWidth * 0.88));
+  elements.projectGrid.scrollBy({ left: amount * direction, behavior: "smooth" });
+  window.setTimeout(() => {
+    syncProjectCarouselControls();
+  }, 220);
 }
 
 function renderBlog() {
@@ -3714,38 +3733,6 @@ function stopPreviewHover(event) {
     video.pause();
     video.currentTime = 0;
   }
-}
-
-function getProjectCarouselSlotCount() {
-  const width = window.innerWidth;
-  if (width >= 1620) return 4;
-  if (width >= 1120) return 3;
-  if (width >= 720) return 2;
-  return 1;
-}
-
-function getProjectCarouselWindow(projects, slotCount = getProjectCarouselSlotCount()) {
-  if (projects.length <= slotCount) {
-    state.carouselStartIndex = 0;
-    return projects;
-  }
-
-  state.carouselStartIndex = ((state.carouselStartIndex % projects.length) + projects.length) % projects.length;
-  const windowItems = [];
-  const seenIds = new Set();
-  const seenKeys = new Set();
-
-  for (let offset = 0; offset < projects.length && windowItems.length < slotCount; offset += 1) {
-    const project = projects[(state.carouselStartIndex + offset) % projects.length];
-    const repoKey = getProjectDeduplicationKey(project);
-    if (seenIds.has(project.id)) continue;
-    if (repoKey && seenKeys.has(repoKey)) continue;
-    seenIds.add(project.id);
-    if (repoKey) seenKeys.add(repoKey);
-    windowItems.push(project);
-  }
-
-  return windowItems;
 }
 
 function getProjectManualOrder(project) {
