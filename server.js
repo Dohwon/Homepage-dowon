@@ -32,6 +32,11 @@ const DEFAULT_PUBLIC_EMAIL = "dowonkim0612@naver.com";
 const DEFAULT_PROFILE_GITHUB = "https://github.com/Dohwon";
 const SITE_CONTENT_SEED_SYNC_VERSION = "2026-03-18-site-v1";
 const BLOG_POSTS_SEED_SYNC_VERSION = "2026-03-18-blog-v1";
+const DEFAULT_HIDDEN_PROJECT_IDS = new Set([
+  "dowon-codex-manager-memory-work-summary-v4",
+  "a2a-family-classifier-experts",
+  "utterance-similarity-notebook"
+]);
 
 const SESSION_COOKIE = "portfolio_session";
 const VISITOR_COOKIE = "portfolio_visitor";
@@ -56,6 +61,63 @@ const MIME_TYPES = {
 };
 
 const PROJECT_CONTENT_OVERRIDES = {
+  "central-memory-prompt-kit": {
+    summary: "에이전트 작업기억을 한 장으로 묶는 실험이자, 여러 AI 툴과 사람 협업자가 같은 운영 문서를 재사용할 수 있게 만드는 중앙 메모리 프롬프트 키트.",
+    highlights: [
+      "오너/스킬/회사 운영 모델을 한 세트로 묶은 프롬프트 상품화",
+      "중앙 메모리 + 프로젝트 메모리 + worklog archive 구조 정리",
+      "manager memory 요약 실험을 이 카드 안으로 통합"
+    ],
+    stack: ["Markdown", "Prompt Design", "Node.js", "JSON Schema"],
+    tags: ["Central Memory", "Prompt Kit", "Worklog", "AgentOps"],
+    detail: {
+      readmeSummary: [
+        "여러 AI 툴과 사람 협업자 사이에서 손실 없는 인수인계를 만들기 위한 중앙 메모리 프롬프트 키트다.",
+        "owner profile, skill profile, company operating model, project rules, worklog archive를 한 세트의 상품처럼 다룬다.",
+        "예전 `에이전트 작업기억을 한 장으로 묶는 실험` 카드 내용도 이 카드 안으로 합쳐, manager memory 압축 실험과 work summary 구조를 함께 설명한다."
+      ],
+      workflow: [
+        {
+          step: "프로필 구조화",
+          desc: "오너 성향, 스킬 역할, 회사 운영 모델을 프롬프트 템플릿으로 정리한다."
+        },
+        {
+          step: "메모리 계층 설계",
+          desc: "central memory와 short/mid/long/log 작업기억 구조를 분리하고 연결한다."
+        },
+        {
+          step: "프로젝트 어댑터 연결",
+          desc: "프로젝트별 AGENTS 규칙과 memory link를 붙여 실제 협업 흐름으로 이어준다."
+        },
+        {
+          step: "아카이브 상품화",
+          desc: "work summary, prompt bundle, skill docs까지 묶어 재사용 가능한 패키지로 정리한다."
+        }
+      ],
+      keyFiles: [
+        "projects/260324_central_memory_prompt_kit/README.md",
+        "projects/260324_central_memory_prompt_kit/prompts/01_owner_profile_prompt.md",
+        "projects/260324_central_memory_prompt_kit/prompts/06_worklog_archive_prompt.md",
+        "projects/260324_central_memory_prompt_kit/skill_docs/startup-business-strategist-ko.md",
+        "manager_memory/source/work_summary_versions/dowon_codex_manager_memory_work_summary.v6.md"
+      ],
+      diagramCaption: "owner profile → skill profile → operating model → memory workspace → project rules → worklog archive"
+    },
+    story: {
+      challenge: "툴마다 메모리가 갈라지고, 작업기억 요약 실험과 프롬프트 상품화 문서가 서로 다른 폴더에서 흩어지며 handoff 손실이 커졌다.",
+      attempts: [
+        "중앙 메모리와 프로젝트 메모리를 분리하되, prompt 세트와 어댑터 구조로 다시 연결했다.",
+        "manager memory 요약 실험과 work summary 버전 축적 흐름을 한 카드 안에서 읽히도록 합쳤다.",
+        "문서 템플릿을 단순 기록이 아니라 다른 팀도 가져갈 수 있는 prompt product 형태로 재구성했다."
+      ],
+      resolution: "중앙 메모리 인프라와 프롬프트 상품 레이어를 같은 프로젝트로 묶어, 에이전트 운영 문서를 복제 가능한 자산으로 바꿨다.",
+      impact: [
+        "툴 간 handoff 손실 감소",
+        "작업기억과 worklog archive 구조 통합",
+        "재사용 가능한 prompt kit 형태 확보"
+      ]
+    }
+  },
   "calc-stt-cer-colab": {
     summary: "음성 인식 결과를 CER 기준으로 뜯어보며, 왜 성능이 흔들리는지를 숫자로 설명 가능하게 만든 진단 노트북.",
     highlights: [
@@ -79,16 +141,49 @@ const PROJECT_CONTENT_OVERRIDES = {
     }
   },
   "morpheme-analysis-notebook": {
-    summary: "학습데이터를 형태소 단위로 해부해서, 표현 다양성과 라벨 흔들림이 어디서 생기는지 잡아내는 분석 노트북.",
+    summary: "학습데이터를 형태소 단위로 해부하고, 비슷한 발화의 경계까지 같이 비교해 표현 다양성과 라벨 흔들림이 어디서 생기는지 잡아내는 분석 노트북.",
     highlights: [
-      "형태소 기준으로 데이터 품질을 재점검",
+      "형태소 기준 데이터 품질 점검과 발화 유사도 분석을 한 카드로 통합",
       "표현 다양성과 분류 경계가 흔들리는 구간 탐색",
-      "후속 NLU 개선 포인트 발굴"
+      "말버릇/유사 표현 기반 후속 NLU 개선 포인트 발굴"
     ],
+    stack: ["Jupyter", "Python", "NLP", "Cosine Similarity"],
+    tags: ["Morphology", "Similarity", "Notebook", "NLU"],
+    detail: {
+      readmeSummary: [
+        "형태소 단위로 학습데이터를 분해해 품질을 점검하고, 동시에 비슷한 발화 쌍의 경계를 유사도 기준으로 읽어보는 분석 노트다.",
+        "기존 `비슷한 발화의 차이를 잡아내는 분석 노트` 카드는 이 카드 안으로 합쳐, 형태소 분석과 발화 유사도 실험을 하나의 탐색 축으로 정리했다.",
+        "핵심은 '말버릇이 왜 분류를 흔드는가'를 데이터 품질과 유사 표현 비교 두 방향에서 같이 보는 것이다."
+      ],
+      workflow: [
+        {
+          step: "형태소 분해",
+          desc: "학습데이터를 형태소 단위로 쪼개 빈도와 조합 패턴을 관찰한다."
+        },
+        {
+          step: "유사 발화 비교",
+          desc: "비슷한 표현쌍의 거리와 경계를 비교해 라벨 흔들림 후보를 모은다."
+        },
+        {
+          step: "노이즈 구간 추출",
+          desc: "표현은 비슷한데 라벨이 갈라지는 지점을 따로 분리한다."
+        },
+        {
+          step: "개선 포인트 정리",
+          desc: "사전 보강, 라벨 재정비, NLU 보정 후보로 연결한다."
+        }
+      ],
+      keyFiles: [
+        "projects/250731_학습데이터_형태소분석기.ipynb",
+        "projects/형태소분석기_기반_사용자_발화_유사도_분석(2).ipynb"
+      ],
+      diagramCaption: "형태소 분해 → 유사 발화 비교 → 노이즈 구간 추출 → 라벨/사전 개선"
+    },
     story: {
-      challenge: "데이터가 많아도 왜 분류가 흔들리는지는 토큰 레벨로 내려가지 않으면 잘 안 보였다.",
+      challenge: "데이터가 많아도 왜 분류가 흔들리는지는 토큰 레벨과 유사 발화 경계를 같이 보지 않으면 잘 드러나지 않았다.",
       attempts: [
         "형태소 단위로 자르고 빈도와 조합 패턴을 다시 봤다.",
+        "비슷한 발화쌍을 묶어 어떤 표현이 경계를 흔드는지 같이 확인했다.",
         "표현이 비슷한데 라벨이 달라지는 구간을 따로 추렸다.",
         "분류 기준을 다시 세울 수 있게 분석 축을 정리했다."
       ],
@@ -130,15 +225,16 @@ const PROJECT_CONTENT_OVERRIDES = {
     }
   },
   "260315-moe-prompt-routing": {
-    summary: "질문 성격에 따라 다른 프롬프트와 실행 경로를 고르는 음성 라우팅 구조를 설계하고, 엑셀 기반 회귀 평가로 검증하는 프로젝트.",
+    summary: "질문 성격에 따라 다른 프롬프트와 실행 경로를 고르는 음성 라우팅 구조를 설계하고, 그 안의 1차 family classifier와 2차 expert 묶음까지 엑셀 기반 회귀 평가로 검증하는 프로젝트.",
     highlights: [
-      "1차 family classifier와 2차 expert-system 분리",
+      "1차 family classifier와 2차 expert-system 분리를 한 카드로 통합",
       "632행 회귀 테스트와 judge 평가 체계",
       "latency와 유지보수 공수를 함께 줄이는 라우팅 구조"
     ],
     detail: {
       readmeSummary: [
         "이 프로젝트의 핵심은 음성 요청을 하나의 거대한 시스템 프롬프트로 처리하지 않고, family classifier와 expert prompt로 나눠 다루는 구조다.",
+        "기존 `A2A Family Classifier Experts` 카드는 이 프로젝트의 일부 축이었기 때문에, 같은 레포를 가리키는 중복 카드 대신 여기서 함께 설명한다.",
         "라우팅 시트, route_only 모드, judge prompt 분리, retry/에러 격리까지 갖춰서 구조 변경 영향도 추적할 수 있게 만들었다.",
         "manager_memory 기준으로 가장 큰 초점은 schedule/search/default가 섞이며 커지던 복잡도와 latency를 줄이는 것이었다."
       ]
@@ -355,6 +451,118 @@ const PROJECT_CONTENT_OVERRIDES = {
         "후속 NLU 보정 근거 확보"
       ]
     }
+  },
+  "project-naming-rule": {
+    summary: "프로젝트 이름이 첫인상을 망치지 않도록, 날짜·영문명·메모리 경로까지 같이 정리한 네이밍 규칙 문서.",
+    highlights: [
+      "yymmdd_english_project_name 형식 고정",
+      "폴더명과 메모리 경로 규칙을 함께 정리",
+      "스킬/프로젝트 운영에서 같은 네이밍 원칙 재사용"
+    ],
+    stack: ["Markdown", "Naming Rule", "Project Ops"],
+    tags: ["Naming", "Rule", "Skill", "Documentation"],
+    detail: {
+      readmeSummary: [
+        "이 카드는 코드 프로젝트라기보다, 프로젝트 이름이 첫인상과 검색성을 좌우한다는 전제에서 만든 네이밍 규칙 문서다.",
+        "핵심은 날짜 기준 폴더명, 영문 소문자/숫자/언더스코어 제한, 그리고 project_memory 분리 규칙을 한 번에 고정하는 것이다.",
+        "즉, 기능 구현보다 '이름을 어떻게 붙이면 이후 운영과 기억 관리가 덜 꼬이는가'를 다루는 운영 스킬 문서에 가깝다."
+      ],
+      workflow: [
+        { "step": "형식 정의", "desc": "`yymmdd_english_project_name` 형식을 기본 규칙으로 고정한다." },
+        { "step": "금지 조건 정리", "desc": "공백, 한글, 특수문자, 제멋대로인 날짜 표기를 막는다." },
+        { "step": "메모리 규칙 연결", "desc": "프로젝트 폴더명과 project_memory 경로 규칙을 같이 묶는다." },
+        { "step": "운영 재사용", "desc": "새 프로젝트 생성 스크립트와 스킬 문서에서 같은 규칙을 재사용한다." }
+      ],
+      keyFiles: ["projects/PROJECT_NAMING_RULE.md"],
+      diagramCaption: "이름 규칙 정의 → 금지 조건 정리 → 메모리 경로 연결 → 운영 재사용"
+    }
+  },
+  "scripts": {
+    summary: "새 프로젝트 생성, 레포 생성·푸시, 자동 동기화, work summary 버전업까지 반복 작업을 덜어주는 자동화 툴박스.",
+    highlights: [
+      "프로젝트 초기 폴더/README/AGENTS 자동 생성",
+      "선택 레포 생성·원격 연결·push 자동화",
+      "cron 기반 autosync와 work summary 버전업 스크립트"
+    ],
+    stack: ["Bash", "Git", "Cron", "GitHub API"],
+    tags: ["Automation", "Toolbox", "Scripts", "Ops"],
+    detail: {
+      readmeSummary: [
+        "이 카드는 막연한 scripts 폴더가 아니라, 실제로 반복 작업을 덜기 위해 쓰는 운영 자동화 툴 묶음이다.",
+        "`create_project.sh`는 새 프로젝트 기본 구조를 만들고, `create_and_push_selected_repos.sh`는 선택 프로젝트를 GitHub 레포와 연결해 push한다.",
+        "`project_repo_autosync.sh`, `install_projects_autosync_cron.sh`, `version_work_summary.sh`는 프로젝트 저장소 동기화와 업무 기록 버전업을 자동화한다."
+      ],
+      workflow: [
+        { "step": "프로젝트 생성", "desc": "README, AGENTS, project_memory까지 포함한 새 프로젝트 기본 구조를 만든다." },
+        { "step": "레포 연결", "desc": "선택한 로컬 프로젝트를 GitHub 레포와 연결하고 원격 push를 수행한다." },
+        { "step": "자동 동기화", "desc": "변경된 프로젝트를 스캔해 자동 커밋/동기화 흐름을 돌린다." },
+        { "step": "기록 버전업", "desc": "work summary 문서를 다음 버전으로 복제해 업무 기록을 축적한다." }
+      ],
+      keyFiles: [
+        "projects/scripts/create_project.sh",
+        "projects/scripts/create_and_push_selected_repos.sh",
+        "projects/scripts/project_repo_autosync.sh",
+        "projects/scripts/install_projects_autosync_cron.sh",
+        "projects/scripts/version_work_summary.sh"
+      ],
+      diagramCaption: "프로젝트 생성 → 레포 연결 → autosync → work summary 버전업"
+    }
+  },
+  "work-summary-versions": {
+    summary: "매 세션의 판단과 작업 흔적을 버전별 Markdown으로 축적해, 내 업무 맥락이 어떻게 변했는지 남기는 아카이브.",
+    highlights: [
+      "업무 기록을 vN 문서로 보존",
+      "판단 근거와 진행 상황을 버전 단위로 축적",
+      "산출물 중심 아카이브로 남기고 GitHub 링크는 제거"
+    ],
+    stack: ["Markdown", "Worklog", "Versioning"],
+    tags: ["Archive", "Work Summary", "Markdown", "History"],
+    detail: {
+      readmeSummary: [
+        "이 카드는 코드 프로젝트가 아니라, ChatGPT와 함께 남긴 업무 기록을 버전별 Markdown으로 축적한 아카이브다.",
+        "핵심은 '이번 판단이 왜 나왔는가'를 v1, v2, ... 식으로 남겨 다음 작업 세션이 앞 문맥을 다시 읽을 수 있게 하는 것이다.",
+        "즉 GitHub 코드보다 산출물 자체가 중요한 카드라서, 대표 파일만 남기고 링크는 비우는 방향이 맞다."
+      ],
+      workflow: [
+        { "step": "세션 기록", "desc": "그날의 판단, 작업 범위, 막힌 점을 Markdown으로 정리한다." },
+        { "step": "버전 복제", "desc": "기존 summary를 다음 버전으로 복제해 연속성을 유지한다." },
+        { "step": "판단 축적", "desc": "변한 전략과 우선순위를 이전 버전과 비교 가능하게 남긴다." },
+        { "step": "다음 세션 연결", "desc": "이전 기록을 바로 읽고 이어서 작업할 수 있게 아카이브로 보존한다." }
+      ],
+      keyFiles: [
+        "manager_memory/source/work_summary_versions/dowon_codex_manager_memory_work_summary.v5.md",
+        "manager_memory/source/work_summary_versions/dowon_codex_manager_memory_work_summary.v6.md"
+      ],
+      diagramCaption: "세션 기록 → 버전 복제 → 판단 축적 → 다음 세션 연결"
+    }
+  },
+  "personal-essay-writer-ko": {
+    summary: "사용자의 감정, 장면, 말투를 붙잡아 한국어 일기와 에세이를 대신 써주는 창작 스킬 문서.",
+    highlights: [
+      "일기형/에세이형 출력 모드 분리",
+      "감정 온도와 문체 리듬을 먼저 맞추는 작성 규칙",
+      "값싼 위로나 상담체를 피하는 문학적 리라이트 스킬"
+    ],
+    stack: ["Skill Design", "Markdown", "Creative Writing"],
+    tags: ["Skill", "Essay", "Diary", "Voice Matching"],
+    detail: {
+      readmeSummary: [
+        "이 카드는 별도 앱이 아니라 `personal-essay-writer-ko` 스킬 자체를 설명하는 문서형 카드다.",
+        "핵심은 사용자의 감정, 장면, 말투를 먼저 붙잡고, 그다음 문체와 울림을 맞추는 워크플로우를 만드는 것이다.",
+        "일기형과 에세이형 출력 모드를 분리하고, 과한 위로나 상담문체를 피하도록 경계 조건까지 설계했다."
+      ],
+      workflow: [
+        { "step": "요청 분류", "desc": "일기형인지 에세이형인지 먼저 구분한다." },
+        { "step": "장면 추출", "desc": "감정, 상황, 기억 장면, 핵심 문장을 뽑아낸다." },
+        { "step": "문체 맞춤", "desc": "writing profile을 바탕으로 화자의 리듬과 톤을 반영한다." },
+        { "step": "리라이트 점검", "desc": "과장, 싸구려 위로, 타인 목소리 같은 어색함을 걷어낸다." }
+      ],
+      keyFiles: [
+        "skills/Creative Studio/personal-essay-writer-ko/SKILL.md",
+        "skills/Creative Studio/personal-essay-writer-ko/references/writing-profile.md"
+      ],
+      diagramCaption: "요청 분류 → 장면 추출 → 문체 맞춤 → 리라이트 점검"
+    }
   }
 };
 
@@ -413,7 +621,7 @@ async function syncStoredSeedContent() {
   const seeded = await readJson(path.join(SEED_DATA_DIR, "site-content.json"), null);
   if (!seeded || !Array.isArray(seeded.projects)) return;
 
-  const hiddenProjectIds = new Set(arrayify(current.meta?.hiddenProjectIds));
+  const hiddenProjectIds = mergeHiddenProjectIds(current.meta?.hiddenProjectIds);
   const projects = appendMissingItemsById(current.projects || [], seeded.projects || [], hiddenProjectIds);
 
   await writeJsonAtomic(SITE_CONTENT_PATH, {
@@ -463,15 +671,19 @@ async function buildSeedContent() {
     ...(secondary.links || {})
   };
 
+  const hiddenProjectIds = mergeHiddenProjectIds([]);
   return {
     site: defaultSite(owner, links),
     owner,
     profile,
     links,
-    projects: mergedProjects.map((project, index) => normalizeProject(project, index)),
+    projects: mergedProjects
+      .filter((project) => !hiddenProjectIds.has(project.id))
+      .map((project, index) => normalizeProject(project, index)),
     meta: {
       seededAt: new Date().toISOString(),
-      source: generated ? "projects.generated.json" : "projects.json"
+      source: generated ? "projects.generated.json" : "projects.json",
+      hiddenProjectIds: [...hiddenProjectIds]
     }
   };
 }
@@ -660,6 +872,10 @@ function applyProjectOverride(projectId, project) {
       ...(override.timeline || {})
     }
   };
+}
+
+function mergeHiddenProjectIds(ids) {
+  return new Set([...DEFAULT_HIDDEN_PROJECT_IDS, ...arrayify(ids)]);
 }
 
 function isGenericSummary(summary) {
@@ -1378,7 +1594,7 @@ async function loadContent() {
     return buildSeedContent();
   }
 
-  const hiddenProjectIds = new Set(arrayify(content.meta?.hiddenProjectIds));
+  const hiddenProjectIds = mergeHiddenProjectIds(content.meta?.hiddenProjectIds);
   const visibleGenerated = (generated.projects || []).filter((project) => !hiddenProjectIds.has(project.id));
   const owner = {
     ...defaultOwner(),
@@ -1398,9 +1614,9 @@ async function loadContent() {
     },
     owner,
     links,
-    projects: mergeProjectsByStatus(content.projects || [], visibleGenerated, statusOverrides).map((project, index) =>
-      normalizeProject(project, index)
-    ),
+    projects: mergeProjectsByStatus(content.projects || [], visibleGenerated, statusOverrides)
+      .filter((project) => !hiddenProjectIds.has(project.id))
+      .map((project, index) => normalizeProject(project, index)),
     meta: {
       ...(content.meta || {}),
       hiddenProjectIds: [...hiddenProjectIds]

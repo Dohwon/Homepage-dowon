@@ -63,6 +63,7 @@ const elements = {
 
 const PROJECT_TITLE_OVERRIDES = {
   "calc-stt-cer-colab": "STT 오차를 숫자로 추적하는 진단실",
+  "central-memory-prompt-kit": "Central Memory Prompt Kit",
   "morpheme-analysis-notebook": "말버릇을 쪼개보는 형태소 분석 노트",
   "mood-tracker": "감정의 흐름을 기록하는 무드 트래커",
   "260218-ope-log-anlayze": "로그 속 숨은 운영 이슈를 건져낸 분석기",
@@ -76,6 +77,7 @@ const PROJECT_TITLE_OVERRIDES = {
   "scripts": "반복 작업을 덜어주는 자동화 툴박스",
   "semantic-verb-schema": "한국어 동사를 기능 스키마로 재구성한 실험",
   "260317-desktop-scheduler": "바탕화면에서 바로 쓰는 데스크 스케줄러",
+  "personal-essay-writer-ko": "감정을 글로 쓰는 에세이 라이터 스킬",
   "todack": "토닥, 감정을 다루는 작은 회복 인터페이스",
   "work-summary-versions": "일의 흔적을 버전으로 축적한 아카이브",
   "utterance-similarity-notebook": "비슷한 발화의 차이를 잡아내는 분석 노트"
