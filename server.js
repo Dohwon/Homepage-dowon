@@ -1628,6 +1628,15 @@ async function saveContent(content) {
   await writeJsonAtomic(SITE_CONTENT_PATH, content);
 }
 
+async function loadStatusOverrides() {
+  const overrides = await readJsonWithFallback("status_overrides.json", {});
+  return overrides && typeof overrides === "object" ? overrides : {};
+}
+
+async function saveStatusOverrides(overrides) {
+  await writeJsonAtomic(STATUS_OVERRIDES_PATH, overrides || {});
+}
+
 async function loadComments() {
   const data = await readJson(COMMENTS_PATH, { comments: [] });
   return Array.isArray(data.comments) ? data.comments : [];
@@ -2077,6 +2086,7 @@ async function handleApi(req, res, url) {
     const body = await readBody(req);
     const input = body.project || {};
     const content = await loadContent();
+    const statusOverrides = await loadStatusOverrides();
     content.meta = content.meta || {};
     content.meta.hiddenProjectIds = arrayify(content.meta.hiddenProjectIds).filter((id) => id !== slugify(input.id || ""));
     const existingIndex = content.projects.findIndex((project) => project.id === slugify(input.id || ""));
@@ -2097,6 +2107,8 @@ async function handleApi(req, res, url) {
       content.projects.unshift(project);
     }
     await saveContent(content);
+    statusOverrides[project.id] = project.status;
+    await saveStatusOverrides(statusOverrides);
     sendJson(res, 200, { project });
     return;
   }

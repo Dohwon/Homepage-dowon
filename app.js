@@ -3541,6 +3541,8 @@ async function deleteProject(projectId) {
   if (!project) return;
   const confirmed = window.confirm(`${getProjectDisplayName(project)} 카드를 삭제할까요? 댓글도 함께 삭제됩니다.`);
   if (!confirmed) return;
+  const confirmedAgain = window.confirm("삭제 후에는 되돌릴 수 없습니다. 정말 삭제할까요?");
+  if (!confirmedAgain) return;
 
   try {
     await api(`/api/projects/${encodeURIComponent(projectId)}`, { method: "DELETE" });
