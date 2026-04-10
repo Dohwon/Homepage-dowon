@@ -2018,16 +2018,12 @@ function renderProjectCard(project) {
 
   return `
     <article class="project-card" tabindex="0" data-project-id="${escapeHtml(project.id)}">
-      ${
-        viewer?.role === "admin" && project.pinned
-          ? `<span class="project-pin-indicator" aria-label="고정된 카드">📌 고정됨</span>`
-          : ""
-      }
       <div class="card-topline">
         <span class="badge category">${escapeHtml(getProjectCategory(project))}</span>
         <span class="badge ${project.status === "in-progress" ? "warning" : "success"}">
           ${project.status === "in-progress" ? "진행중" : "완료/운영"}
         </span>
+        ${project.pinned ? `<span class="badge pinned">📌 고정됨</span>` : ""}
       </div>
 
       <div class="card-tools-inline" title="${escapeHtml(stackLine)}">${escapeHtml(stackLine)}</div>
@@ -2658,6 +2654,7 @@ function renderOpenDetail() {
             <span class="badge ${project.status === "in-progress" ? "warning" : "success"}">
               ${project.status === "in-progress" ? "진행중" : "완료/운영"}
             </span>
+            ${project.pinned ? `<span class="badge pinned">📌 고정됨</span>` : ""}
           </div>
           <div id="detail-title-anchor">
             ${renderDisplayTitle(project, "detail")}
@@ -3741,8 +3738,14 @@ function getProjectManualOrder(project) {
   return Number.isFinite(order) ? order : Number.MAX_SAFE_INTEGER;
 }
 
+function getProjectDeduplicationKey(project) {
+  const githubLink = getProjectExternalLinks(project).find((item) => String(item.label || "").toLowerCase() === "github");
+  if (!githubLink?.url) return "";
+  return `github:${String(githubLink.url).trim().replace(/\/+$/, "").toLowerCase()}`;
+}
+
 function getOrderedProjects(projects) {
-  return [...projects].sort((left, right) => {
+  const ordered = [...projects].sort((left, right) => {
     const pinDiff = Number(Boolean(right.pinned)) - Number(Boolean(left.pinned));
     if (pinDiff) return pinDiff;
 
@@ -3753,6 +3756,15 @@ function getOrderedProjects(projects) {
     if (recentDiff) return recentDiff;
 
     return String(getProjectDisplayName(left)).localeCompare(String(getProjectDisplayName(right)), "ko");
+  });
+
+  const seen = new Set();
+  return ordered.filter((project) => {
+    const key = getProjectDeduplicationKey(project);
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 }
 

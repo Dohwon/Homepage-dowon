@@ -771,6 +771,12 @@ a {
   border-color: rgba(219, 141, 29, 0.26);
 }
 
+.badge.pinned {
+  color: #2f63d4;
+  background: rgba(77, 134, 255, 0.12);
+  border-color: rgba(77, 134, 255, 0.22);
+}
+
 .flow-track {
   margin-top: 14px;
   display: flex;
@@ -1053,21 +1059,6 @@ a {
 
 .project-card:focus-visible {
   outline: 0;
-}
-
-.project-pin-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  align-self: flex-start;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(39, 72, 158, 0.1);
-  border: 1px solid rgba(60, 96, 197, 0.16);
-  color: #305fce;
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1;
 }
 
 .card-actions {
@@ -3151,19 +3142,23 @@ a {
 #home-section .hero-searchbar {
   max-width: none;
   margin: 2px 0 0;
-  min-height: 52px;
+  min-height: 46px;
+  height: 46px;
   padding: 0 10px;
   border-radius: 20px;
   border: 2px solid rgba(89, 135, 244, 0.28);
   box-shadow:
     0 12px 24px rgba(63, 101, 186, 0.08),
     inset 0 0 0 1px rgba(198, 214, 255, 0.28);
+  box-sizing: border-box;
 }
 
 #home-section .hero-searchbar input {
-  min-height: 36px;
+  min-height: 32px;
+  height: 32px;
   padding: 0 12px;
   font-size: 0.9rem;
+  box-sizing: border-box;
 }
 
 #home-section .search-button {
@@ -3199,10 +3194,15 @@ a {
 
 #home-section #status-filters .chip-button {
   width: 100%;
-  min-height: 52px;
-  padding: 0 10px;
+  min-height: 46px;
+  height: 46px;
+  padding: 0 12px;
   font-size: 0.74rem;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 #home-section #category-filters {
