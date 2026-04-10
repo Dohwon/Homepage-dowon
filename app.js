@@ -11,7 +11,8 @@ const state = {
   currentBlogId: null,
   commentsByProject: new Map(),
   blogCommentsByPost: new Map(),
-  trackedProjects: new Set()
+  trackedProjects: new Set(),
+  carouselStartIndex: 0
 };
 
 const elements = {
@@ -85,7 +86,83 @@ const PROJECT_LINK_OVERRIDES = {
       label: "Colab",
       url: "https://colab.research.google.com/drive/1OHqEr4OaIbO67_xJQc8KYXb91wwUoDIz"
     }
+  ],
+  "morpheme-analysis-notebook": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/250731-morphology-utterance-similarity-analysis"
+    }
+  ],
+  "utterance-similarity-notebook": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/250731-morphology-utterance-similarity-analysis"
+    }
+  ],
+  "mood-tracker": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/260212_feeling_traker"
+    }
+  ],
+  "gemini-multiturn-tester-v3": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/260210_gemini_multiturn_tester_v3"
+    }
+  ],
+  "operation-log-analyzer": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/251231_operation_log_analayzer"
+    }
+  ],
+  "prompt-auto-evaluation": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/251104_prompt_auto_evaluation"
+    }
+  ],
+  "semantic-verb-schema": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/251028_semantic_verb_schema"
+    }
+  ],
+  "a2a-family-classifier-experts": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/260315-moe-prompt-routing-a2a"
+    }
+  ],
+  "dowon-codex-manager-memory-work-summary-v4": [
+    {
+      label: "GitHub",
+      url: "https://github.com/Dohwon/260324_central_memory_prompt_kit"
+    }
   ]
+};
+
+const PROJECT_AUTO_LINK_BLOCKLIST = new Set([
+  "project-naming-rule",
+  "scripts",
+  "work-summary-versions"
+]);
+
+const PROJECT_START_DATE_OVERRIDES = {
+  "utterance-similarity-notebook": "2025-07-31",
+  "morpheme-analysis-notebook": "2025-07-31",
+  "semantic-verb-schema": "2025-10-28",
+  "prompt-auto-evaluation": "2025-11-04",
+  "operation-log-analyzer": "2025-12-31",
+  "gemini-multiturn-tester-v3": "2026-02-10",
+  "mood-tracker": "2026-02-12",
+  "calc-stt-cer-colab": "2026-02-18",
+  "project-naming-rule": "2026-02-28",
+  "scripts": "2026-03-05",
+  "work-summary-versions": "2026-03-10",
+  "dowon-codex-manager-memory-work-summary-v4": "2026-03-24",
+  "a2a-family-classifier-experts": "2026-03-15"
 };
 
 const DEFAULT_PROJECT_GITHUB_ROOT = "https://github.com/Dohwon/AI-Agent-Project";
@@ -179,12 +256,14 @@ function bindEvents() {
 
   elements.searchInput.addEventListener("input", () => {
     state.filters.query = elements.searchInput.value.trim().toLowerCase();
+    state.carouselStartIndex = 0;
     renderProjects();
   });
 
   elements.searchReset.addEventListener("click", () => {
     elements.searchInput.value = "";
     state.filters.query = "";
+    state.carouselStartIndex = 0;
     renderProjects();
   });
 
@@ -192,6 +271,7 @@ function bindEvents() {
     const chip = event.target.closest("[data-status-filter]");
     if (!chip) return;
     state.filters.status = chip.dataset.statusFilter;
+    state.carouselStartIndex = 0;
     renderFilters();
     renderProjects();
   });
@@ -200,6 +280,7 @@ function bindEvents() {
     const chip = event.target.closest("[data-category-filter]");
     if (!chip) return;
     state.filters.category = chip.dataset.categoryFilter;
+    state.carouselStartIndex = 0;
     renderFilters();
     renderProjects();
   });
@@ -212,10 +293,14 @@ function bindEvents() {
     scrollProjectCarousel(1);
   });
 
-  elements.projectGrid.addEventListener("scroll", updateProjectCarouselControls, { passive: true });
-  window.addEventListener("resize", updateProjectCarouselControls);
+  window.addEventListener("resize", () => {
+    renderProjects();
+  });
 
   elements.projectGrid.addEventListener("click", (event) => {
+    if (event.target.closest("a[href]")) {
+      return;
+    }
     const actionButton = event.target.closest("[data-card-action]");
     if (actionButton) {
       const projectId = actionButton.closest(".project-card")?.dataset.projectId;
@@ -225,6 +310,15 @@ function bindEvents() {
       }
       if (actionButton.dataset.cardAction === "delete") {
         void deleteProject(projectId);
+      }
+      if (actionButton.dataset.cardAction === "move-left") {
+        void reorderProject(projectId, -1);
+      }
+      if (actionButton.dataset.cardAction === "move-right") {
+        void reorderProject(projectId, 1);
+      }
+      if (actionButton.dataset.cardAction === "pin") {
+        void toggleProjectPin(projectId);
       }
       return;
     }
@@ -236,6 +330,7 @@ function bindEvents() {
 
   elements.projectGrid.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
+    if (event.target.closest("[data-card-action], a[href], button")) return;
     const card = event.target.closest(".project-card");
     if (!card) return;
     event.preventDefault();
@@ -260,6 +355,12 @@ function bindEvents() {
     const timelineItem = event.target.closest("[data-timeline-project]");
     if (!timelineItem) return;
     openDetail(timelineItem.dataset.timelineProject);
+  });
+
+  elements.caseGrid?.addEventListener("click", (event) => {
+    const chip = event.target.closest("[data-case-project]");
+    if (!chip) return;
+    openDetail(chip.dataset.caseProject);
   });
 
   elements.projectTimelineMap.addEventListener("keydown", (event) => {
@@ -523,7 +624,12 @@ function renderHero() {
 }
 
 function renderFilters() {
-  const categories = ["all", ...new Set(state.bootstrap.projects.map((project) => getProjectCategory(project)))];
+  const categories = [
+    "all",
+    ...[...new Set(state.bootstrap.projects.map((project) => getProjectCategory(project)))].sort((left, right) =>
+      String(left).localeCompare(String(right), "ko")
+    )
+  ];
   const statusItems = [
     { key: "all", label: "전체" },
     { key: "active", label: "완료/운영" },
@@ -629,17 +735,122 @@ function renderProjectTimeline() {
     return;
   }
 
-  const enriched = projects
-    .map((project) => buildTimelineEntry(project))
-    .sort((left, right) => left.start.getTime() - right.start.getTime());
-
   elements.timelineLegend.innerHTML = `
-    <span class="timeline-legend-pill"><i class="legend-dot active"></i>프로젝트 시점</span>
-    <span class="timeline-legend-pill"><i class="legend-dot difficulty"></i>난관 피크</span>
-    <span class="timeline-legend-pill"><i class="legend-dot milestone"></i>해결 전환점</span>
+    <span class="timeline-legend-pill"><i class="legend-dot active"></i>작업 시작일</span>
+    <span class="timeline-legend-pill"><i class="legend-dot milestone"></i>완료/운영</span>
+    <span class="timeline-legend-pill"><i class="legend-dot difficulty"></i>진행중</span>
   `;
 
-  elements.projectTimelineMap.innerHTML = renderTimelineChronicle(enriched);
+  const entries = projects
+    .map((project) => ({
+      project,
+      start: getProjectStartDate(project)
+    }))
+    .sort((left, right) => left.start.getTime() - right.start.getTime());
+
+  elements.projectTimelineMap.innerHTML = renderProjectCalendar(entries);
+}
+
+function getProjectStartDate(project) {
+  return (
+    parseTimelineDate(project.timeline?.start) ||
+    parseTimelineDate(PROJECT_START_DATE_OVERRIDES[project.id]) ||
+    parseTimelineDate(project.createdAt) ||
+    new Date()
+  );
+}
+
+function renderProjectCalendar(entries) {
+  const groups = groupTimelineEntriesByMonth(entries);
+  return `
+    <div class="project-calendar-shell">
+      ${groups.map((group) => renderProjectCalendarMonth(group)).join("")}
+    </div>
+  `;
+}
+
+function groupTimelineEntriesByMonth(entries) {
+  const grouped = new Map();
+
+  entries.forEach((entry) => {
+    const monthKey = `${entry.start.getFullYear()}-${String(entry.start.getMonth() + 1).padStart(2, "0")}`;
+    if (!grouped.has(monthKey)) {
+      grouped.set(monthKey, []);
+    }
+    grouped.get(monthKey).push(entry);
+  });
+
+  return [...grouped.entries()].map(([key, items]) => {
+    const [year, month] = key.split("-").map(Number);
+    return {
+      key,
+      year,
+      month,
+      items: items.sort((left, right) => left.start.getDate() - right.start.getDate())
+    };
+  });
+}
+
+function renderProjectCalendarMonth(group) {
+  const firstDay = new Date(group.year, group.month - 1, 1);
+  const lastDate = new Date(group.year, group.month, 0).getDate();
+  const offset = (firstDay.getDay() + 6) % 7;
+  const cells = [];
+
+  for (let index = 0; index < offset; index += 1) {
+    cells.push(`<div class="project-calendar-cell empty" aria-hidden="true"></div>`);
+  }
+
+  for (let day = 1; day <= lastDate; day += 1) {
+    const items = group.items.filter((entry) => entry.start.getDate() === day);
+    cells.push(renderProjectCalendarCell(group, day, items));
+  }
+
+  return `
+    <article class="project-calendar-month">
+      <div class="project-calendar-month-head">
+        <p class="panel-kicker">Start Calendar</p>
+        <h3>${escapeHtml(`${group.year}.${String(group.month).padStart(2, "0")}`)}</h3>
+      </div>
+      <div class="project-calendar-weekdays">
+        <span>월</span>
+        <span>화</span>
+        <span>수</span>
+        <span>목</span>
+        <span>금</span>
+        <span>토</span>
+        <span>일</span>
+      </div>
+      <div class="project-calendar-grid">
+        ${cells.join("")}
+      </div>
+    </article>
+  `;
+}
+
+function renderProjectCalendarCell(group, day, entries) {
+  const hasEntries = entries.length > 0;
+  return `
+    <div class="project-calendar-cell ${hasEntries ? "filled" : ""}">
+      <span class="project-calendar-date">${escapeHtml(String(day))}</span>
+      <div class="project-calendar-events">
+        ${entries
+          .map(
+            (entry) => `
+              <button
+                type="button"
+                class="project-calendar-chip ${entry.project.status === "in-progress" ? "warning" : "success"}"
+                data-timeline-project="${escapeHtml(entry.project.id)}"
+                title="${escapeHtml(getProjectDisplayName(entry.project))}"
+              >
+                ${escapeHtml(truncate(getProjectDisplayName(entry.project), 22))}
+              </button>
+            `
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
 }
 
 function renderTimelineChronicle(entries) {
@@ -860,15 +1071,17 @@ function renderSkills() {
 }
 
 function renderCases() {
-  const cases = arrayOrEmpty(state.bootstrap.cases);
+  const cases = arrayOrEmpty(state.bootstrap.cases).slice(0, 3);
   elements.caseGrid.innerHTML = cases.length
     ? cases
         .map(
-          (item) => `
+          (item) => {
+            const relatedProjects = getCaseRelatedProjects(item);
+            return `
             <article class="case-card">
               <div class="case-head">
                 <h3>${escapeHtml(item.title || "")}</h3>
-                <span class="case-badge">Case</span>
+                <span class="case-badge">Solved</span>
               </div>
               <p><strong>문제</strong> ${escapeHtml(item.problem || "")}</p>
               <p><strong>시도</strong></p>
@@ -879,11 +1092,40 @@ function renderCases() {
               <div class="flow-track">
                 ${arrayOrEmpty(item.flow).map((step) => `<span class="flow-node">${escapeHtml(step)}</span>`).join("")}
               </div>
+              <div class="case-related-row">
+                <strong>관련 프로젝트</strong>
+                <div class="case-related-pills">
+                  ${relatedProjects.length
+                    ? relatedProjects
+                        .map(
+                          (project) => `
+                            <button type="button" class="case-project-pill" data-case-project="${escapeHtml(project.id)}">
+                              ${escapeHtml(getProjectDisplayName(project))}
+                            </button>
+                          `
+                        )
+                        .join("")
+                    : `<span class="case-project-pill muted">연결 프로젝트 정리중</span>`}
+                </div>
+              </div>
             </article>
-          `
+          `;
+          }
         )
         .join("")
     : `<article class="empty-state">문제 해결 사례 데이터가 없습니다.</article>`;
+}
+
+function getCaseRelatedProjects(item) {
+  const explicitIds = new Set(arrayOrEmpty(item.relatedProjectIds));
+  const matched = state.bootstrap.projects.filter((project) => {
+    if (explicitIds.has(project.id)) {
+      return true;
+    }
+    return getRelatedCases(project).some((candidate) => candidate.id === item.id);
+  });
+
+  return matched.slice(0, 4);
 }
 
 function getTimelineProjects() {
@@ -1163,8 +1405,59 @@ function getAboutValueProps(profile) {
 }
 
 function getAboutMetrics(profile) {
-  const metrics = ABOUT_METRIC_OVERRIDES.length ? ABOUT_METRIC_OVERRIDES : arrayOrEmpty(profile.coreMetrics);
-  return metrics.slice(0, 4);
+  const projects = arrayOrEmpty(state.bootstrap?.projects);
+  if (!projects.length) {
+    const metrics = ABOUT_METRIC_OVERRIDES.length ? ABOUT_METRIC_OVERRIDES : arrayOrEmpty(profile.coreMetrics);
+    return metrics.slice(0, 4);
+  }
+
+  const total = projects.length;
+  const activeCount = projects.filter((project) => project.status !== "in-progress").length;
+  const notebookCount = projects.filter((project) => String(project.path || "").toLowerCase().endsWith(".ipynb")).length;
+  const regressionRows = projects.reduce((max, project) => {
+    const text = [
+      project.summary,
+      ...arrayOrEmpty(project.highlights),
+      project.story?.challenge,
+      ...arrayOrEmpty(project.story?.attempts),
+      project.story?.resolution
+    ]
+      .join(" ")
+      .match(/(\d+)\s*행/g);
+    if (!text?.length) return max;
+    const localMax = Math.max(
+      ...text.map((item) => Number.parseInt(String(item).replace(/[^\d]/g, ""), 10)).filter(Number.isFinite)
+    );
+    return Math.max(max, localMax || 0);
+  }, 632);
+  const analysisCount = projects.filter((project) =>
+    /(analysis|analytics|schema|log|notebook|evaluation|metrics)/i.test(
+      [project.category, project.name, project.path, ...arrayOrEmpty(project.tags)].join(" ")
+    )
+  ).length;
+
+  return [
+    {
+      label: "회귀 테스트 자산",
+      value: `${regressionRows}+행`,
+      note: "라우팅 및 평가 워크북에서 반복 검증한 기준"
+    },
+    {
+      label: "노트북 기반 실험 비중",
+      value: `${Math.round((notebookCount / total) * 100)}%`,
+      note: `${notebookCount}개 프로젝트가 분석 노트북 중심으로 축적`
+    },
+    {
+      label: "완료/운영 아카이브",
+      value: `${Math.round((activeCount / total) * 100)}%`,
+      note: `${activeCount}/${total} 프로젝트가 완료 혹은 운영 상태`
+    },
+    {
+      label: "분석형 문제 해결 축",
+      value: `${analysisCount}건`,
+      note: "로그·형태소·평가·스키마 기반으로 구조화한 작업 수"
+    }
+  ];
 }
 
 function buildCareerHighlights(item) {
@@ -1495,8 +1788,11 @@ function renderAdminPanel() {
 function renderProjects() {
   const projects = getVisibleProjects();
   const total = state.bootstrap.projects.length;
+  const slotCount = getProjectCarouselSlotCount();
+  const displayedProjects = getProjectCarouselWindow(projects, slotCount);
   elements.collectionMeta.innerHTML = `
-    <span class="collection-pill">프로젝트 ${escapeHtml(String(projects.length))} / ${escapeHtml(String(total))}</span>
+    <span class="collection-pill">현재 ${escapeHtml(String(displayedProjects.length))}개 / 전체 ${escapeHtml(String(projects.length))}개</span>
+    <span class="collection-pill subtle">카테고리 ${escapeHtml(String(new Set(projects.map((project) => getProjectCategory(project))).size))}개</span>
   `;
 
   if (!projects.length) {
@@ -1505,22 +1801,24 @@ function renderProjects() {
     return;
   }
 
-  elements.projectGrid.innerHTML = projects.map(renderProjectCard).join("");
-  updateProjectCarouselControls();
+  elements.projectGrid.innerHTML = displayedProjects.map(renderProjectCard).join("");
+  updateProjectCarouselControls(projects.length, slotCount);
 }
 
-function updateProjectCarouselControls() {
+function updateProjectCarouselControls(totalCount = getVisibleProjects().length, slotCount = getProjectCarouselSlotCount()) {
   if (!elements.projectCarouselPrev || !elements.projectCarouselNext || !elements.projectGrid) return;
-  const maxScrollLeft = Math.max(0, elements.projectGrid.scrollWidth - elements.projectGrid.clientWidth);
-  const isScrollable = maxScrollLeft > 8;
-  elements.projectCarouselPrev.disabled = !isScrollable || elements.projectGrid.scrollLeft <= 8;
-  elements.projectCarouselNext.disabled = !isScrollable || elements.projectGrid.scrollLeft >= maxScrollLeft - 8;
+  const canRotate = totalCount > slotCount;
+  elements.projectCarouselPrev.disabled = !canRotate;
+  elements.projectCarouselNext.disabled = !canRotate;
 }
 
 function scrollProjectCarousel(direction) {
-  if (!elements.projectGrid) return;
-  const travel = Math.max(320, Math.round(elements.projectGrid.clientWidth * 0.82)) * direction;
-  elements.projectGrid.scrollBy({ left: travel, behavior: "smooth" });
+  const projects = getVisibleProjects();
+  const slotCount = getProjectCarouselSlotCount();
+  if (projects.length <= slotCount) return;
+  const length = projects.length;
+  state.carouselStartIndex = (state.carouselStartIndex + direction + length) % length;
+  renderProjects();
 }
 
 function renderBlog() {
@@ -1587,6 +1885,7 @@ function renderProjectCard(project) {
     arrayOrEmpty(project.highlights)[0] ||
     arrayOrEmpty(project.tags)[0] ||
     project.summary;
+  const links = getProjectExternalLinks(project);
 
   return `
     <article class="project-card" tabindex="0" data-project-id="${escapeHtml(project.id)}">
@@ -1601,19 +1900,52 @@ function renderProjectCard(project) {
         ${renderDisplayTitle(project, "card")}
       </div>
 
-      ${renderPreviewMarkup(project, "card")}
-
       <div class="card-body">
-        <p class="card-summary">${escapeHtml(project.summary)}</p>
-        <div class="card-proof-line">
-          <strong>이 프로젝트가 한 일</strong>
-          <span>${escapeHtml(leadHighlight)}</span>
-        </div>
-        <div class="tag-row compact">
-          ${arrayOrEmpty(project.tags).slice(0, 2).map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")}
-        </div>
+        <section class="card-section card-section-tools">
+          <strong class="card-section-label">사용한 툴</strong>
+          <div class="tag-row compact">
+            ${arrayOrEmpty(project.stack).length
+              ? arrayOrEmpty(project.stack)
+                  .slice(0, 4)
+                  .map((item) => `<span class="tag-pill">${escapeHtml(item)}</span>`)
+                  .join("")
+              : `<span class="tag-pill">문서 산출물</span>`}
+          </div>
+        </section>
+        <section class="card-section card-section-summary">
+          <strong class="card-section-label">설명</strong>
+          <p class="card-summary">${escapeHtml(project.summary)}</p>
+        </section>
+        <section class="card-section card-section-diagram">
+          <strong class="card-section-label">도식화</strong>
+          ${renderPreviewMarkup(project, "card")}
+        </section>
+        <section class="card-section card-section-links">
+          <strong class="card-section-label">관련 링크</strong>
+          <div class="project-link-row">
+            ${links.length
+              ? links
+                  .slice(0, 3)
+                  .map(
+                    (item) => `
+                      <a class="project-link-chip" href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer noopener">
+                        <span>${escapeHtml(item.label)}</span>
+                        <small>${escapeHtml(item.text)}</small>
+                      </a>
+                    `
+                  )
+                  .join("")
+              : `<span class="project-link-chip muted">산출물 중심 카드</span>`}
+          </div>
+        </section>
+        <section class="card-section card-section-proof">
+          <strong class="card-section-label">이 프로젝트가 한 일</strong>
+          <div class="card-proof-line">
+            <span>${escapeHtml(leadHighlight)}</span>
+          </div>
+        </section>
         <div class="card-footer">
-          <span>${escapeHtml(arrayOrEmpty(project.stack).slice(0, 3).join(" · "))}</span>
+          <span>${escapeHtml(arrayOrEmpty(project.tags).slice(0, 3).join(" · "))}</span>
           <span>댓글 ${escapeHtml(String(commentCount))}</span>
         </div>
       </div>
@@ -1622,6 +1954,9 @@ function renderProjectCard(project) {
         viewer?.role === "admin"
           ? `
             <div class="card-actions">
+              <button type="button" class="icon-button subtle ${project.pinned ? "active" : ""}" data-card-action="pin">${project.pinned ? "핀 해제" : "핀 고정"}</button>
+              <button type="button" class="icon-button" data-card-action="move-left">◀</button>
+              <button type="button" class="icon-button" data-card-action="move-right">▶</button>
               <button type="button" class="icon-button" data-card-action="edit">편집</button>
               <button type="button" class="icon-button danger" data-card-action="delete">삭제</button>
             </div>
@@ -1897,20 +2232,14 @@ function renderPreviewDiagram(diagram) {
 function renderDisplayTitle(project, variant) {
   const parts = splitDisplayTitle(getProjectDisplayName(project));
   const titleTag = variant === "detail" ? "h2" : "h3";
-  const projectIndex = state.bootstrap.projects.findIndex((item) => item.id === project.id) + 1;
   const supportCopy =
     arrayOrEmpty(project.highlights)[0] ||
     arrayOrEmpty(project.tags)[0] ||
     getProjectCategory(project) ||
     project.summary;
-  const statusCopy = project.status === "in-progress" ? "Currently Building" : "Live Archive";
 
   return `
     <div class="display-title ${variant}">
-      <div class="display-title-meta">
-        <span class="display-title-index">Project ${escapeHtml(String(projectIndex).padStart(2, "0"))}</span>
-        <span class="display-title-status">${escapeHtml(statusCopy)}</span>
-      </div>
       <${titleTag} class="display-title-text">
         <span class="title-lead">${escapeHtml(parts.lead)}</span>
         ${parts.rest ? `<span class="title-rest">${escapeHtml(parts.rest)}</span>` : ""}
@@ -2012,15 +2341,42 @@ function getProjectExternalLinks(project) {
   const links = [];
   const overrides = PROJECT_LINK_OVERRIDES[project.id] || [];
 
+  if (project.links && typeof project.links === "object") {
+    if (Array.isArray(project.links)) {
+      project.links.forEach((item) => {
+        if (!item?.url) return;
+        links.push({
+          label: item.label || "Link",
+          text: item.text || summarizeLinkHost(item.url),
+          url: item.url
+        });
+      });
+    } else {
+      const candidates = [
+        project.links.github ? { label: "GitHub", url: project.links.github } : null,
+        project.links.live ? { label: "Live", url: project.links.live } : null,
+        project.links.docs ? { label: "Docs", url: project.links.docs } : null,
+        project.links.notion ? { label: "Notion", url: project.links.notion } : null
+      ].filter(Boolean);
+      candidates.forEach((item) => {
+        links.push({
+          label: item.label,
+          text: summarizeLinkHost(item.url),
+          url: item.url
+        });
+      });
+    }
+  }
+
   overrides.forEach((item) => {
     links.push({
       label: item.label,
-      text: item.text || item.url.replace(/^https?:\/\//, ""),
+      text: item.text || summarizeLinkHost(item.url),
       url: item.url
     });
   });
 
-  if (project.path) {
+  if (project.path && !PROJECT_AUTO_LINK_BLOCKLIST.has(project.id)) {
     const mode = /\.[^/]+$/.test(String(project.path)) ? "blob" : "tree";
     const encodedPath = String(project.path)
       .split("/")
@@ -3125,6 +3481,77 @@ async function refreshCommentCounts() {
   renderProjects();
 }
 
+async function saveProjectPatch(projectId, patch) {
+  const project = findProject(projectId);
+  if (!project) return;
+  await api("/api/projects", {
+    method: "POST",
+    body: {
+      project: {
+        ...project,
+        ...patch
+      }
+    }
+  });
+}
+
+async function reorderProject(projectId, direction) {
+  const ordered = getVisibleProjects();
+  const currentIndex = ordered.findIndex((project) => project.id === projectId);
+  const nextIndex = currentIndex + direction;
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= ordered.length) return;
+
+  const normalized = ordered.map((project, index) => ({
+    ...project,
+    manualOrder: index
+  }));
+  const current = normalized[currentIndex];
+  const target = normalized[nextIndex];
+  const currentOrder = current.manualOrder;
+
+  current.manualOrder = target.manualOrder;
+  target.manualOrder = currentOrder;
+
+  try {
+    await Promise.all([
+      saveProjectPatch(current.id, { manualOrder: current.manualOrder }),
+      saveProjectPatch(target.id, { manualOrder: target.manualOrder })
+    ]);
+    await refreshApp();
+  } catch (error) {
+    window.alert(`순서 변경 실패: ${error.message}`);
+  }
+}
+
+async function toggleProjectPin(projectId) {
+  const ordered = getOrderedProjects(state.bootstrap.projects);
+  const target = ordered.find((project) => project.id === projectId);
+  if (!target) return;
+
+  const orders = ordered
+    .map((project) => {
+      if (project.manualOrder === null || project.manualOrder === undefined || project.manualOrder === "") {
+        return null;
+      }
+      const value = Number(project.manualOrder);
+      return Number.isFinite(value) ? value : null;
+    })
+    .filter((value) => value !== null);
+  const minOrder = orders.length ? Math.min(...orders) : 0;
+  const maxOrder = orders.length ? Math.max(...orders) : ordered.length;
+  const nextPinned = !target.pinned;
+
+  try {
+    await saveProjectPatch(projectId, {
+      pinned: nextPinned,
+      manualOrder: nextPinned ? minOrder - 1 : maxOrder + 1
+    });
+    await refreshApp();
+  } catch (error) {
+    window.alert(`핀 변경 실패: ${error.message}`);
+  }
+}
+
 async function recordVisit(surface, projectId = "") {
   try {
     await api("/api/analytics/visit", {
@@ -3162,8 +3589,49 @@ function stopPreviewHover(event) {
   }
 }
 
+function getProjectCarouselSlotCount() {
+  const width = window.innerWidth;
+  if (width >= 1620) return 4;
+  if (width >= 1120) return 3;
+  if (width >= 720) return 2;
+  return 1;
+}
+
+function getProjectCarouselWindow(projects, slotCount = getProjectCarouselSlotCount()) {
+  if (projects.length <= slotCount) {
+    state.carouselStartIndex = 0;
+    return projects;
+  }
+
+  state.carouselStartIndex = ((state.carouselStartIndex % projects.length) + projects.length) % projects.length;
+  return Array.from({ length: slotCount }, (_, offset) => projects[(state.carouselStartIndex + offset) % projects.length]);
+}
+
+function getProjectManualOrder(project) {
+  if (project.manualOrder === null || project.manualOrder === undefined || project.manualOrder === "") {
+    return Number.MAX_SAFE_INTEGER;
+  }
+  const order = Number(project.manualOrder);
+  return Number.isFinite(order) ? order : Number.MAX_SAFE_INTEGER;
+}
+
+function getOrderedProjects(projects) {
+  return [...projects].sort((left, right) => {
+    const pinDiff = Number(Boolean(right.pinned)) - Number(Boolean(left.pinned));
+    if (pinDiff) return pinDiff;
+
+    const orderDiff = getProjectManualOrder(left) - getProjectManualOrder(right);
+    if (orderDiff) return orderDiff;
+
+    const recentDiff = getProjectRecentTimestamp(right) - getProjectRecentTimestamp(left);
+    if (recentDiff) return recentDiff;
+
+    return String(getProjectDisplayName(left)).localeCompare(String(getProjectDisplayName(right)), "ko");
+  });
+}
+
 function getVisibleProjects() {
-  return state.bootstrap.projects
+  return getOrderedProjects(state.bootstrap.projects)
     .filter((project) => {
       if (state.filters.status !== "all" && project.status !== state.filters.status) {
         return false;
@@ -3186,8 +3654,7 @@ function getVisibleProjects() {
         .join(" ")
         .toLowerCase();
       return haystack.includes(state.filters.query);
-    })
-    .sort((left, right) => getProjectRecentTimestamp(right) - getProjectRecentTimestamp(left));
+    });
 }
 
 function getProjectRecentTimestamp(project) {

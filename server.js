@@ -743,6 +743,18 @@ function normalizeProject(project, index) {
     highlights: arrayify(normalizedSource.highlights),
     stack: arrayify(normalizedSource.stack),
     tags: arrayify(normalizedSource.tags),
+    links:
+      normalizedSource.links && typeof normalizedSource.links === "object"
+        ? normalizedSource.links
+        : {},
+    pinned: Boolean(normalizedSource.pinned),
+    manualOrder:
+      normalizedSource.manualOrder !== null &&
+      normalizedSource.manualOrder !== undefined &&
+      normalizedSource.manualOrder !== "" &&
+      Number.isFinite(Number(normalizedSource.manualOrder))
+      ? Number(normalizedSource.manualOrder)
+      : null,
     path: String(normalizedSource.path || ""),
     readme: normalizedSource.readme ? String(normalizedSource.readme) : "",
     detail,

@@ -59,13 +59,15 @@
               </div>
             </div>
 
-            <div class="hero-searchbar">
-              <input id="search-input" type="search" aria-label="project search" />
-              <button id="search-reset" class="search-button" type="button">초기화</button>
+            <div class="hero-controls">
+              <div class="hero-searchbar">
+                <input id="search-input" type="search" aria-label="project search" />
+                <button id="search-reset" class="search-button" type="button">초기화</button>
+              </div>
+              <div id="status-filters" class="chip-row chip-row-status"></div>
             </div>
 
             <div class="filter-wrap">
-              <div id="status-filters" class="chip-row"></div>
               <div id="category-filters" class="chip-row chip-row-muted"></div>
             </div>
           </section>
@@ -80,8 +82,8 @@
               <div class="collection-actions">
                 <div id="collection-meta" class="collection-meta"></div>
                 <div class="carousel-controls" aria-label="project carousel controls">
-                  <button id="project-carousel-prev" class="ghost-button carousel-button" type="button">이전</button>
-                  <button id="project-carousel-next" class="ghost-button carousel-button" type="button">다음</button>
+                  <button id="project-carousel-prev" class="ghost-button carousel-button" type="button" aria-label="이전 카드">‹</button>
+                  <button id="project-carousel-next" class="ghost-button carousel-button" type="button" aria-label="다음 카드">›</button>
                 </div>
               </div>
             </div>
@@ -163,12 +165,12 @@
 
         <section id="timeline-section" class="section-stack">
           <div class="section-heading">
-            <div>
-              <p class="panel-kicker">Timeline</p>
-              <h2>전체 프로젝트 타임라인과 난관 구간</h2>
-              <p class="section-copy">모든 프로젝트를 기간 축에 올리고, 어려움이 있었던 구간과 해결 흐름을 따로 읽을 수 있게 만듭니다. 수정 권한은 관리자에게만 열립니다.</p>
+              <div>
+                <p class="panel-kicker">Timeline</p>
+                <h2>전체 프로젝트 흐름 지도</h2>
+                <p class="section-copy">프로젝트를 실제 작업 시작일 기준 달력 위에 올려두고, 언제 어떤 축의 작업이 몰렸는지 한눈에 읽히게 정리합니다. 수정 권한은 관리자에게만 열립니다.</p>
+              </div>
             </div>
-          </div>
 
           <div class="timeline-layout">
             <article class="glass-panel project-journey-panel">
