@@ -1541,6 +1541,15 @@ function sanitizeProjectInput(input, existingProject) {
   return base;
 }
 
+function resolveNewProjectManualOrder(projects) {
+  const nonPinned = (Array.isArray(projects) ? projects : []).filter((project) => !project?.pinned);
+  const orders = nonPinned
+    .map((project) => Number(project?.manualOrder))
+    .filter((value) => Number.isFinite(value));
+  if (!orders.length) return 0;
+  return Math.min(...orders) - 1;
+}
+
 function sanitizeBlogPostInput(input, existingPost, refreshUpdatedAt = true) {
   const explicitId = String(input.id || existingPost?.id || "").trim();
   const createdAt = existingPost?.createdAt || input.createdAt || new Date().toISOString();
@@ -2104,6 +2113,9 @@ async function handleApi(req, res, url) {
     if (existingIndex >= 0) {
       content.projects[existingIndex] = project;
     } else {
+      if (project.manualOrder === null || project.manualOrder === undefined || project.manualOrder === "") {
+        project.manualOrder = resolveNewProjectManualOrder(content.projects);
+      }
       content.projects.unshift(project);
     }
     await saveContent(content);
