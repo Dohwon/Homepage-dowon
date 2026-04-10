@@ -3178,7 +3178,7 @@ a {
   max-width: 760px;
   margin: 0 auto;
   grid-template-columns: minmax(0, 1fr) auto;
-  --home-control-height: 44px;
+  --home-control-height: 46px;
   gap: 10px;
   align-items: center;
 }
@@ -3188,7 +3188,7 @@ a {
   margin: 0;
   min-height: var(--home-control-height);
   height: var(--home-control-height);
-  padding: 0 8px 0 10px;
+  padding: 4px 8px 4px 10px;
   border-radius: 18px;
   border: 1px solid rgba(89, 135, 244, 0.22);
   background:
@@ -3215,8 +3215,8 @@ a {
 }
 
 #home-section .hero-searchbar input {
-  min-height: 30px;
-  height: 30px;
+  min-height: 36px;
+  height: 36px;
   padding: 0 10px 0 4px;
   font-size: 0.88rem;
   color: #2e3b66;
@@ -3229,8 +3229,8 @@ a {
 
 #home-section .search-button {
   min-width: 56px;
-  min-height: 30px;
-  height: 30px;
+  min-height: 36px;
+  height: 36px;
   padding: 0 10px;
   font-size: 0.72rem;
   border-radius: 14px;
@@ -3255,6 +3255,7 @@ a {
   gap: 4px;
   align-items: stretch;
   min-height: var(--home-control-height);
+  height: var(--home-control-height);
   padding: 4px;
   border-radius: 18px;
   border: 1px solid rgba(89, 135, 244, 0.22);
@@ -3311,18 +3312,23 @@ a {
 #home-section #category-filters {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  max-width: 900px;
+  max-width: 980px;
   gap: 6px;
   align-items: stretch;
+  grid-auto-rows: 34px;
 }
 
 #home-section #category-filters .chip-button {
   width: 100%;
-  min-height: 31px;
-  padding: 4px 10px;
-  font-size: 0.76rem;
-  line-height: 1.1;
+  min-height: 34px;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 0.74rem;
+  line-height: 1;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: center;
 }
 
 #home-section .library-section .panel-kicker {
