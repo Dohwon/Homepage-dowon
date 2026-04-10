@@ -3180,7 +3180,7 @@ a {
   grid-template-columns: minmax(0, 1fr) auto;
   --home-control-height: 46px;
   gap: 10px;
-  align-items: stretch;
+  align-items: end;
 }
 
 #home-section .hero-controls > * {
@@ -3192,6 +3192,7 @@ a {
   margin: 0;
   min-height: var(--home-control-height);
   height: var(--home-control-height);
+  align-self: end;
   padding: 4px 8px 4px 10px;
   border-radius: 18px;
   border: 1px solid rgba(89, 135, 244, 0.22);
@@ -3269,7 +3270,7 @@ a {
     0 14px 28px rgba(63, 101, 186, 0.08),
     inset 0 0 0 1px rgba(255, 255, 255, 0.56);
   box-sizing: border-box;
-  align-self: stretch;
+  align-self: end;
 }
 
 #home-section .chip-button {
