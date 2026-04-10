@@ -1948,6 +1948,9 @@ function renderProjectCard(project) {
     arrayOrEmpty(project.tags)[0] ||
     project.summary;
   const links = getProjectExternalLinks(project);
+  const stackLine = arrayOrEmpty(project.stack).length
+    ? arrayOrEmpty(project.stack).slice(0, 6).join(" · ")
+    : "문서 산출물";
 
   return `
     <article class="project-card" tabindex="0" data-project-id="${escapeHtml(project.id)}">
@@ -1958,22 +1961,13 @@ function renderProjectCard(project) {
         </span>
       </div>
 
+      <div class="card-tools-inline" title="${escapeHtml(stackLine)}">${escapeHtml(stackLine)}</div>
+
       <div class="card-heading card-heading-raised">
         ${renderDisplayTitle(project, "card")}
       </div>
 
       <div class="card-body">
-        <section class="card-section card-section-tools">
-          <strong class="card-section-label">사용한 툴</strong>
-          <div class="tag-row compact">
-            ${arrayOrEmpty(project.stack).length
-              ? arrayOrEmpty(project.stack)
-                  .slice(0, 4)
-                  .map((item) => `<span class="tag-pill">${escapeHtml(item)}</span>`)
-                  .join("")
-              : `<span class="tag-pill">문서 산출물</span>`}
-          </div>
-        </section>
         <section class="card-section card-section-summary">
           <strong class="card-section-label">설명</strong>
           <p class="card-summary">${escapeHtml(project.summary)}</p>
@@ -2315,7 +2309,7 @@ function buildHighlightedTitleMarkup(title) {
   if (!text) return escapeHtml("Project");
 
   const keywordPattern =
-    /(LLM|AI|RAG|STT|CER|NLU|Agent|Prompt|Routing|Log|Archive|Notebook|Schema|Scheduler|Calendar|Toolkit|Morphology|Similarity|Metrics|Automation|형태소|감정|로그|프롬프트|라우팅|스키마|유사도|음성|기록|자동화|평가|달력|스케줄러|아카이브|툴박스)/gi;
+    /(LLM|AI|RAG|STT|CER|NLU|Agent|Prompt|Routing|Log|Archive|Notebook|Schema|Scheduler|Calendar|Toolkit|Morphology|Similarity|Metrics|Automation|Harness|Execution|형태소|감정|로그|프롬프트|라우팅|스키마|유사도|음성|기록|자동화|평가|달력|스케줄러|아카이브|툴박스|하네스)/gi;
   const segments = text.split(keywordPattern).filter(Boolean);
 
   return segments
