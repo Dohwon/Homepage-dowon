@@ -116,66 +116,117 @@
   },
   "projects": [
     {
-      "id": "251104-prompt-auto-evaluation",
-      "name": "251104_prompt_auto_evaluation",
+      "id": "calc-stt-cer-colab",
+      "name": "(SKM) Calc STT CER Notebook",
       "status": "active",
-      "category": "Prompt Evaluation",
-      "summary": "251104_prompt_auto_evaluation 프로젝트 자산.",
+      "category": "Speech Quality Metrics",
+      "summary": "STT CER 계산 및 음성 인식 품질 점검을 위한 Colab 노트북.",
       "highlights": [
-        "프로젝트 스캔 기반 기본 요약"
+        "CER 계산 실험",
+        "음성 인식 품질 지표 점검"
       ],
       "stack": [
-        "Python",
-        "XLSX",
-        "CSV",
-        "JSON"
+        "Jupyter",
+        "Python"
       ],
       "tags": [
-        "Prompt",
-        "Eval",
-        "Automation"
+        "STT",
+        "CER",
+        "Speech",
+        "Notebook"
       ],
-      "path": "projects/251104_prompt_auto_evaluation",
-      "readme": "projects/251104_prompt_auto_evaluation/README.md",
+      "path": "projects/(SKM)Calc_STT_CER_ipynb의_사본.ipynb",
+      "readme": null,
       "detail": {
         "readmeSummary": [
-          "환경: Window + VS Code",
-          "폴더 전체 내 로컬에 다운로드",
-          "폴더 내 파일 수정",
-          "**judge_prompt.txt**: 비교할 프롬프트"
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
         ],
         "workflow": [
           {
-            "step": "테스트 세트 로드",
-            "desc": "sample_tests.csv와 A/B 프롬프트를 입력"
+            "step": "데이터 로드",
+            "desc": "노트북에서 입력 데이터/로그를 불러옴"
           },
           {
-            "step": "A/B 응답 생성",
-            "desc": "각 모델 응답을 병렬 생성"
+            "step": "전처리/특징화",
+            "desc": "분석 목적에 맞게 텍스트/지표를 가공"
           },
           {
-            "step": "Judge 판정",
-            "desc": "winner/confidence/case를 JSON 스키마로 평가"
+            "step": "실험 실행",
+            "desc": "유사도/오류율/분류 등 핵심 실험을 수행"
           },
           {
-            "step": "리포트 산출",
-            "desc": "CSV/JSONL 결과를 저장해 비교/회귀 분석"
+            "step": "결과 해석",
+            "desc": "지표와 사례를 바탕으로 개선 포인트를 정리"
           }
         ],
         "keyFiles": [
-          "projects/251104_prompt_auto_evaluation/README.md",
-          "projects/251104_prompt_auto_evaluation/judge_runner.py",
-          "projects/251104_prompt_auto_evaluation/judge_runner(old, 모델 정해진경우).py",
-          "projects/251104_prompt_auto_evaluation/.env",
-          "projects/251104_prompt_auto_evaluation/.git/HEAD",
-          "projects/251104_prompt_auto_evaluation/.gitignore"
+          "projects/(SKM)Calc_STT_CER_ipynb의_사본.ipynb"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
       },
       "timeline": {
-        "start": "2025-11-06",
-        "end": "2026-03-23",
-        "label": "2025.11 - 2026.03",
+        "start": "2026-02-12",
+        "end": "2026-02-12",
+        "label": "2026.02",
+        "difficultyWindows": [],
+        "milestones": []
+      }
+    },
+    {
+      "id": "morpheme-analysis-notebook",
+      "name": "학습데이터 형태소 분석기 노트북",
+      "status": "active",
+      "category": "NLU Data Analysis",
+      "summary": "학습 데이터에 대한 형태소 분석 실험 노트북으로, 토큰 기반 분석과 품질 점검 흐름을 담고 있음.",
+      "highlights": [
+        "형태소 단위 데이터 관찰",
+        "학습 데이터 품질 체크",
+        "탐색형 분석 워크플로우"
+      ],
+      "stack": [
+        "Jupyter",
+        "Python",
+        "NLP"
+      ],
+      "tags": [
+        "NLU",
+        "Morphology",
+        "Notebook",
+        "Data"
+      ],
+      "path": "projects/250731_학습데이터_형태소분석기.ipynb",
+      "readme": null,
+      "detail": {
+        "readmeSummary": [
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
+        ],
+        "workflow": [
+          {
+            "step": "데이터 로드",
+            "desc": "노트북에서 입력 데이터/로그를 불러옴"
+          },
+          {
+            "step": "전처리/특징화",
+            "desc": "분석 목적에 맞게 텍스트/지표를 가공"
+          },
+          {
+            "step": "실험 실행",
+            "desc": "유사도/오류율/분류 등 핵심 실험을 수행"
+          },
+          {
+            "step": "결과 해석",
+            "desc": "지표와 사례를 바탕으로 개선 포인트를 정리"
+          }
+        ],
+        "keyFiles": [
+          "projects/250731_학습데이터_형태소분석기.ipynb"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2025-11-09",
+        "end": "2025-11-09",
+        "label": "2025.11",
         "difficultyWindows": [],
         "milestones": []
       }
@@ -244,8 +295,8 @@
       },
       "timeline": {
         "start": "2026-02-12",
-        "end": "2026-04-10",
-        "label": "2026.02 - 2026.04",
+        "end": "2026-03-19",
+        "label": "2026.02 - 2026.03",
         "difficultyWindows": [],
         "milestones": []
       }
@@ -269,46 +320,43 @@
         "Analytics"
       ],
       "path": "projects/260218_ope_log_anlayze",
-      "readme": "projects/260218_ope_log_anlayze/README.md",
+      "readme": null,
       "detail": {
         "readmeSummary": [
-          "운영 로그를 수집/가공해 이슈 원인과 우선순위를 빠르게 파악하기 위한 분석 프로젝트입니다.",
-          "`docs/`: 분석 문서 및 가이드",
-          "로그 기반 장애/이상 패턴 추적",
-          "기능별 수요 및 이슈 신호 정리"
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
         ],
         "workflow": [
           {
-            "step": "입력 준비",
-            "desc": "README 기준 입력 파일/파라미터를 준비"
+            "step": "입력 확인",
+            "desc": "프로젝트 입력 데이터/의존성을 확인"
           },
           {
-            "step": "핵심 실행",
-            "desc": "메인 스크립트 또는 엔트리포인트를 실행"
+            "step": "처리 실행",
+            "desc": "주요 코드 또는 노트북 셀을 실행"
           },
           {
-            "step": "결과 저장",
-            "desc": "산출물 파일(JSON/CSV/로그 등) 생성"
+            "step": "결과 확인",
+            "desc": "산출물/로그를 점검해 품질을 판단"
           },
           {
-            "step": "검토",
-            "desc": "결과를 검토해 다음 개선 작업으로 연결"
+            "step": "개선 반영",
+            "desc": "문제점 기반으로 다음 수정안을 도출"
           }
         ],
         "keyFiles": [
-          "projects/260218_ope_log_anlayze/README.md",
           "projects/260218_ope_log_anlayze/ope_log_handoff_to_codex.md",
           "projects/260218_ope_log_anlayze/docs/A1_llm_conversation_dashboard_sql.md",
           "projects/260218_ope_log_anlayze/docs/worklogs/2026-02-18_a1-llm-dashboard-analysis.md",
-          "projects/260218_ope_log_anlayze/.git/HEAD",
-          "projects/260218_ope_log_anlayze/.gitignore"
+          "projects/260218_ope_log_anlayze/260130-운영계-대화기록-01월.csv",
+          "projects/260218_ope_log_anlayze/dynamodb_테이블정의서 (2).xlsx",
+          "projects/260218_ope_log_anlayze/250107-운영계-대화기록-1월_7일.csv"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-01-07",
-        "end": "2026-03-23",
-        "label": "2026.01 - 2026.03",
+        "end": "2026-02-18",
+        "label": "2026.01 - 2026.02",
         "difficultyWindows": [],
         "milestones": []
       }
@@ -325,8 +373,7 @@
       "stack": [
         "Python",
         "XLSX",
-        "CSV",
-        "JSON"
+        "CSV"
       ],
       "tags": [
         "Prompt",
@@ -362,27 +409,149 @@
         ],
         "keyFiles": [
           "projects/260315_MoE_Prompt_Routing/README.md",
-          "projects/260315_MoE_Prompt_Routing/A2A_TEST/10.STAGE2_EXPERTS/README.md",
-          "projects/260315_MoE_Prompt_Routing/prompts/runtime/a2a_stage2/README.md",
-          "projects/260315_MoE_Prompt_Routing/backups/local_20260322_185202/README.md",
-          "projects/260315_MoE_Prompt_Routing/backups/local_20260322_192610/README.md",
-          "projects/260315_MoE_Prompt_Routing/tools/__init__.py"
+          "projects/260315_MoE_Prompt_Routing/tools/__init__.py",
+          "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/cli.py",
+          "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/common.py",
+          "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/harness.py",
+          "projects/260315_MoE_Prompt_Routing/tools/prompt_eval/workbook.py"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-10-28",
-        "end": "2026-04-10",
-        "label": "2025.10 - 2026.04",
+        "end": "2026-03-19",
+        "label": "2025.10 - 2026.03",
         "difficultyWindows": [],
         "milestones": []
       }
     },
     {
-      "id": "260315-moe-prompt-routing",
-      "name": "260315_MoE_Prompt_Routing",
+      "id": "260317-desktop-scheduler",
+      "name": "260317_desktop_scheduler",
+      "status": "in-progress",
+      "category": "General",
+      "summary": "260317_desktop_scheduler 프로젝트 자산.",
+      "highlights": [
+        "프로젝트 스캔 기반 기본 요약"
+      ],
+      "stack": [
+        "Python"
+      ],
+      "tags": [
+        "Project"
+      ],
+      "path": "projects/260317_desktop_scheduler",
+      "readme": "projects/260317_desktop_scheduler/README.md",
+      "detail": {
+        "readmeSummary": [
+          "진행중 프로젝트. Windows 바탕화면에서 아이콘을 눌러 바로 실행할 수 있는 월간 체크리스트 스케줄러다.",
+          "월별 달력에서 날짜별 일정 수와 주간 흐름을 한눈에 확인",
+          "매일 체크리스트를 추가, 수정, 조회, 삭제하고 완료 체크 가능",
+          "일정 연기와 `미루기 / 보류 / 언젠가` 같은 상태 관리 지원"
+        ],
+        "workflow": [
+          {
+            "step": "입력 준비",
+            "desc": "README 기준 입력 파일/파라미터를 준비"
+          },
+          {
+            "step": "핵심 실행",
+            "desc": "메인 스크립트 또는 엔트리포인트를 실행"
+          },
+          {
+            "step": "결과 저장",
+            "desc": "산출물 파일(JSON/CSV/로그 등) 생성"
+          },
+          {
+            "step": "검토",
+            "desc": "결과를 검토해 다음 개선 작업으로 연결"
+          }
+        ],
+        "keyFiles": [
+          "projects/260317_desktop_scheduler/README.md",
+          "projects/260317_desktop_scheduler/AGENTS.md",
+          "projects/260317_desktop_scheduler/src/app.py",
+          "projects/260317_desktop_scheduler/src/storage.py",
+          "projects/260317_desktop_scheduler/src/__init__.py",
+          "projects/260317_desktop_scheduler/src/reminders.py"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2026-03-17",
+        "end": "2026-03-19",
+        "label": "2026.03",
+        "difficultyWindows": [],
+        "milestones": []
+      }
+    },
+    {
+      "id": "260319-llm-tool-hub",
+      "name": "260319_llm_tool_hub",
+      "status": "in-progress",
+      "category": "AI Workflow Hub",
+      "summary": "260319_llm_tool_hub 프로젝트 자산.",
+      "highlights": [
+        "프로젝트 스캔 기반 기본 요약"
+      ],
+      "stack": [
+        "Python",
+        "YAML",
+        "JSON"
+      ],
+      "tags": [
+        "Project"
+      ],
+      "path": "projects/260319_llm_tool_hub",
+      "readme": "projects/260319_llm_tool_hub/README.md",
+      "detail": {
+        "readmeSummary": [
+          "LLM 모델, 코딩 에이전트 툴, 프로젝트 런타임, 전역 메모리 어댑터를 한 화면에서 관리하는 경량 허브다.",
+          "Public URL: `https://celebrated-enjoyment-production.up.railway.app/`",
+          "주요 LLM 모델과 툴의 최신 버전/강점/약점/추천 상황을 한 곳에 정리",
+          "프로젝트별로 어떤 모델/툴 조합이 맞는지 빠르게 추천"
+        ],
+        "workflow": [
+          {
+            "step": "입력 준비",
+            "desc": "README 기준 입력 파일/파라미터를 준비"
+          },
+          {
+            "step": "핵심 실행",
+            "desc": "메인 스크립트 또는 엔트리포인트를 실행"
+          },
+          {
+            "step": "결과 저장",
+            "desc": "산출물 파일(JSON/CSV/로그 등) 생성"
+          },
+          {
+            "step": "검토",
+            "desc": "결과를 검토해 다음 개선 작업으로 연결"
+          }
+        ],
+        "keyFiles": [
+          "projects/260319_llm_tool_hub/README.md",
+          "projects/260319_llm_tool_hub/server.py",
+          "projects/260319_llm_tool_hub/AGENTS.md",
+          "projects/260319_llm_tool_hub/docs/memory-bridge.md",
+          "projects/260319_llm_tool_hub/scripts/update_registry.py",
+          "projects/260319_llm_tool_hub/scripts/sync_global_memory.py"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2026-03-19",
+        "end": "2026-03-19",
+        "label": "2026.03",
+        "difficultyWindows": [],
+        "milestones": []
+      }
+    },
+    {
+      "id": "dowon-codex-manager-memory-work-summary-v4",
+      "name": "dowon_codex_manager_memory_work_summary.v4",
       "status": "active",
-      "category": "Prompt Evaluation",
+      "category": "General",
       "summary": "단일 파일 실험/분석 자산.",
       "highlights": [
         "파일 기반 실험"
@@ -391,11 +560,9 @@
         "Unknown"
       ],
       "tags": [
-        "Prompt",
-        "Eval",
-        "Automation"
+        "Project"
       ],
-      "path": "projects/260315_MoE_Prompt_Routing.zip",
+      "path": "projects/dowon_codex_manager_memory_work_summary.v4.md",
       "readme": null,
       "detail": {
         "readmeSummary": [
@@ -420,312 +587,14 @@
           }
         ],
         "keyFiles": [
-          "projects/260315_MoE_Prompt_Routing.zip"
+          "projects/dowon_codex_manager_memory_work_summary.v4.md"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
       },
       "timeline": {
-        "start": "2026-03-22",
-        "end": "2026-03-22",
-        "label": "2026.03",
-        "difficultyWindows": [],
-        "milestones": []
-      }
-    },
-    {
-      "id": "central-memory-prompt-kit",
-      "name": "Central Memory Prompt Kit",
-      "status": "active",
-      "category": "AI Workflow Memory System",
-      "summary": "여러 AI 툴에서 공통으로 쓰는 중앙 메모리(사용자 성향 + long/mid/short 작업 상태 + 핸드오버 패킷) 템플릿 키트.",
-      "highlights": [
-        "Tool-agnostic system prompt + profile compact 템플릿",
-        "AGENTS/CLAUDE/GEMINI/Cursor/Windsurf 어댑터 생성",
-        "프로젝트별 PROJECT_MEMORY_LINK로 중앙 참조 고정"
-      ],
-      "stack": [
-        "Markdown",
-        "JSON Schema",
-        "Python",
-        "Bash"
-      ],
-      "tags": [
-        "Memory",
-        "Prompt",
-        "Handover",
-        "AgentOps"
-      ],
-      "path": "projects/260324_central_memory_prompt_kit",
-      "readme": "projects/260324_central_memory_prompt_kit/README.md",
-      "detail": {
-        "readmeSummary": [
-          "에이전트 작업기억을 한 장으로 묶는 실험이자, 여러 AI 툴과 사람 협업자가 같은 운영 문서를 재사용할 수 있게 만드는 중앙 메모리 프롬프트 키트다.",
-          "여러 AI 툴과 사람 협업자 사이에서 손실 없는 인수인계를 만드는 중앙 메모리 체계를 만든다.",
-          "툴별 어댑터만 제공하는 수준을 넘어서, 누구나 가져가 자기 회사/자기 운영 방식을 만들 수 있는 프롬프트 상품 묶음을 만든다.",
-          "`owner profile`, `skill profile`, `company operating model`, `project rules`, `worklog archive`를 모두 Markdown 중심으로 재생산 가능하게 만든다."
-        ],
-        "workflow": [
-          {
-            "step": "입력 준비",
-            "desc": "README 기준 입력 파일/파라미터를 준비"
-          },
-          {
-            "step": "핵심 실행",
-            "desc": "메인 스크립트 또는 엔트리포인트를 실행"
-          },
-          {
-            "step": "결과 저장",
-            "desc": "산출물 파일(JSON/CSV/로그 등) 생성"
-          },
-          {
-            "step": "검토",
-            "desc": "결과를 검토해 다음 개선 작업으로 연결"
-          }
-        ],
-        "keyFiles": [
-          "projects/260324_central_memory_prompt_kit/README.md",
-          "projects/260324_central_memory_prompt_kit/prompts/README.md",
-          "projects/260324_central_memory_prompt_kit/skill_docs/README.md",
-          "projects/260324_central_memory_prompt_kit/manager_memory/README.md",
-          "projects/260324_central_memory_prompt_kit/node_modules/ms/readme.md",
-          "projects/260324_central_memory_prompt_kit/.next/standalone/README.md"
-        ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
-      },
-      "timeline": {
-        "start": "2026-03-24",
-        "end": "2026-04-09",
-        "label": "2026.03 - 2026.04",
-        "difficultyWindows": [],
-        "milestones": []
-      }
-    },
-    {
-      "id": "260329-tmap-clone",
-      "name": "260329_tmap_clone",
-      "status": "in-progress",
-      "category": "General",
-      "summary": "260329_tmap_clone 프로젝트 자산.",
-      "highlights": [
-        "프로젝트 스캔 기반 기본 요약"
-      ],
-      "stack": [
-        "YAML",
-        "JSON"
-      ],
-      "tags": [
-        "Project"
-      ],
-      "path": "projects/260329_tmap_clone",
-      "readme": "projects/260329_tmap_clone/README.md",
-      "detail": {
-        "readmeSummary": [
-          "iOS 26 / iPhone 16 Pro 기준 T맵 클론 앱.",
-          "SwiftUI + MapKit 기반으로 T맵의 핵심 UI와 기능을 재현합니다.",
-          "| 기능 | 상태 |",
-          "|------|------|"
-        ],
-        "workflow": [
-          {
-            "step": "입력 준비",
-            "desc": "README 기준 입력 파일/파라미터를 준비"
-          },
-          {
-            "step": "핵심 실행",
-            "desc": "메인 스크립트 또는 엔트리포인트를 실행"
-          },
-          {
-            "step": "결과 저장",
-            "desc": "산출물 파일(JSON/CSV/로그 등) 생성"
-          },
-          {
-            "step": "검토",
-            "desc": "결과를 검토해 다음 개선 작업으로 연결"
-          }
-        ],
-        "keyFiles": [
-          "projects/260329_tmap_clone/README.md",
-          "projects/260329_tmap_clone/outputs/linkedin_1st/README.md",
-          "projects/260329_tmap_clone/TmapCloneWeb/node_modules/qs/README.md",
-          "projects/260329_tmap_clone/TmapCloneWeb/node_modules/ms/readme.md",
-          "projects/260329_tmap_clone/TmapCloneWeb/node_modules/mz/README.md",
-          "projects/260329_tmap_clone/TmapCloneWeb/node_modules/ejs/README.md"
-        ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
-      },
-      "timeline": {
-        "start": "2026-03-29",
-        "end": "2026-04-10",
-        "label": "2026.03 - 2026.04",
-        "difficultyWindows": [],
-        "milestones": []
-      }
-    },
-    {
-      "id": "keyboard-piano",
-      "name": "Keyboard Piano",
-      "status": "active",
-      "category": "Interactive Audio UI",
-      "summary": "일반 타이핑 키보드에서 J를 도(C4) 중심으로 잡고, 흰건반/검은건반 배치를 다시 설계해 실제로 연주 감각이 나도록 만든 그랜드 피아노 웹 앱.",
-      "highlights": [
-        "J = 도(C4)를 기준으로 메인 줄 흰건반, 윗줄 검은건반 구조를 재배치",
-        "검은건반으로 보이는 키도 모두 실제 음이 나도록 매핑 누락 없이 정리",
-        "로컬 그랜드 피아노 샘플과 리버브를 붙여 브라우저 안에서 더 악기다운 톤 구현"
-      ],
-      "stack": [
-        "HTML",
-        "CSS",
-        "JavaScript",
-        "Web Audio API",
-        "Audio Samples"
-      ],
-      "tags": [
-        "Keyboard Piano",
-        "Web Audio",
-        "Interactive UI",
-        "Audio UX"
-      ],
-      "path": "projects/260410_keyboard_piano",
-      "readme": "projects/260410_keyboard_piano/README.md",
-      "detail": {
-        "readmeSummary": [
-          "이 프로젝트는 일반 타이핑 키보드에서 피아노처럼 연주할 때 어디를 도 중심으로 잡아야 손이 자연스러운지부터 다시 설계한 웹 앱입니다.",
-          "J를 C4로 고정한 뒤 메인 줄은 흰건반, 윗줄은 검은건반으로 나누고, 보이는 건반은 전부 실제 소리가 나게 정리했습니다.",
-          "초기 신스 톤에서 멈추지 않고 로컬 그랜드 피아노 샘플과 리버브를 붙여 브라우저 안에서도 더 예쁜 피아노 톤이 나게 다듬었습니다."
-        ],
-        "keyFiles": [
-          "projects/260410_keyboard_piano/index.html",
-          "projects/260410_keyboard_piano/styles.css",
-          "projects/260410_keyboard_piano/app.js",
-          "projects/260410_keyboard_piano/README.md"
-        ],
-        "diagramCaption": "키보드 기준축 설정 -> 흰건반/검은건반 매핑 -> 샘플 기반 피아노 재생으로 이어지는 브라우저 악기 흐름"
-      },
-      "timeline": {
-        "start": "2026-04-10",
-        "end": "2026-04-10",
-        "label": "2026.04",
-        "difficultyWindows": [],
-        "milestones": []
-      }
-    },
-    {
-      "id": "a2a-test",
-      "name": "A2A_TEST",
-      "status": "active",
-      "category": "General",
-      "summary": "A2A_TEST 프로젝트 자산.",
-      "highlights": [
-        "프로젝트 스캔 기반 기본 요약"
-      ],
-      "stack": [
-        "Python",
-        "XLSX",
-        "CSV",
-        "JSON"
-      ],
-      "tags": [
-        "Project"
-      ],
-      "path": "projects/A2A_TEST",
-      "readme": null,
-      "detail": {
-        "readmeSummary": [
-          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
-        ],
-        "workflow": [
-          {
-            "step": "입력 확인",
-            "desc": "프로젝트 입력 데이터/의존성을 확인"
-          },
-          {
-            "step": "처리 실행",
-            "desc": "주요 코드 또는 노트북 셀을 실행"
-          },
-          {
-            "step": "결과 확인",
-            "desc": "산출물/로그를 점검해 품질을 판단"
-          },
-          {
-            "step": "개선 반영",
-            "desc": "문제점 기반으로 다음 수정안을 도출"
-          }
-        ],
-        "keyFiles": [
-          "projects/A2A_TEST/10.STAGE2_EXPERTS/README.md",
-          "projects/A2A_TEST/06.v20_v21_정밀분석.md",
-          "projects/A2A_TEST/1.MAIN/subagent.py",
-          "projects/A2A_TEST/4.ODL/validator.py",
-          "projects/A2A_TEST/05.반복작업_worklist.md",
-          "projects/A2A_TEST/00.변경내역_2026-03-22.md"
-        ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
-      },
-      "timeline": {
-        "start": "2026-03-22",
-        "end": "2026-03-25",
-        "label": "2026.03",
-        "difficultyWindows": [],
-        "milestones": []
-      }
-    },
-    {
-      "id": "finish",
-      "name": "finish",
-      "status": "active",
-      "category": "General",
-      "summary": "finish 프로젝트 자산.",
-      "highlights": [
-        "프로젝트 스캔 기반 기본 요약"
-      ],
-      "stack": [
-        "Python",
-        "Jupyter",
-        "YAML",
-        "CSV",
-        "JSON"
-      ],
-      "tags": [
-        "Project"
-      ],
-      "path": "projects/finish",
-      "readme": null,
-      "detail": {
-        "readmeSummary": [
-          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
-        ],
-        "workflow": [
-          {
-            "step": "입력 확인",
-            "desc": "프로젝트 입력 데이터/의존성을 확인"
-          },
-          {
-            "step": "처리 실행",
-            "desc": "주요 코드 또는 노트북 셀을 실행"
-          },
-          {
-            "step": "결과 확인",
-            "desc": "산출물/로그를 점검해 품질을 판단"
-          },
-          {
-            "step": "개선 반영",
-            "desc": "문제점 기반으로 다음 수정안을 도출"
-          }
-        ],
-        "keyFiles": [
-          "projects/finish/260319_llm_tool_hub/README.md",
-          "projects/finish/260401_wine_cellar_scan/README.md",
-          "projects/finish/260317_desktop_scheduler/README.md",
-          "projects/finish/260321_memento_mori_archive/README.md",
-          "projects/finish/260408_ideal_type_editorial/README.md",
-          "projects/finish/260319_llm_tool_hub/extensions/README.md"
-        ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
-      },
-      "timeline": {
-        "start": "2025-05-08",
-        "end": "2026-04-08",
-        "label": "2025.05 - 2026.04",
+        "start": "2026-02-12",
+        "end": "2026-02-12",
+        "label": "2026.02",
         "difficultyWindows": [],
         "milestones": []
       }
@@ -792,58 +661,8 @@
       },
       "timeline": {
         "start": "2026-02-10",
-        "end": "2026-04-10",
-        "label": "2026.02 - 2026.04",
-        "difficultyWindows": [],
-        "milestones": []
-      }
-    },
-    {
-      "id": "ing",
-      "name": "ing",
-      "status": "active",
-      "category": "General",
-      "summary": "ing 프로젝트 자산.",
-      "highlights": [
-        "프로젝트 스캔 기반 기본 요약"
-      ],
-      "stack": [
-        "Unknown"
-      ],
-      "tags": [
-        "Project"
-      ],
-      "path": "projects/ing",
-      "readme": null,
-      "detail": {
-        "readmeSummary": [
-          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
-        ],
-        "workflow": [
-          {
-            "step": "입력 확인",
-            "desc": "프로젝트 입력 데이터/의존성을 확인"
-          },
-          {
-            "step": "처리 실행",
-            "desc": "주요 코드 또는 노트북 셀을 실행"
-          },
-          {
-            "step": "결과 확인",
-            "desc": "산출물/로그를 점검해 품질을 판단"
-          },
-          {
-            "step": "개선 반영",
-            "desc": "문제점 기반으로 다음 수정안을 도출"
-          }
-        ],
-        "keyFiles": [],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
-      },
-      "timeline": {
-        "start": "",
-        "end": "",
-        "label": "기간 추적중",
+        "end": "2026-03-19",
+        "label": "2026.02 - 2026.03",
         "difficultyWindows": [],
         "milestones": []
       }
@@ -872,11 +691,10 @@
         "ETL"
       ],
       "path": "projects/Operation_log_analayzer",
-      "readme": "projects/Operation_log_analayzer/README.md",
+      "readme": null,
       "detail": {
         "readmeSummary": [
-          "이 저장소는 - 프로젝트 루트: `Operation_log_analayzer`- 상태: active",
-          "2026-03-23"
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
         ],
         "workflow": [
           {
@@ -897,74 +715,19 @@
           }
         ],
         "keyFiles": [
-          "projects/Operation_log_analayzer/README.md",
           "projects/Operation_log_analayzer/judge_search.py",
           "projects/Operation_log_analayzer/process_logs.py",
           "projects/Operation_log_analayzer/process_logs_v3.py",
           "projects/Operation_log_analayzer/analyze_business_insights.py",
-          "projects/Operation_log_analayzer/manager_memory/short-term/active-tasks.md"
+          "projects/Operation_log_analayzer/manager_memory/short-term/active-tasks.md",
+          "projects/Operation_log_analayzer/manager_memory/long-term/strategy-roadmap.md"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-12-31",
-        "end": "2026-03-23",
+        "end": "2026-03-09",
         "label": "2025.12 - 2026.03",
-        "difficultyWindows": [],
-        "milestones": []
-      }
-    },
-    {
-      "id": "personal-essay-writer-ko",
-      "name": "personal-essay-writer-ko",
-      "status": "active",
-      "category": "General",
-      "summary": "personal-essay-writer-ko 프로젝트 자산.",
-      "highlights": [
-        "프로젝트 스캔 기반 기본 요약"
-      ],
-      "stack": [
-        "YAML"
-      ],
-      "tags": [
-        "Project"
-      ],
-      "path": "projects/personal-essay-writer-ko",
-      "readme": null,
-      "detail": {
-        "readmeSummary": [
-          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
-        ],
-        "workflow": [
-          {
-            "step": "입력 확인",
-            "desc": "프로젝트 입력 데이터/의존성을 확인"
-          },
-          {
-            "step": "처리 실행",
-            "desc": "주요 코드 또는 노트북 셀을 실행"
-          },
-          {
-            "step": "결과 확인",
-            "desc": "산출물/로그를 점검해 품질을 판단"
-          },
-          {
-            "step": "개선 반영",
-            "desc": "문제점 기반으로 다음 수정안을 도출"
-          }
-        ],
-        "keyFiles": [
-          "projects/personal-essay-writer-ko/SKILL.md",
-          "projects/personal-essay-writer-ko/agents/openai.yaml",
-          "projects/personal-essay-writer-ko/references/writing-profile.md",
-          "projects/personal-essay-writer-ko/.gitignore"
-        ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
-      },
-      "timeline": {
-        "start": "2026-03-21",
-        "end": "2026-03-22",
-        "label": "2026.03",
         "difficultyWindows": [],
         "milestones": []
       }
@@ -1022,6 +785,74 @@
       }
     },
     {
+      "id": "prompt-auto-evaluation",
+      "name": "Prompt Auto Evaluation",
+      "status": "active",
+      "category": "Prompt Evaluation",
+      "summary": "두 모델(A/B)의 응답을 Judge 모델로 비교 평가해 winner/confidence/case를 산출하는 자동 평가 파이프라인.",
+      "highlights": [
+        "A/B 모델 비교 + Judge JSON 판정",
+        "CSV 테스트 입력, CSV/JSONL 결과 출력",
+        "운영형 프롬프트 품질 점검"
+      ],
+      "stack": [
+        "Python",
+        "OpenAI API",
+        "CSV",
+        "JSONL"
+      ],
+      "tags": [
+        "Prompt",
+        "Eval",
+        "Automation",
+        "LLM"
+      ],
+      "path": "projects/Prompt_Auto_Evaluation",
+      "readme": "projects/Prompt_Auto_Evaluation/README.md",
+      "detail": {
+        "readmeSummary": [
+          "환경: Window + VS Code",
+          "폴더 전체 내 로컬에 다운로드",
+          "폴더 내 파일 수정",
+          "**judge_prompt.txt**: 비교할 프롬프트"
+        ],
+        "workflow": [
+          {
+            "step": "테스트 세트 로드",
+            "desc": "sample_tests.csv와 A/B 프롬프트를 입력"
+          },
+          {
+            "step": "A/B 응답 생성",
+            "desc": "각 모델 응답을 병렬 생성"
+          },
+          {
+            "step": "Judge 판정",
+            "desc": "winner/confidence/case를 JSON 스키마로 평가"
+          },
+          {
+            "step": "리포트 산출",
+            "desc": "CSV/JSONL 결과를 저장해 비교/회귀 분석"
+          }
+        ],
+        "keyFiles": [
+          "projects/Prompt_Auto_Evaluation/README.md",
+          "projects/Prompt_Auto_Evaluation/judge_runner.py",
+          "projects/Prompt_Auto_Evaluation/judge_runner(old, 모델 정해진경우).py",
+          "projects/Prompt_Auto_Evaluation/.env",
+          "projects/Prompt_Auto_Evaluation/env.template",
+          "projects/Prompt_Auto_Evaluation/judge_prompt.txt"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2025-11-04",
+        "end": "2025-12-12",
+        "label": "2025.11 - 2025.12",
+        "difficultyWindows": [],
+        "milestones": []
+      }
+    },
+    {
       "id": "scripts",
       "name": "scripts",
       "status": "active",
@@ -1062,17 +893,14 @@
         ],
         "keyFiles": [
           "projects/scripts/create_project.sh",
-          "projects/scripts/version_work_summary.sh",
-          "projects/scripts/project_repo_autosync.sh",
-          "projects/scripts/create_and_push_selected_repos.sh",
-          "projects/scripts/install_projects_autosync_cron.sh"
+          "projects/scripts/version_work_summary.sh"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
       },
       "timeline": {
         "start": "2026-02-12",
-        "end": "2026-03-23",
-        "label": "2026.02 - 2026.03",
+        "end": "2026-02-12",
+        "label": "2026.02",
         "difficultyWindows": [],
         "milestones": []
       }
@@ -1100,13 +928,10 @@
         "Corpus"
       ],
       "path": "projects/Semantic_Verb_Schema",
-      "readme": "projects/Semantic_Verb_Schema/README.md",
+      "readme": null,
       "detail": {
         "readmeSummary": [
-          "최종 유지 버전은 아래 4개 사전이다.",
-          "`dictionary/substitution_dict.json`",
-          "`dictionary/contains.json`",
-          "`dictionary/contains_token.json`"
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
         ],
         "workflow": [
           {
@@ -1127,76 +952,19 @@
           }
         ],
         "keyFiles": [
-          "projects/Semantic_Verb_Schema/README.md",
-          "projects/Semantic_Verb_Schema/archive/final_release_20260319/root/file_sets/README.md",
-          "projects/Semantic_Verb_Schema/project_memory/overview.md",
-          "projects/Semantic_Verb_Schema/project_memory/phase_pre_summary.md",
-          "projects/Semantic_Verb_Schema/project_memory/phase_mid_summary.md",
-          "projects/Semantic_Verb_Schema/project_memory/phase_final_summary.md"
+          "projects/Semantic_Verb_Schema/file_sets/README.md",
+          "projects/Semantic_Verb_Schema/fc_dict.py",
+          "projects/Semantic_Verb_Schema/split_corpus.py",
+          "projects/Semantic_Verb_Schema/mcp_build_spec.md",
+          "projects/Semantic_Verb_Schema/fc_json_to_tsv.py",
+          "projects/Semantic_Verb_Schema/retag_with_kiwi.py"
         ],
         "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
       },
       "timeline": {
         "start": "2025-10-28",
-        "end": "2026-03-29",
+        "end": "2026-03-19",
         "label": "2025.10 - 2026.03",
-        "difficultyWindows": [],
-        "milestones": []
-      }
-    },
-    {
-      "id": "tmp",
-      "name": "tmp",
-      "status": "active",
-      "category": "General",
-      "summary": "tmp 프로젝트 자산.",
-      "highlights": [
-        "프로젝트 스캔 기반 기본 요약"
-      ],
-      "stack": [
-        "JSON"
-      ],
-      "tags": [
-        "Project"
-      ],
-      "path": "projects/tmp",
-      "readme": null,
-      "detail": {
-        "readmeSummary": [
-          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
-        ],
-        "workflow": [
-          {
-            "step": "입력 확인",
-            "desc": "프로젝트 입력 데이터/의존성을 확인"
-          },
-          {
-            "step": "처리 실행",
-            "desc": "주요 코드 또는 노트북 셀을 실행"
-          },
-          {
-            "step": "결과 확인",
-            "desc": "산출물/로그를 점검해 품질을 판단"
-          },
-          {
-            "step": "개선 반영",
-            "desc": "문제점 기반으로 다음 수정안을 도출"
-          }
-        ],
-        "keyFiles": [
-          "projects/tmp/portfolio-blog-post.json",
-          "projects/tmp/project_repo_autosync.log",
-          "projects/tmp/portfolio-homepage-blog-update/app.js",
-          "projects/tmp/portfolio-blog-writer-ko-test-seed.json",
-          "projects/tmp/portfolio-homepage-blog-update/styles.css",
-          "projects/tmp/portfolio-homepage-blog-update/data/blog-posts.json"
-        ],
-        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
-      },
-      "timeline": {
-        "start": "2026-03-20",
-        "end": "2026-03-31",
-        "label": "2026.03",
         "difficultyWindows": [],
         "milestones": []
       }
@@ -1257,8 +1025,61 @@
       },
       "timeline": {
         "start": "2026-02-15",
-        "end": "2026-04-10",
-        "label": "2026.02 - 2026.04",
+        "end": "2026-03-19",
+        "label": "2026.02 - 2026.03",
+        "difficultyWindows": [],
+        "milestones": []
+      }
+    },
+    {
+      "id": "work-summary-versions",
+      "name": "work_summary_versions",
+      "status": "active",
+      "category": "General",
+      "summary": "work_summary_versions 프로젝트 자산.",
+      "highlights": [
+        "프로젝트 스캔 기반 기본 요약"
+      ],
+      "stack": [
+        "Unknown"
+      ],
+      "tags": [
+        "Project"
+      ],
+      "path": "projects/work_summary_versions",
+      "readme": null,
+      "detail": {
+        "readmeSummary": [
+          "README가 없어 파일/코드 구조 기반으로 요약했습니다."
+        ],
+        "workflow": [
+          {
+            "step": "입력 확인",
+            "desc": "프로젝트 입력 데이터/의존성을 확인"
+          },
+          {
+            "step": "처리 실행",
+            "desc": "주요 코드 또는 노트북 셀을 실행"
+          },
+          {
+            "step": "결과 확인",
+            "desc": "산출물/로그를 점검해 품질을 판단"
+          },
+          {
+            "step": "개선 반영",
+            "desc": "문제점 기반으로 다음 수정안을 도출"
+          }
+        ],
+        "keyFiles": [
+          "projects/work_summary_versions/dowon_codex_manager_memory_work_summary.v6.md",
+          "projects/work_summary_versions/dowon_codex_manager_memory_work_summary.v5.md"
+        ],
+        "diagramCaption": "입력 -> 처리 -> 평가/검증 -> 결과/개선 흐름"
+      },
+      "timeline": {
+        "start": "2026-02-12",
+        "end": "2026-02-12",
+        "label": "2026.02",
         "difficultyWindows": [],
         "milestones": []
       }
