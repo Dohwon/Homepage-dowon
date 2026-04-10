@@ -41,6 +41,8 @@ const elements = {
   statusFilters: document.getElementById("status-filters"),
   categoryFilters: document.getElementById("category-filters"),
   collectionMeta: document.getElementById("collection-meta"),
+  projectCarouselPrev: document.getElementById("project-carousel-prev"),
+  projectCarouselNext: document.getElementById("project-carousel-next"),
   projectGrid: document.getElementById("project-grid"),
   timelineLegend: document.getElementById("timeline-legend"),
   projectTimelineMap: document.getElementById("project-timeline-map"),
@@ -201,6 +203,17 @@ function bindEvents() {
     renderFilters();
     renderProjects();
   });
+
+  elements.projectCarouselPrev?.addEventListener("click", () => {
+    scrollProjectCarousel(-1);
+  });
+
+  elements.projectCarouselNext?.addEventListener("click", () => {
+    scrollProjectCarousel(1);
+  });
+
+  elements.projectGrid.addEventListener("scroll", updateProjectCarouselControls, { passive: true });
+  window.addEventListener("resize", updateProjectCarouselControls);
 
   elements.projectGrid.addEventListener("click", (event) => {
     const actionButton = event.target.closest("[data-card-action]");
@@ -1488,10 +1501,26 @@ function renderProjects() {
 
   if (!projects.length) {
     elements.projectGrid.innerHTML = `<article class="empty-state">현재 필터에 맞는 프로젝트가 없습니다.</article>`;
+    updateProjectCarouselControls();
     return;
   }
 
   elements.projectGrid.innerHTML = projects.map(renderProjectCard).join("");
+  updateProjectCarouselControls();
+}
+
+function updateProjectCarouselControls() {
+  if (!elements.projectCarouselPrev || !elements.projectCarouselNext || !elements.projectGrid) return;
+  const maxScrollLeft = Math.max(0, elements.projectGrid.scrollWidth - elements.projectGrid.clientWidth);
+  const isScrollable = maxScrollLeft > 8;
+  elements.projectCarouselPrev.disabled = !isScrollable || elements.projectGrid.scrollLeft <= 8;
+  elements.projectCarouselNext.disabled = !isScrollable || elements.projectGrid.scrollLeft >= maxScrollLeft - 8;
+}
+
+function scrollProjectCarousel(direction) {
+  if (!elements.projectGrid) return;
+  const travel = Math.max(320, Math.round(elements.projectGrid.clientWidth * 0.82)) * direction;
+  elements.projectGrid.scrollBy({ left: travel, behavior: "smooth" });
 }
 
 function renderBlog() {

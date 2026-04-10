@@ -77,10 +77,18 @@
                 <h2>프로젝트 카드 라이브러리</h2>
                 <p class="section-copy">카드 호버는 살아 있고, 클릭하면 프로젝트 설명보다 실제로 부딪혔던 이슈와 풀어낸 과정이 먼저 보입니다.</p>
               </div>
-              <div id="collection-meta" class="collection-meta"></div>
+              <div class="collection-actions">
+                <div id="collection-meta" class="collection-meta"></div>
+                <div class="carousel-controls" aria-label="project carousel controls">
+                  <button id="project-carousel-prev" class="ghost-button carousel-button" type="button">이전</button>
+                  <button id="project-carousel-next" class="ghost-button carousel-button" type="button">다음</button>
+                </div>
+              </div>
             </div>
 
-            <div id="project-grid" class="project-grid"></div>
+            <div class="project-carousel-shell">
+              <div id="project-grid" class="project-grid project-carousel"></div>
+            </div>
           </section>
         </section>
 
