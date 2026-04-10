@@ -45,6 +45,7 @@ const elements = {
   collectionMeta: document.getElementById("collection-meta"),
   projectCarouselPrev: document.getElementById("project-carousel-prev"),
   projectCarouselNext: document.getElementById("project-carousel-next"),
+  projectCarouselShell: document.querySelector(".project-carousel-shell"),
   projectGrid: document.getElementById("project-grid"),
   timelineLegend: document.getElementById("timeline-legend"),
   projectTimelineMap: document.getElementById("project-timeline-map"),
@@ -373,6 +374,13 @@ function bindEvents() {
     (event) => {
       if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
       if (elements.projectGrid.scrollWidth <= elements.projectGrid.clientWidth + 4) return;
+      const nextLeft = elements.projectGrid.scrollLeft + event.deltaY;
+      const maxLeft = elements.projectGrid.scrollWidth - elements.projectGrid.clientWidth;
+      if (nextLeft < -4) {
+        bumpProjectRail("left");
+      } else if (nextLeft > maxLeft + 4) {
+        bumpProjectRail("right");
+      }
       event.preventDefault();
       elements.projectGrid.scrollBy({ left: event.deltaY, behavior: "auto" });
       syncProjectCarouselControls();
@@ -1959,11 +1967,31 @@ function syncProjectCarouselControls() {
 
 function scrollProjectCarousel(direction) {
   if (!elements.projectGrid) return;
+  const maxLeft = elements.projectGrid.scrollWidth - elements.projectGrid.clientWidth;
+  if (direction < 0 && elements.projectGrid.scrollLeft <= 4) {
+    bumpProjectRail("left");
+    return;
+  }
+  if (direction > 0 && elements.projectGrid.scrollLeft >= maxLeft - 4) {
+    bumpProjectRail("right");
+    return;
+  }
   const amount = Math.max(320, Math.floor(elements.projectGrid.clientWidth * 0.88));
   elements.projectGrid.scrollBy({ left: amount * direction, behavior: "smooth" });
   window.setTimeout(() => {
     syncProjectCarouselControls();
   }, 220);
+}
+
+function bumpProjectRail(direction) {
+  if (!elements.projectCarouselShell) return;
+  const className = direction === "left" ? "is-bumping-left" : "is-bumping-right";
+  elements.projectCarouselShell.classList.remove("is-bumping-left", "is-bumping-right");
+  void elements.projectCarouselShell.offsetWidth;
+  elements.projectCarouselShell.classList.add(className);
+  window.setTimeout(() => {
+    elements.projectCarouselShell?.classList.remove(className);
+  }, 260);
 }
 
 function renderBlog() {

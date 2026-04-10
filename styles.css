@@ -6650,6 +6650,23 @@ a {
   overflow: hidden;
 }
 
+#home-section .project-carousel-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 28px;
+  box-shadow: inset 0 0 0 1px rgba(96, 132, 230, 0.08);
+}
+
+#home-section .project-carousel-shell.is-bumping-left {
+  animation: projectRailBumpLeft 220ms ease-out;
+}
+
+#home-section .project-carousel-shell.is-bumping-right {
+  animation: projectRailBumpRight 220ms ease-out;
+}
+
 #home-section .project-grid {
   display: flex;
   gap: 18px;
@@ -6685,6 +6702,18 @@ a {
 
 #home-section .project-grid::-webkit-scrollbar-thumb:hover {
   background: rgba(77, 134, 255, 0.62);
+}
+
+@keyframes projectRailBumpLeft {
+  0% { transform: translateX(0); }
+  38% { transform: translateX(10px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes projectRailBumpRight {
+  0% { transform: translateX(0); }
+  38% { transform: translateX(-10px); }
+  100% { transform: translateX(0); }
 }
 
 @media (min-width: 1620px) {
