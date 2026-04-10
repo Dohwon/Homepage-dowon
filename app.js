@@ -2020,10 +2020,12 @@ function renderProjectCard(project) {
     <article class="project-card" tabindex="0" data-project-id="${escapeHtml(project.id)}">
       <div class="card-topline">
         <span class="badge category">${escapeHtml(getProjectCategory(project))}</span>
-        <span class="badge ${project.status === "in-progress" ? "warning" : "success"}">
-          ${project.status === "in-progress" ? "진행중" : "완료/운영"}
-        </span>
-        ${project.pinned ? `<span class="badge pinned">📌 고정됨</span>` : ""}
+        <div class="card-status-group">
+          ${project.pinned ? `<span class="badge pinned">📌 고정됨</span>` : ""}
+          <span class="badge ${project.status === "in-progress" ? "warning" : "success"}">
+            ${project.status === "in-progress" ? "진행중" : "완료/운영"}
+          </span>
+        </div>
       </div>
 
       <div class="card-tools-inline" title="${escapeHtml(stackLine)}">${escapeHtml(stackLine)}</div>
@@ -2651,10 +2653,12 @@ function renderOpenDetail() {
         <div class="detail-hero-copy">
           <div class="detail-badges">
             <span class="badge category">${escapeHtml(getProjectCategory(project))}</span>
-            <span class="badge ${project.status === "in-progress" ? "warning" : "success"}">
-              ${project.status === "in-progress" ? "진행중" : "완료/운영"}
-            </span>
-            ${project.pinned ? `<span class="badge pinned">📌 고정됨</span>` : ""}
+            <div class="card-status-group">
+              ${project.pinned ? `<span class="badge pinned">📌 고정됨</span>` : ""}
+              <span class="badge ${project.status === "in-progress" ? "warning" : "success"}">
+                ${project.status === "in-progress" ? "진행중" : "완료/운영"}
+              </span>
+            </div>
           </div>
           <div id="detail-title-anchor">
             ${renderDisplayTitle(project, "detail")}

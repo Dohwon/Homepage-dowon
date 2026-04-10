@@ -2206,9 +2206,10 @@ async function serveStatic(req, res, url) {
       return;
     }
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
+    const noStoreStatic = new Set([".html", ".css", ".js"]);
     res.writeHead(200, {
       "Content-Type": contentType,
-      "Cache-Control": ext === ".html" ? "no-store" : "public, max-age=300"
+      "Cache-Control": noStoreStatic.has(ext) ? "no-store" : "public, max-age=300"
     });
     fs.createReadStream(resolvedPath).pipe(res);
   } catch {
