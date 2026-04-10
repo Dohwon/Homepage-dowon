@@ -3731,7 +3731,21 @@ function getProjectCarouselWindow(projects, slotCount = getProjectCarouselSlotCo
   }
 
   state.carouselStartIndex = ((state.carouselStartIndex % projects.length) + projects.length) % projects.length;
-  return Array.from({ length: slotCount }, (_, offset) => projects[(state.carouselStartIndex + offset) % projects.length]);
+  const windowItems = [];
+  const seenIds = new Set();
+  const seenKeys = new Set();
+
+  for (let offset = 0; offset < projects.length && windowItems.length < slotCount; offset += 1) {
+    const project = projects[(state.carouselStartIndex + offset) % projects.length];
+    const repoKey = getProjectDeduplicationKey(project);
+    if (seenIds.has(project.id)) continue;
+    if (repoKey && seenKeys.has(repoKey)) continue;
+    seenIds.add(project.id);
+    if (repoKey) seenKeys.add(repoKey);
+    windowItems.push(project);
+  }
+
+  return windowItems;
 }
 
 function getProjectManualOrder(project) {
