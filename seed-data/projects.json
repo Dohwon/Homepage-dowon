@@ -138,6 +138,10 @@
         "Interactive",
         "Instrument UI"
       ],
+      "links": {
+        "github": "https://github.com/Dohwon/260410_keyboard_piano",
+        "live": "http://127.0.0.1:8741/"
+      },
       "manualOrder": 3.5,
       "path": "../projects/finish/260410_keyboard_piano",
       "readme": "../projects/finish/260410_keyboard_piano/README.md",

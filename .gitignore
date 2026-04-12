@@ -1,4 +1,7 @@
 .env
+.codex
+.runtime-sync/
+runtime-sync/
 data/analytics.jsonl
 data/comments.json
 data/KakaoTalk_*.jpg
