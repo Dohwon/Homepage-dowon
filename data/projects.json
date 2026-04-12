@@ -116,6 +116,74 @@
   },
   "projects": [
     {
+      "id": "keyboard-piano",
+      "name": "Keyboard Piano",
+      "status": "active",
+      "category": "Interactive Web Audio",
+      "summary": "`J = 도(C4)` 기준으로 키보드 배열을 다시 설계하고, 그랜드 피아노 샘플과 리버브까지 붙인 웹 피아노 프로젝트.",
+      "highlights": [
+        "J를 도(C4)로 고정한 도 중심 키맵",
+        "흰건반/검은건반을 실제 피아노 감각에 맞춘 분리 배치",
+        "그랜드 피아노 샘플과 리버브로 톤 보정"
+      ],
+      "stack": [
+        "HTML",
+        "CSS",
+        "JavaScript",
+        "Web Audio API"
+      ],
+      "tags": [
+        "Keyboard Piano",
+        "Web Audio",
+        "Interactive",
+        "Instrument UI"
+      ],
+      "manualOrder": 0,
+      "path": "../projects/finish/260410_keyboard_piano",
+      "readme": "../projects/finish/260410_keyboard_piano/README.md",
+      "detail": {
+        "readmeSummary": [
+          "온라인 키보드 피아노를 그대로 복제하지 않고, `J = 도(C4)` 기준으로 연주 감각이 자연스럽게 오도록 배열 자체를 다시 설계했다.",
+          "메인 줄은 흰건반, 윗줄은 검은건반으로 분리해 실제 피아노의 반음 구조를 손에 더 가깝게 옮겼다.",
+          "오실레이터 대신 로컬 그랜드 피아노 샘플과 리버브를 붙여 악기다운 울림과 잔향을 만들었다."
+        ],
+        "workflow": [
+          {
+            "step": "키맵 설계",
+            "desc": "`J = C4` 기준으로 흰건반과 검은건반 매핑을 다시 정리한다."
+          },
+          {
+            "step": "연주 인터랙션 구현",
+            "desc": "실제 키보드 입력과 화면 키캡 클릭 모두 같은 음원 재생 흐름으로 연결한다."
+          },
+          {
+            "step": "사운드 튜닝",
+            "desc": "로컬 피아노 샘플과 리버브를 적용해 단순 비프음이 아닌 악기 톤으로 보정한다."
+          },
+          {
+            "step": "연주 보조 제어",
+            "desc": "Volume, Release, Octave Shift, Escape 모드 토글을 붙여 사용성을 마감한다."
+          }
+        ],
+        "keyFiles": [
+          "../projects/finish/260410_keyboard_piano/README.md",
+          "../projects/finish/260410_keyboard_piano/index.html",
+          "../projects/finish/260410_keyboard_piano/app.js",
+          "../projects/finish/260410_keyboard_piano/styles.css"
+        ],
+        "diagramCaption": "도 중심 키맵 설계 -> 샘플 재생/리버브 -> 실시간 키보드 연주 UI"
+      },
+      "story": {
+        "challenge": "보통의 온라인 키보드 피아노보다 손가락 기억에 더 자연스러운 배열을 만드는 것",
+        "resolution": "`J = C4` 기준의 도 중심 키맵과 샘플 기반 사운드 체인으로 연주감과 음색을 함께 끌어올렸다."
+      },
+      "timeline": {
+        "start": "2026-04-10",
+        "end": "2026-04-10",
+        "label": "2026.04"
+      }
+    },
+    {
       "id": "gemini-multiturn-tester-v3",
       "name": "Gemini Multi-turn Tester v3",
       "status": "in-progress",
