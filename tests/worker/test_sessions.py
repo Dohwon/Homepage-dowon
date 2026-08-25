@@ -1,7 +1,13 @@
 import json
 from collections.abc import Iterator
 from dataclasses import replace
+from pathlib import Path
 
+import pytest
+import yaml
+
+from atlas_worker.config import DiscoveryConfig
+from atlas_worker.discovery import discover_projects
 from atlas_worker.models import SessionEvent
 from atlas_worker.sessions import iter_session_events, map_session
 from tests.worker.helpers import make_project_ref
@@ -145,3 +151,64 @@ def test_session_mapping_does_not_match_path_substrings(tmp_path):
     )
 
     assert map_session(event, projects, {}) is None
+
+
+@pytest.mark.parametrize(
+    "historical_cwd",
+    (
+        "/archive/codex/projects/old-atlas/atlas_worker",
+        r"C:\Archive\Codex\projects\old-atlas\atlas_worker",
+    ),
+)
+def test_discovery_profile_alias_maps_posix_and_windows_historical_nested_cwd(
+    tmp_path, historical_cwd
+):
+    root = tmp_path / "projects" / "atlas"
+    profile = root / "project_memory" / "project-profile.yaml"
+    profile.parent.mkdir(parents=True)
+    profile.write_text(
+        yaml.safe_dump(
+            {
+                "id": "atlas",
+                "name": "Atlas",
+                "lifecycle": "active",
+                "publication": "private",
+                "summary": "Atlas",
+                "tags": {
+                    "domain": ["AI"],
+                    "problem": ["Routing"],
+                    "pattern": ["Evaluation"],
+                    "technology": ["Python"],
+                    "outcome": ["Tool"],
+                },
+                "aliases": ["projects/old-atlas"],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    project = discover_projects(DiscoveryConfig.for_workspace(tmp_path)).projects[0]
+    event = SessionEvent("s1", "2026-08-24T10:00:00Z", historical_cwd, "user", "decision")
+
+    assert project.aliases == ("projects/old-atlas",)
+    assert map_session(event, (project,), {}) == "atlas"
+
+
+def test_relative_profile_alias_mapping_rejects_component_substrings_and_collisions(tmp_path):
+    first = replace(
+        make_project_ref(tmp_path / "one", project_id="one"),
+        aliases=("projects/shared-old",),
+    )
+    second = replace(
+        make_project_ref(tmp_path / "two", project_id="two"),
+        aliases=("projects/shared-old",),
+    )
+    collision = SessionEvent(
+        "s1", "", "/archive/projects/shared-old/nested", "user", "decision"
+    )
+    substring = SessionEvent(
+        "s2", "", "/archive/projects/shared-old-copy/nested", "user", "decision"
+    )
+
+    assert map_session(collision, (first, second), {}) is None
+    assert map_session(substring, (first,), {}) is None

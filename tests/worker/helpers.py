@@ -6,6 +6,7 @@ from pathlib import Path
 
 import yaml
 
+from atlas_worker.graph import build_graph
 from atlas_worker.manifest import content_version, project_hashes_from_files
 from atlas_worker.models import (
     EvidenceClaim,
@@ -166,21 +167,36 @@ def write_bundle_fixture(
     project_ids: tuple[str, ...] = ("alpha",),
 ) -> None:
     root.mkdir(parents=True, exist_ok=True)
+    projects = []
     for project_id in sorted(project_ids):
         project_dir = root / "projects" / project_id
         project_dir.mkdir(parents=True, exist_ok=True)
         project = make_public_project(project_id).to_dict()
         project["summary"] = summary
         _write_fixture_json(project_dir / "project.json", project)
+        projects.append(make_public_project(project_id))
 
+    graph = build_graph(tuple(projects))
     _write_fixture_json(
         root / "graph" / "nodes.json",
         [
-            {"id": f"project:{project_id}", "kind": "project", "label": project_id.title()}
-            for project_id in sorted(project_ids)
+            {"id": node.node_id, "kind": node.kind, "label": node.label}
+            for node in graph.nodes
         ],
     )
-    _write_fixture_json(root / "graph" / "edges.json", [])
+    _write_fixture_json(
+        root / "graph" / "edges.json",
+        [
+            {
+                "kind": edge.kind,
+                "reasons": list(edge.reasons),
+                "source": edge.source_id,
+                "target": edge.target_id,
+                "weight": edge.weight,
+            }
+            for edge in graph.edges
+        ],
+    )
     _write_fixture_json(root / "topics.json", [])
     _write_fixture_json(root / "changelog.json", [])
     _write_fixture_json(

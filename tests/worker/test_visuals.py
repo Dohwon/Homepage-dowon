@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from atlas_worker.memory_writer import update_project_memory
-from atlas_worker.models import ProjectEvent
+from atlas_worker.models import EvidenceClaim, ProjectEvent
 from atlas_worker.visuals import render_problem_solving_svg
 from atlas_worker.backfill import extract_signal_claims
 from atlas_worker.evidence import merge_claims
@@ -27,6 +27,48 @@ def test_writer_creates_only_sections_with_evidence(tmp_path):
     assert (tmp_path / "project_memory" / "decisions.md").exists()
     assert not (tmp_path / "project_memory" / "build-story.md").exists()
     assert not (tmp_path / "project_memory" / "rollbacks.md").exists()
+
+
+def test_writer_omits_visual_until_a_decision_path_has_multiple_stages(tmp_path):
+    ref = make_project_ref(tmp_path)
+
+    update_project_memory(ref, make_decision_knowledge(), dry_run=False)
+
+    assert not (tmp_path / "project_memory" / "visuals" / "problem-solving.svg").exists()
+
+
+def test_writer_combines_legacy_curated_event_with_reviewed_event_for_local_visual(
+    tmp_path,
+):
+    ref = make_project_ref(tmp_path)
+    write_memory_markdown(
+        tmp_path,
+        "manager_memory/history.md",
+        "## Decisions\n\n"
+        "<!-- atlas:event:legacy-decision -->\n"
+        "### 2026-08-23 · Decision\n\n"
+        "- 상황: reviewed legacy evidence\n"
+        "- 선택: Keep the typed path\n"
+        "- 결과: Decision retained\n"
+        "<!-- /atlas:event:legacy-decision -->\n",
+    )
+    rollback = EvidenceClaim(
+        field="history:rollback-001",
+        value="Return to the reviewed path",
+        source_class="session",
+        confidence=0.85,
+        evidence_id="rollback-001",
+        claim_type="rollback",
+        event_date="2026-08-24T10:00:00Z",
+        selected=True,
+    )
+
+    update = update_project_memory(ref, merge_claims((rollback,)))
+
+    assert update.changed_files == (
+        "project_memory/rollbacks.md",
+        "project_memory/visuals/problem-solving.svg",
+    )
 
 
 def test_writer_preserves_user_text_and_replaces_a_matching_managed_event(tmp_path):
@@ -162,6 +204,7 @@ def test_writer_preserves_multiple_backfill_events_through_merge_and_routing(tmp
         "project_memory/build-story.md",
         "project_memory/decisions.md",
         "project_memory/rollbacks.md",
+        "project_memory/visuals/problem-solving.svg",
     )
     assert "revision confirmed" in (tmp_path / "project_memory" / "build-story.md").read_text(encoding="utf-8")
     assert "architecture decision recorded" in (tmp_path / "project_memory" / "decisions.md").read_text(encoding="utf-8")

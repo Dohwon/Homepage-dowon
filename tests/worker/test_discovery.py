@@ -1,4 +1,6 @@
 import importlib.util
+import json
+import subprocess
 import sys
 import types
 from pathlib import Path
@@ -103,6 +105,80 @@ def test_registered_assets_are_discovered_but_unregistered_files_are_ignored(tmp
     assert report.ambiguous == report.projects
 
 
+def test_registered_asset_uses_only_its_confined_adjacent_sidecar_profile(tmp_path):
+    projects = tmp_path / "projects"
+    projects.mkdir()
+    registered = projects / "analysis_notebook.ipynb"
+    registered.write_text("{}\n", encoding="utf-8")
+    sidecar = projects / "analysis_notebook.ipynb.project-profile.yaml"
+    sidecar.write_text(
+        yaml.safe_dump(
+            {
+                "id": "analysis-notebook",
+                "name": "Analysis Notebook",
+                "lifecycle": "active",
+                "publication": "public",
+                "summary": "Registered analysis",
+                "tags": {
+                    "domain": ["AI"],
+                    "problem": ["Routing"],
+                    "pattern": ["Evaluation"],
+                    "technology": ["Python"],
+                    "outcome": ["Tool"],
+                },
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    unregistered = projects / "ignored.ipynb"
+    unregistered.write_text("{}\n", encoding="utf-8")
+    (projects / "ignored.ipynb.project-profile.yaml").write_text(
+        sidecar.read_text(encoding="utf-8"), encoding="utf-8"
+    )
+
+    report = discover_projects(
+        DiscoveryConfig.for_workspace(tmp_path, registered_assets=(registered,))
+    )
+
+    assert [ref.project_id for ref in report.projects] == ["analysis-notebook"]
+    assert report.projects[0].publication == "public"
+    assert report.projects[0].root == registered
+    assert report.projects[0].profile_path == sidecar
+    assert report.projects[0].standalone_asset
+    assert report.ambiguous == ()
+
+
+@pytest.mark.parametrize("link_kind", ("asset", "sidecar"))
+def test_registered_asset_and_sidecar_preserve_symlinks_for_secure_preflight(
+    tmp_path, link_kind
+):
+    projects = tmp_path / "projects"
+    projects.mkdir()
+    target = projects / "target.ipynb"
+    target.write_text("{}\n", encoding="utf-8")
+    asset = projects / "linked.ipynb"
+    if link_kind == "asset":
+        asset.symlink_to(target)
+    else:
+        asset.write_text("{}\n", encoding="utf-8")
+        sidecar_target = projects / "target-profile.yaml"
+        sidecar_target.write_text("{}\n", encoding="utf-8")
+        (projects / "linked.ipynb.project-profile.yaml").symlink_to(sidecar_target)
+
+    config = DiscoveryConfig.for_workspace(tmp_path, registered_assets=(asset,))
+
+    with pytest.raises(ValueError, match="symlink"):
+        discover_projects(config)
+
+
+def test_registered_asset_configuration_rejects_lexical_workspace_escape(tmp_path):
+    outside = tmp_path.parent / "outside.ipynb"
+
+    with pytest.raises(ValueError, match="outside workspace"):
+        DiscoveryConfig.for_workspace(tmp_path, registered_assets=(outside,))
+
+
 def test_profile_overrides_are_normalized_and_collisions_fail_deterministically(tmp_path):
     alpha = tmp_path / "projects" / "alpha_beta"
     beta = tmp_path / "projects" / "beta"
@@ -143,7 +219,44 @@ def test_scan_projects_import_defers_future_cli_import(tmp_path):
         sys.modules["atlas_worker.cli"] = cli
 
         assert module.main() == 7
-        assert calls == [["discover"]]
+        expected_workspace = script.parents[4]
+        assert calls == [["discover", "--workspace", str(expected_workspace)]]
     finally:
         sys.modules.pop(module_name, None)
         sys.modules.pop("atlas_worker.cli", None)
+
+
+def test_scan_projects_subprocess_passes_workspace_when_started_from_service_root(
+    tmp_path,
+):
+    source = Path(__file__).parents[2] / "scripts" / "scan_projects.py"
+    workspace = tmp_path / "codex"
+    service = workspace / "portfolio-homepage"
+    script = service / "scripts" / "scan_projects.py"
+    script.parent.mkdir(parents=True)
+    script.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    package = service / "atlas_worker"
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (package / "cli.py").write_text(
+        "import json\n"
+        "def main(arguments):\n"
+        "    print(json.dumps(arguments))\n"
+        "    return 0\n",
+        encoding="utf-8",
+    )
+
+    completed = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=service,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0
+    assert json.loads(completed.stdout) == [
+        "discover",
+        "--workspace",
+        str(workspace),
+    ]

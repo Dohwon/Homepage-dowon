@@ -1,4 +1,5 @@
 import errno
+import base64
 import json
 import os
 import shutil
@@ -8,13 +9,21 @@ from pathlib import Path
 import pytest
 
 import atlas_worker.bundle as bundle_module
-from atlas_worker.bundle import BundleContext, SearchDocument, build_candidate_bundle, promote_bundle
+from atlas_worker.bundle import (
+    BundleContext,
+    SearchDocument,
+    build_candidate_bundle,
+    promote_bundle,
+    validate_bundle,
+)
+from atlas_worker.graph import build_graph
 from atlas_worker.manifest import content_version, tree_hash
 from atlas_worker.models import (
     BundleManifest,
     GraphData,
     GraphEdge,
     GraphNode,
+    ProjectEvent,
     ProjectMemory,
     PublicProject,
 )
@@ -88,6 +97,7 @@ UNSAFE_URL_SCHEME_PROBES = (
     '<a href="custom+atlas:value">Alpha</a>',
     '<a href="custom%2Batlas%3Avalue">Alpha</a>',
 )
+PRODUCTION_ALIAS_KEY = b"0123456789abcdef0123456789abcdef"
 
 
 def _context(
@@ -109,21 +119,6 @@ def _context(
         for project in projects
     }
     events = {project.project_id: make_challenge_events() for project in projects}
-    nodes = tuple(
-        GraphNode(f"project:{project.project_id}", project.display_name, "project")
-        for project in reversed(projects)
-    )
-    edges = ()
-    if len(projects) > 1:
-        edges = (
-            GraphEdge(
-                f"project:{projects[1].project_id}",
-                f"project:{projects[0].project_id}",
-                "project-similarity",
-                3,
-                ("domain:AI",),
-            ),
-        )
     search_documents = tuple(
         SearchDocument(
             document_id=f"project:{project.project_id}",
@@ -138,7 +133,7 @@ def _context(
         projects=projects,
         project_memories=memories,
         project_events=events,
-        graph=GraphData(nodes=nodes, edges=edges),
+        graph=build_graph(projects),
         search_documents=search_documents,
         source_hashes=source_hashes or {"alpha": "a" * 64},
         previous_manifest=previous_manifest,
@@ -179,6 +174,28 @@ def test_build_emits_only_exact_public_layout_and_non_empty_optional_files(tmp_p
         "topics.json",
     )
     assert not (staging / "projects/alpha/rollbacks.md").exists()
+
+
+def test_build_omits_public_svg_until_typed_history_has_a_decision_path(tmp_path):
+    staging = tmp_path / "staging"
+    event = ProjectEvent(
+        "decision-only",
+        "2026-08-24",
+        "Decision",
+        "Reviewed evidence",
+        "Keep typed events",
+        "Decision retained",
+        "decision",
+    )
+    context = replace(_context(), project_events={"alpha": (event,)})
+
+    build_candidate_bundle(context, staging)
+
+    assert not (
+        staging / "projects" / "alpha" / "visuals" / "problem-solving.svg"
+    ).exists()
+    changelog = json.loads((staging / "changelog.json").read_text(encoding="utf-8"))
+    assert [entry["event_id"] for entry in changelog] == ["decision-only"]
 
 
 def test_public_bundle_validation_api_is_read_only(tmp_path):
@@ -940,12 +957,17 @@ def test_recovery_copy_failure_preserves_intact_backup_and_no_partial_live(tmp_p
     monkeypatch.setattr(bundle_module, "_rename", fail_candidate_and_backup_restore)
     monkeypatch.setattr(bundle_module, "_copytree", fail_recovery_copy, raising=False)
 
-    with pytest.raises(RuntimeError, match="recovery copy"):
+    with pytest.raises(bundle_module.BundleRecoveryError, match="recovery copy"):
         promote_bundle(staging, public_dir, PrivacyGate(alias_key=b"key"))
 
     assert not public_dir.exists()
     assert _tree_bytes(backup) == before
     assert not recovery.exists()
+
+
+def test_recovery_failures_use_a_dedicated_oserror_contract():
+    assert issubclass(bundle_module.BundleRecoveryError, OSError)
+    assert not issubclass(bundle_module.BundleRecoveryError, RuntimeError)
 
 
 def test_recovery_rename_failure_preserves_intact_backup_and_no_partial_live(tmp_path, monkeypatch):
@@ -969,7 +991,7 @@ def test_recovery_rename_failure_preserves_intact_backup_and_no_partial_live(tmp
 
     monkeypatch.setattr(bundle_module, "_rename", fail_restore_renames)
 
-    with pytest.raises(RuntimeError, match="recovery rename"):
+    with pytest.raises(bundle_module.BundleRecoveryError, match="recovery rename"):
         promote_bundle(staging, public_dir, PrivacyGate(alias_key=b"key"))
 
     assert not public_dir.exists()
@@ -1000,7 +1022,7 @@ def test_recovery_copy_is_validated_and_hashed_before_live_rename(tmp_path, monk
     monkeypatch.setattr(bundle_module, "_rename", fail_candidate_and_backup_restore)
     monkeypatch.setattr(bundle_module, "_copytree", copy_then_tamper)
 
-    with pytest.raises(RuntimeError, match="recovery validation"):
+    with pytest.raises(bundle_module.BundleRecoveryError, match="recovery validation"):
         promote_bundle(staging, public_dir, PrivacyGate(alias_key=b"key"))
 
     assert not public_dir.exists()
@@ -1174,3 +1196,196 @@ def test_bundle_manifest_serialization_excludes_local_project_hashes():
         "projects": ["alpha"],
         "files": {"projects/alpha/project.json": "hash"},
     }
+
+
+def test_candidate_builder_blocks_encoded_alias_key_without_staging_leak(tmp_path):
+    encoded_key = base64.urlsafe_b64encode(PRODUCTION_ALIAS_KEY).decode("ascii").rstrip("=")
+    project = replace(
+        make_public_project("alpha"),
+        summary=f"prefix:{encoded_key}:suffix",
+    )
+    staging = tmp_path / "staging"
+
+    with pytest.raises(PrivacyViolation, match="alias_key") as caught:
+        build_candidate_bundle(
+            _context(
+                projects=(project,),
+                gate=PrivacyGate(alias_key=PRODUCTION_ALIAS_KEY),
+            ),
+            staging,
+        )
+
+    assert encoded_key not in str(caught.value)
+    assert all(encoded_key.encode("utf-8") not in payload for payload in _tree_bytes(staging).values())
+
+
+def test_promoter_blocks_alias_key_hex_and_preserves_last_good(tmp_path):
+    public_dir = tmp_path / "public-bundle"
+    staging = tmp_path / "staging"
+    write_bundle_fixture(public_dir, None, "last good")
+    write_bundle_fixture(staging, None, f"prefix:{PRODUCTION_ALIAS_KEY.hex().upper()}:suffix")
+    before = _tree_bytes(public_dir)
+
+    with pytest.raises(PrivacyViolation, match="alias_key") as caught:
+        promote_bundle(staging, public_dir, PrivacyGate(alias_key=PRODUCTION_ALIAS_KEY))
+
+    assert PRODUCTION_ALIAS_KEY.hex().upper() not in str(caught.value)
+    assert _tree_bytes(public_dir) == before
+
+
+def _malform_graph(root: Path, mutation: str) -> None:
+    nodes_path = root / "graph" / "nodes.json"
+    edges_path = root / "graph" / "edges.json"
+    nodes = json.loads(nodes_path.read_text(encoding="utf-8"))
+    edges = json.loads(edges_path.read_text(encoding="utf-8"))
+    project_ids = json.loads((root / "manifest.json").read_text(encoding="utf-8"))["projects"]
+
+    if mutation == "dangling-endpoint":
+        edges.append(
+            {
+                "kind": "project-similarity",
+                "reasons": ["domain:AI"],
+                "source": f"project:{project_ids[0]}",
+                "target": "project:missing",
+                "weight": 4,
+            }
+        )
+    elif mutation == "six-neighbors":
+        edges = [edge for edge in edges if edge["kind"] != "project-similarity"]
+        edges.extend(
+            {
+                "kind": "project-similarity",
+                "reasons": [
+                    "domain:AI",
+                    "outcome:Tool",
+                    "pattern:Evaluation",
+                    "problem:Routing",
+                    "technology:Python",
+                ],
+                "source": f"project:{project_ids[0]}",
+                "target": f"project:{project_id}",
+                "weight": 20,
+            }
+            for project_id in project_ids[1:7]
+        )
+    elif mutation == "duplicate-node-id":
+        nodes.append(dict(nodes[0]))
+    elif mutation == "duplicate-edge-pair":
+        edges.append(dict(edges[0]))
+    elif mutation == "wrong-direction":
+        membership = next(edge for edge in edges if edge["kind"] == "tag-membership")
+        membership["source"], membership["target"] = membership["target"], membership["source"]
+    elif mutation == "wrong-tag-kind":
+        tag_node = next(node for node in nodes if node["kind"] == "domain")
+        tag_node["kind"] = "problem"
+    elif mutation == "noncanonical-project-id":
+        node = next(node for node in nodes if node["id"] == f"project:{project_ids[0]}")
+        replacement = f"project:{project_ids[0]}%41"
+        original = node["id"]
+        node["id"] = replacement
+        for edge in edges:
+            if edge["source"] == original:
+                edge["source"] = replacement
+            if edge["target"] == original:
+                edge["target"] = replacement
+    elif mutation == "unstable-reasons":
+        similarity = next(edge for edge in edges if edge["kind"] == "project-similarity")
+        similarity["reasons"] = list(reversed(similarity["reasons"])) + [
+            similarity["reasons"][0]
+        ]
+    elif mutation == "missing-similarity":
+        similarity = next(edge for edge in edges if edge["kind"] == "project-similarity")
+        edges.remove(similarity)
+    else:
+        raise AssertionError(f"unknown mutation: {mutation}")
+
+    nodes_path.write_text(
+        json.dumps(nodes, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    edges_path.write_text(
+        json.dumps(edges, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    refresh_fixture_manifest(root, None, tuple(project_ids))
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "dangling-endpoint",
+        "six-neighbors",
+        "duplicate-node-id",
+        "duplicate-edge-pair",
+        "wrong-direction",
+        "wrong-tag-kind",
+        "noncanonical-project-id",
+        "unstable-reasons",
+        "missing-similarity",
+    ),
+)
+def test_rehashed_malformed_graph_fails_validation_and_preserves_last_good_on_promotion(
+    tmp_path, mutation
+):
+    project_ids = tuple(f"project-{index}" for index in range(7))
+    staging = tmp_path / "staging"
+    public = tmp_path / "public-bundle"
+    write_bundle_fixture(staging, None, "candidate", project_ids=project_ids)
+    write_bundle_fixture(public, None, "last good", project_ids=project_ids)
+    _malform_graph(staging, mutation)
+    before = _tree_bytes(public)
+
+    with pytest.raises(ValueError, match="graph"):
+        validate_bundle(staging, PrivacyGate(alias_key=b"key"))
+    with pytest.raises(ValueError, match="graph"):
+        promote_bundle(staging, public, PrivacyGate(alias_key=b"key"))
+
+    assert _tree_bytes(public) == before
+
+
+@pytest.mark.parametrize("malformation", ("dangling", "degree"))
+def test_candidate_build_cross_validates_graph_against_projects(tmp_path, malformation):
+    projects = tuple(make_public_project(f"project-{index}") for index in range(7))
+    graph = build_graph(projects)
+    if malformation == "dangling":
+        graph = GraphData(
+            nodes=graph.nodes,
+            edges=graph.edges
+            + (
+                GraphEdge(
+                    "project:project-0",
+                    "project:missing",
+                    "project-similarity",
+                    4,
+                    ("domain:AI",),
+                ),
+            ),
+        )
+    else:
+        membership = tuple(edge for edge in graph.edges if edge.kind == "tag-membership")
+        graph = GraphData(
+            nodes=graph.nodes,
+            edges=membership
+            + tuple(
+                GraphEdge(
+                    "project:project-0",
+                    f"project:project-{index}",
+                    "project-similarity",
+                    20,
+                    (
+                        "domain:AI",
+                        "outcome:Tool",
+                        "pattern:Evaluation",
+                        "problem:Routing",
+                        "technology:Python",
+                    ),
+                )
+                for index in range(1, 7)
+            ),
+        )
+
+    with pytest.raises(ValueError, match="graph"):
+        build_candidate_bundle(
+            replace(_context(projects=projects), graph=graph),
+            tmp_path / "staging",
+        )

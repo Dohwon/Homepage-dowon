@@ -1,6 +1,7 @@
 """Fail-closed privacy checks for Project Atlas public bundles."""
 
 from collections.abc import Mapping, Sequence
+import base64
 from dataclasses import dataclass
 import hashlib
 import hmac
@@ -32,14 +33,15 @@ RAW_ATTRIBUTE_ASSIGNMENT = re.compile(
 INVALID_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 ENCODED_PATH_SEPARATOR = re.compile(r"%(?:2f|5c)", re.I)
 EMAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)
-PHONE = re.compile(r"(?<!\d)(?:\+?82[- ]?)?0?1[016789][- ]?\d{3,4}[- ]?\d{4}(?!\d)")
+PHONE = re.compile(
+    r"(?<![A-Za-z0-9])(?:\+?82[- ]?)?0?1[016789][- ]?\d{3,4}[- ]?\d{4}(?![A-Za-z0-9])"
+)
 PRIVATE_IP = re.compile(
     r"\b(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})\b"
 )
 HTML_COMMENT = re.compile(r"<!--[\s\S]*?-->")
 SOURCE_MAP = re.compile(r"(?:\bsourceMappingURL\s*=\s*\S+|\b[A-Za-z0-9_./-]+\.map\b)", re.I)
 SAFE_ALIAS_PREFIX = re.compile(r"[A-Z][A-Z0-9_]*")
-CONTENT_SHA256 = re.compile(r"[0-9a-f]{64}")
 
 DENIED_SOURCE_NAMES = {".env", "credentials.json", "auth.json"}
 DENIED_SOURCE_PARTS = {".codex/sessions", "logs", "raw-logs", "private-data"}
@@ -50,6 +52,7 @@ PUBLIC_ROUTE_EXACT_PATHS = frozenset({"/", "/projects", "/topics", "/graph", "/c
 PUBLIC_ROUTE_DESCENDANT_PREFIXES = ("/projects/", "/topics/")
 PUBLIC_ASSET_PREFIX = "/assets/"
 URL_ATTRIBUTE_DECODE_LIMIT = 16
+MIN_ALIAS_KEY_BYTES = 32
 
 
 @dataclass(frozen=True)
@@ -90,6 +93,7 @@ class PrivacyGate:
 
     def __init__(self, alias_key: bytes, approved_public_values: set[str] | frozenset[str] = frozenset()):
         self._alias_key = _validate_alias_key(alias_key)
+        self._forbidden_alias_key_variants = _alias_key_variants(self._alias_key)
         self._approved_public_values = frozenset(approved_public_values)
 
     def scan(self, record: object) -> PrivacyReport:
@@ -196,6 +200,9 @@ class PrivacyGate:
         allow_approved_value: bool,
         allow_public_route: bool,
     ) -> bool:
+        if any(variant in value for variant in self._forbidden_alias_key_variants):
+            findings.append(PrivacyFinding("alias_key", pointer))
+            return True
         if allow_approved_value and value in self._approved_public_values:
             return False
 
@@ -221,8 +228,6 @@ def _is_search_document(items: tuple[tuple[object, object], ...]) -> bool:
 
 
 def _matching_categories(value: str, *, allow_public_route: bool = False) -> tuple[str, ...]:
-    if CONTENT_SHA256.fullmatch(value):
-        return ()
     categories: list[str] = []
     if any(pattern.search(value) for pattern in SECRET_PATTERNS.values()):
         categories.append("secret")
@@ -533,6 +538,26 @@ def _validate_alias_key(key: bytes) -> bytes:
     if not isinstance(key, bytes) or not key:
         raise ValueError("alias key must be non-empty bytes")
     return key
+
+
+def _alias_key_variants(key: bytes) -> frozenset[str]:
+    """Return comparison-only encodings for production-strength key material."""
+    if len(key) < MIN_ALIAS_KEY_BYTES:
+        return frozenset()
+
+    variants = {
+        key.hex(),
+        key.hex().upper(),
+        base64.b64encode(key).decode("ascii"),
+        base64.urlsafe_b64encode(key).decode("ascii"),
+    }
+    variants.update(value.rstrip("=") for value in tuple(variants) if value.endswith("="))
+    try:
+        variants.add(key.decode("utf-8"))
+    except UnicodeDecodeError:
+        pass
+    variants.discard("")
+    return frozenset(variants)
 
 
 def _json_pointer_child(parent: str, component: str) -> str:

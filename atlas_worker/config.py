@@ -1,6 +1,7 @@
 """Configuration for deterministic local Project Atlas discovery."""
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
 
 
@@ -65,10 +66,10 @@ class DiscoveryConfig:
 
 
 def _resolve_workspace_path(workspace_root: Path, path: Path) -> Path:
-    resolved = Path(path)
-    if not resolved.is_absolute():
-        resolved = workspace_root / resolved
-    resolved = resolved.resolve()
+    candidate = Path(path)
+    if not candidate.is_absolute():
+        candidate = workspace_root / candidate
+    resolved = Path(os.path.abspath(candidate))
     try:
         resolved.relative_to(workspace_root)
     except ValueError as error:

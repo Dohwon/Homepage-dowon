@@ -25,13 +25,15 @@ def discover_projects(
     candidates.extend(_registered_assets(config, source_gate))
 
     refs: list[tuple[ProjectRef, bool]] = []
-    for root, lifecycle, profile, preserve_root in candidates:
+    for root, lifecycle, profile, preserve_root, profile_path in candidates:
         ref = _classify_candidate(
             config.workspace_root,
             root,
             lifecycle,
             profile,
             preserve_root=preserve_root,
+            profile_path=profile_path,
+            standalone_asset=profile_path == standalone_profile_path(root),
         )
         refs.append((ref, profile is None))
         if lifecycle == "active" and not preserve_root and root.is_dir():
@@ -58,11 +60,11 @@ def discover_projects(
 def _direct_candidates(
     config: DiscoveryConfig,
     source_gate: PrivacyGate | None,
-) -> Iterable[tuple[Path, str, dict[str, Any] | None, bool]]:
+) -> Iterable[tuple[Path, str, dict[str, Any] | None, bool, Path]]:
     if not config.projects_root.is_dir():
         return ()
 
-    candidates: list[tuple[Path, str, dict[str, Any] | None, bool]] = []
+    candidates: list[tuple[Path, str, dict[str, Any] | None, bool, Path]] = []
     for root in sorted(config.projects_root.iterdir(), key=_path_sort_key):
         if root.name == "finish" or not _is_eligible_directory(root, config, source_gate):
             continue
@@ -79,10 +81,17 @@ def _direct_candidates(
 def _registered_assets(
     config: DiscoveryConfig,
     source_gate: PrivacyGate | None,
-) -> Iterable[tuple[Path, str, dict[str, Any] | None, bool]]:
+) -> Iterable[tuple[Path, str, dict[str, Any] | None, bool, Path]]:
     for asset in config.registered_assets:
         read_confined_text(asset, config.workspace_root, source_gate)
-        yield asset, "active", None, False
+        profile_path = standalone_profile_path(asset)
+        try:
+            profile_path.lstat()
+        except FileNotFoundError:
+            profile = None
+        else:
+            profile = _load_profile(profile_path, config.workspace_root, source_gate)
+        yield asset, "active", profile, False, profile_path
 
 
 def _direct_candidate(
@@ -90,17 +99,18 @@ def _direct_candidate(
     lifecycle: str,
     config: DiscoveryConfig,
     source_gate: PrivacyGate | None,
-) -> tuple[Path, str, dict[str, Any] | None, bool]:
+) -> tuple[Path, str, dict[str, Any] | None, bool, Path]:
+    profile_path = root / "project_memory" / "project-profile.yaml"
     if root.is_symlink():
-        profile_path = root / "project_memory" / "project-profile.yaml"
         if profile_path.exists() or profile_path.is_symlink():
             raise ValueError("profiled project root cannot be a symlink")
-        return Path(os.path.abspath(root)), lifecycle, None, True
+        return Path(os.path.abspath(root)), lifecycle, None, True, profile_path
     return (
         root.resolve(),
         lifecycle,
         _load_optional_profile(root, config.workspace_root, source_gate),
         False,
+        profile_path,
     )
 
 
@@ -119,7 +129,13 @@ def _nested_profile_refs(
         profile_id = _project_id(profile.get("id"), nested_root)
         if profile_id == parent_project_id:
             continue
-        yield _classify_candidate(workspace_root, nested_root, "active", profile), False
+        yield _classify_candidate(
+            workspace_root,
+            nested_root,
+            "active",
+            profile,
+            profile_path=profile_path,
+        ), False
 
 
 def _is_eligible_directory(
@@ -163,6 +179,8 @@ def _classify_candidate(
     profile: dict[str, Any] | None,
     *,
     preserve_root: bool = False,
+    profile_path: Path | None = None,
+    standalone_asset: bool = False,
 ) -> ProjectRef:
     profile = profile or {}
     root = Path(os.path.abspath(root)) if preserve_root else root.resolve()
@@ -185,7 +203,14 @@ def _classify_candidate(
         lifecycle=profile_lifecycle,
         publication=publication,
         aliases=_normalized_aliases(profile.get("aliases", ())),
+        profile_path=profile_path,
+        standalone_asset=standalone_asset,
     )
+
+
+def standalone_profile_path(asset: Path) -> Path:
+    """Return the confined adjacent profile sidecar for a registered asset."""
+    return asset.with_name(f"{asset.name}.project-profile.yaml")
 
 
 def _project_id(value: object, root: Path) -> str:

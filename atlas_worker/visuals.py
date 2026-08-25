@@ -24,6 +24,12 @@ _ACTIVE_ATTRIBUTE = re.compile(r"\b(?:href|src|on[a-z]+)\s*=", re.I)
 _NODE_X = (24, 256, 488, 720, 952)
 
 
+def has_problem_solving_evidence(events: tuple[ProjectEvent, ...]) -> bool:
+    """Require a recorded decision plus at least one reviewed path transition."""
+    stages = {event.stage.casefold() for event in events}
+    return "decision" in stages and bool(stages & {"rollback", "revision", "failure"})
+
+
 def render_problem_solving_svg(project: ProjectRef, events: tuple[ProjectEvent, ...]) -> str:
     """Render selected events into a fixed, non-executable SVG flow."""
     event_by_stage = _events_by_stage(events)
@@ -62,8 +68,9 @@ def render_problem_solving_svg(project: ProjectRef, events: tuple[ProjectEvent, 
 
 def _events_by_stage(events: tuple[ProjectEvent, ...]) -> dict[str, ProjectEvent]:
     selected: dict[str, ProjectEvent] = {}
+    stage_aliases = {"rollback": "revision", "failure": "result"}
     for event in sorted(events, key=lambda item: (item.stage.casefold(), item.date, item.event_id, item.title)):
-        stage = event.stage.casefold()
+        stage = stage_aliases.get(event.stage.casefold(), event.stage.casefold())
         if stage in _STAGE_LABELS:
             selected.setdefault(stage, event)
     return selected

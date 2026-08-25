@@ -35,7 +35,12 @@ from .bundle import (
 from .config import DiscoveryConfig
 from .discovery import discover_projects
 from .evidence import merge_claims
-from .fs_safety import FileWrite, commit_file_transaction, require_write_destination
+from .fs_safety import (
+    FileWrite,
+    commit_file_transaction,
+    read_confined_text,
+    require_write_destination,
+)
 from .graph import build_graph
 from .memory import load_project_memory
 from .memory_writer import plan_project_memory_writes
@@ -48,7 +53,7 @@ from .models import (
     TagSet,
     validate_schema,
 )
-from .privacy import PrivacyGate, PrivacyViolation
+from .privacy import MIN_ALIAS_KEY_BYTES, PrivacyGate, PrivacyViolation
 from .sessions import iter_session_events, map_session
 
 
@@ -357,6 +362,8 @@ def _discover(
         workspace,
         registered_assets=tuple(Path(item) for item in registered),
     )
+    if source_gate is None:
+        source_gate = PrivacyGate(alias_key=secrets.token_bytes(32))
     return discover_projects(config, source_gate=source_gate)
 
 
@@ -394,6 +401,11 @@ def _profile_write_plan(
     profiles: tuple[dict[str, object], ...],
 ) -> tuple[tuple[FileWrite, str], ...]:
     targets = {ref.project_id: ref for ref in report.ambiguous}
+    targets.update(
+        (ref.project_id, ref)
+        for ref in report.projects
+        if ref.standalone_asset and ref.profile_path is not None
+    )
     seen: set[str] = set()
     writes: list[tuple[FileWrite, str]] = []
     for profile in profiles:
@@ -403,17 +415,20 @@ def _profile_write_plan(
             raise ConfigError("/profiles/id")
         seen.add(project_id)
         ref = targets[project_id]
-        if profile.get("lifecycle") != ref.lifecycle or not ref.root.is_dir():
+        if profile.get("lifecycle") != ref.lifecycle:
             raise ConfigError("/profiles/lifecycle")
         _validate_profile_aliases(profile.get("aliases", ()))
         ordered = {key: profile[key] for key in _PROFILE_KEYS if key in profile}
         content = yaml.safe_dump(ordered, allow_unicode=True, sort_keys=False)
-        path = ref.root / "project_memory" / "project-profile.yaml"
-        path = require_write_destination(path, ref.root)
-        if path.exists():
+        path = ref.profile_path or ref.root / "project_memory" / "project-profile.yaml"
+        boundary = ref.root.parent if ref.standalone_asset else ref.root
+        if ref.standalone_asset:
+            read_confined_text(ref.root, boundary)
+        path = require_write_destination(path, boundary)
+        if path.exists() and not ref.standalone_asset:
             raise ConfigError("/profiles/id")
         relative = path.relative_to(workspace).as_posix()
-        writes.append((FileWrite(path=path, content=content.encode("utf-8"), root=ref.root), relative))
+        writes.append((FileWrite(path=path, content=content.encode("utf-8"), root=boundary), relative))
     return tuple(sorted(writes, key=lambda item: item[1]))
 
 
@@ -795,7 +810,11 @@ def _bundle_context(discovery: DiscoveryReport, gate: PrivacyGate) -> BundleCont
     return BundleContext(
         projects=ordered,
         project_memories=memories,
-        project_events={},
+        project_events={
+            project_id: memory.events
+            for project_id, memory in sorted(memories.items())
+            if memory.events
+        },
         graph=graph,
         search_documents=search_documents,
         source_hashes=source_hashes,
@@ -808,6 +827,18 @@ def _curated_source_hash(project: PublicProject, memory: ProjectMemory) -> str:
     payload = {
         "build_story": list(memory.build_story),
         "decisions": list(memory.decisions),
+        "events": [
+            {
+                "context": event.context,
+                "date": event.date,
+                "decision": event.decision,
+                "event_id": event.event_id,
+                "outcome": event.outcome,
+                "stage": event.stage,
+                "title": event.title,
+            }
+            for event in memory.events
+        ],
         "project": project.to_dict(),
         "rollbacks": list(memory.rollbacks),
     }
@@ -843,6 +874,8 @@ def _privacy_gate(
         if not ephemeral:
             raise ConfigError("/alias-key")
         key = secrets.token_bytes(32)
+    elif not ephemeral and len(key) < MIN_ALIAS_KEY_BYTES:
+        raise ConfigError("/alias-key")
     return PrivacyGate(alias_key=key)
 
 
@@ -863,7 +896,7 @@ def _runtime_alias_key(
     path = Path(configured).expanduser()
     if not path.is_absolute():
         path = workspace / path
-    key = path.read_bytes()
+    key = path.read_bytes().rstrip(b"\r\n")
     if not key:
         raise ConfigError("/alias-key")
     return key

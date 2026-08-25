@@ -101,25 +101,38 @@ def map_session(
         return None
 
     project_ids = {project.project_id for project in projects}
-    candidates: list[tuple[str, str]] = []
+    candidates: list[tuple[str, str, bool]] = []
     for project in projects:
-        candidates.append((normalize_local_path(str(project.root)), project.project_id))
+        candidates.append((normalize_local_path(str(project.root)), project.project_id, False))
         for alias in project.aliases:
             normalized = normalize_local_path(alias)
-            if normalized.startswith("/") or _WINDOWS_DRIVE.match(normalized):
-                candidates.append((normalized, project.project_id))
+            is_relative = not normalized.startswith("/") and not _WINDOWS_DRIVE.match(normalized)
+            candidates.append((normalized, project.project_id, is_relative))
     for alias, project_id in aliases.items():
         if project_id in project_ids:
-            candidates.append((normalize_local_path(alias), project_id))
+            normalized = normalize_local_path(alias)
+            is_relative = not normalized.startswith("/") and not _WINDOWS_DRIVE.match(normalized)
+            candidates.append((normalized, project_id, is_relative))
 
     matches = [
         (candidate, project_id)
-        for candidate, project_id in candidates
-        if candidate and _component_prefix(cwd, candidate)
+        for candidate, project_id, is_relative in candidates
+        if candidate
+        and (
+            _component_sequence_prefix(cwd, candidate)
+            if is_relative
+            else _component_prefix(cwd, candidate)
+        )
     ]
     if not matches:
         return None
-    return min(matches, key=lambda item: (-_path_depth(item[0]), item[1], item[0]))[1]
+    depth = max(_path_depth(candidate) for candidate, _ in matches)
+    winners = {
+        project_id
+        for candidate, project_id in matches
+        if _path_depth(candidate) == depth
+    }
+    return next(iter(winners)) if len(winners) == 1 else None
 
 
 def _event(
@@ -172,6 +185,18 @@ def normalize_local_path(value: str) -> str:
 
 def _component_prefix(path: str, prefix: str) -> bool:
     return path == prefix or path.startswith(prefix.rstrip("/") + "/")
+
+
+def _component_sequence_prefix(path: str, relative: str) -> bool:
+    path_parts = tuple(part for part in path.split("/") if part)
+    relative_parts = tuple(part for part in relative.split("/") if part)
+    if _WINDOWS_DRIVE.match(path):
+        relative_parts = tuple(part.casefold() for part in relative_parts)
+    width = len(relative_parts)
+    return bool(width) and any(
+        path_parts[index : index + width] == relative_parts
+        for index in range(len(path_parts) - width + 1)
+    )
 
 
 def _path_depth(path: str) -> int:

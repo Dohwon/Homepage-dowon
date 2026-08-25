@@ -66,6 +66,17 @@ node server.js
 
 Worker는 로컬 workspace를 읽어 검토된 public profile과 직접 작성된 project memory만 `public-bundle/`로 만든다. 기본 출력은 key ordering이 고정된 JSON이며 absolute project root, raw session text, alias key, provenance를 출력하지 않는다.
 
+### 설치
+
+Python 3.10+ 환경이 필요하다. service root에서 전용 virtual environment와 Atlas 의존성을 설치한다.
+
+```bash
+python3 --version
+python3 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r requirements-atlas.txt
+```
+
 ### 명령
 
 ```bash
@@ -84,6 +95,8 @@ Worker는 로컬 workspace를 읽어 검토된 public profile과 직접 작성�
 
 Profile 생성은 자동 적용하지 않는다. 먼저 `bootstrap-profiles --dry-run`의 ambiguous ID를 검토하고, 아래 형식의 JSON을 별도로 작성한 뒤 적용한다. 각 profile은 현재 발견된 ambiguous ID와 정확히 일치하고 `project-profile` schema를 통과해야 한다.
 
+Runtime config의 `registered_assets`에 등록된 단일 파일만 standalone project 후보가 된다. 등록되지 않은 파일과 sidecar는 자동 발견하지 않는다. 등록 파일의 reviewed profile은 같은 디렉터리의 `<asset-name>.project-profile.yaml` sidecar에 원자적으로 생성·갱신되며, 일반 디렉터리 project의 `project_memory/`로 취급하지 않는다.
+
 ```json
 {"profiles":[{"id":"project-id","name":"Reviewed Name","lifecycle":"active","publication":"private","summary":"Reviewed summary","tags":{"domain":["AI"],"problem":["Routing"],"pattern":["Evaluation"],"technology":["Python"],"outcome":["Tool"]}}]}
 ```
@@ -99,18 +112,26 @@ Backfill도 자동으로 memory나 cursor를 쓰지 않는다. Dry-run JSON의 s
 .venv/bin/python scripts/project_atlas.py backfill --workspace /home/dowon/securedir/git/codex --sessions-root /path/to/codex/sessions --apply-reviewed-report /path/to/reviewed-backfill.json
 ```
 
-`build`와 `run`의 non-dry 실행은 명시적인 local alias-key material이 필요하다. Key 값은 출력하거나 repository에 저장하지 않는다.
+`build`와 `run`의 non-dry 실행은 최소 32 bytes인 local alias-key material이 필요하다. 짧은 key는 config exit `2`로 거부된다. Key 값은 출력하거나 repository에 저장하지 않는다. Repository 밖의 사용자 전용 파일을 mode `600`으로 두는 방식을 권장한다.
 
 ```bash
-export PROJECT_ATLAS_HMAC_KEY_PATH=/path/to/local/hmac.key
+install -d -m 700 "$HOME/.config/project-atlas"
+umask 077
+.venv/bin/python -c 'import secrets,sys; sys.stdout.buffer.write(secrets.token_bytes(32))' > "$HOME/.config/project-atlas/alias-hmac.key"
+chmod 600 "$HOME/.config/project-atlas/alias-hmac.key"
+export PROJECT_ATLAS_HMAC_KEY_PATH="$HOME/.config/project-atlas/alias-hmac.key"
 .venv/bin/python scripts/project_atlas.py run --workspace /home/dowon/securedir/git/codex
 ```
 
-`PROJECT_ATLAS_HMAC_KEY` 환경변수 또는 `.knowledge-worker/config.yaml`의 `hmac_key_path`/`alias_key_file`도 지원한다. Runtime config의 `sessions_root`는 `backfill`과 `run`의 기본 session source다.
+`PROJECT_ATLAS_HMAC_KEY` 환경변수도 지원하지만 process environment에 남으므로 file 방식이 우선이다. `.knowledge-worker/config.yaml`의 `hmac_key_path`/`alias_key_file`은 절대 경로 또는 workspace 상대 경로를 받으며, key file 끝의 CR/LF만 제거한다. Runtime config의 `sessions_root`는 `backfill`과 `run`의 기본 session source다.
 
 ### Dry Run과 Exit Code
 
-`bootstrap-profiles`, `backfill`, `build`, `run`은 `--dry-run`을 지원한다. Dry-run은 profile, project memory, session cursor, manifest state, `public-bundle/`을 쓰지 않는다. Bundle 후보는 service directory와 같은 filesystem의 자동 정리 temporary staging에서만 생성되고 promotion되지 않는다.
+`bootstrap-profiles`, `backfill`, `build`, `run`은 `--dry-run`을 지원한다. Dry-run은 profile, project memory, session cursor, manifest state, `public-bundle/`을 쓰지 않는다. Bundle 후보는 service directory와 same filesystem에 있는 자동 정리 temporary staging에서만 생성되고 promotion되지 않는다. 원자적 rename을 위해 staging과 `public-bundle/` parent의 device ID가 같아야 하며 아래처럼 확인할 수 있다.
+
+```bash
+stat -c '%d %n' . public-bundle 2>/dev/null || stat -c '%d %n' .
+```
 
 | Code | 의미 |
 |---:|---|
@@ -120,3 +141,40 @@ export PROJECT_ATLAS_HMAC_KEY_PATH=/path/to/local/hmac.key
 | `4` | file 또는 directory I/O 실패 |
 
 오류 stderr는 traceback이나 입력 원문 없이 category와 JSON pointer만 담은 JSON 한 줄이다.
+
+### Promotion 복구
+
+Promotion 복구 실패와 stale `.public-bundle.previous` 또는 `.public-bundle.recovery`는 경로를 노출하지 않는 `{"error":{"category":"io","pointer":"$"}}`와 exit `4`로 정규화된다. 이때 자동 재실행이나 즉시 삭제를 하지 말고 timer를 중지한 뒤 아래 순서로 검사한다.
+
+```bash
+cd /home/dowon/securedir/git/codex/portfolio-homepage
+SERVICE="$PWD"
+PUBLIC="$SERVICE/public-bundle"
+PREVIOUS="$SERVICE/.public-bundle.previous"
+RECOVERY="$SERVICE/.public-bundle.recovery"
+find "$SERVICE" -maxdepth 1 \( -name 'public-bundle' -o -name '.public-bundle.previous' -o -name '.public-bundle.recovery' \) -printf '%y %f\n'
+test ! -L "$PUBLIC" && test ! -L "$PREVIOUS" && test ! -L "$RECOVERY"
+test ! -e "$PUBLIC" || .venv/bin/python scripts/project_atlas.py validate --fixture "$PUBLIC"
+test ! -e "$PREVIOUS" || .venv/bin/python scripts/project_atlas.py validate --fixture "$PREVIOUS"
+test ! -e "$RECOVERY" || .venv/bin/python scripts/project_atlas.py validate --fixture "$RECOVERY"
+```
+
+`public-bundle/`이 없고 `.public-bundle.previous` validation이 성공한 경우에만 adjacent atomic rename으로 last-good을 복원한다.
+
+```bash
+test ! -e "$PUBLIC"
+.venv/bin/python scripts/project_atlas.py validate --fixture "$PREVIOUS"
+mv -- "$PREVIOUS" "$PUBLIC"
+.venv/bin/python scripts/project_atlas.py validate --fixture "$PUBLIC"
+```
+
+유효한 `public-bundle/`이 이미 있으면 previous/recovery를 덮어쓰거나 삭제하지 않는다. 둘을 각각 validation한 후 예약 이름 밖의 로컬 격리 디렉터리로 이동하고, 다음 dry-run과 build validation이 성공한 뒤 보존 정책에 따라 정리한다.
+
+```bash
+STAMP="$(date +%Y%m%d-%H%M%S)"
+install -d -m 700 "$SERVICE/.atlas-inspected"
+test ! -e "$PREVIOUS" || mv -- "$PREVIOUS" "$SERVICE/.atlas-inspected/previous-$STAMP"
+test ! -e "$RECOVERY" || mv -- "$RECOVERY" "$SERVICE/.atlas-inspected/recovery-$STAMP"
+.venv/bin/python scripts/project_atlas.py build --workspace /home/dowon/securedir/git/codex --dry-run
+.venv/bin/python scripts/project_atlas.py validate --fixture "$PUBLIC"
+```

@@ -4,17 +4,21 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 import re
 
 from .fs_safety import (
     FileWrite,
     commit_file_transaction,
+    direct_regular_files,
     read_confined_text,
     require_confined_directory,
     require_write_destination,
 )
-from .models import EvidenceClaim, MemoryUpdate, ProjectKnowledge, ProjectRef
+from .history import EVENT_ID_PATTERN, parse_managed_events, render_managed_event
+from .models import EvidenceClaim, MemoryUpdate, ProjectEvent, ProjectKnowledge, ProjectRef
+from .visuals import has_problem_solving_evidence, render_problem_solving_svg
 
 
 _MINIMUM_CONFIDENCE = 0.85
@@ -24,7 +28,7 @@ _TARGETS = {
     "revision": ("build-story.md", "Build Story", "Revision"),
     "failure": ("build-story.md", "Build Story", "Resolved Failure"),
 }
-_EVENT_ID = r"[A-Za-z0-9][A-Za-z0-9._-]*"
+_EVENT_ID = EVENT_ID_PATTERN
 _START_MARKER = re.compile(rf"<!-- atlas:event:({_EVENT_ID}) -->$")
 _END_MARKER = re.compile(rf"<!-- /atlas:event:({_EVENT_ID}) -->$")
 _HEADING = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*$")
@@ -41,18 +45,6 @@ class _ManagedBlock:
 @dataclass(frozen=True)
 class _SectionBounds:
     end_line: int
-
-
-@dataclass(frozen=True)
-class _MemoryEvent:
-    event_id: str
-    date: str
-    title: str
-    context: str
-    decision: str
-    outcome: str
-    filename: str
-    section: str
 
 
 def update_project_memory(
@@ -74,80 +66,132 @@ def plan_project_memory_writes(
 ) -> tuple[FileWrite, ...]:
     """Prepare every changed memory payload without mutating the project tree."""
     require_confined_directory(ref.root, ref.root)
-    grouped: dict[str, list[_MemoryEvent]] = defaultdict(list)
+    grouped: dict[str, list[ProjectEvent]] = defaultdict(list)
     for event in _selected_events(knowledge):
-        grouped[event.filename].append(event)
+        grouped[_TARGETS[event.stage][0]].append(event)
 
-    destinations = tuple(
-        (
-            filename,
-            require_write_destination(
-                ref.root / "project_memory" / filename,
-                ref.root,
-            ),
+    filenames = tuple(sorted({target[0] for target in _TARGETS.values()}))
+    destinations = {
+        filename: require_write_destination(
+            ref.root / "project_memory" / filename,
+            ref.root,
         )
-        for filename in sorted(grouped)
-    )
-    planned: list[FileWrite] = []
-    for filename, path in destinations:
+        for filename in filenames
+    }
+    contents: dict[str, str] = {}
+    for filename, path in destinations.items():
         try:
-            existing = read_confined_text(path, ref.root)
+            contents[filename] = read_confined_text(path, ref.root)
         except FileNotFoundError:
-            existing = ""
+            contents[filename] = ""
+
+    planned: list[FileWrite] = []
+    for filename in sorted(grouped):
+        path = destinations[filename]
+        existing = contents[filename]
         content = _updated_content(existing, grouped[filename])
+        contents[filename] = content
         if content != existing:
             planned.append(FileWrite(path=path, content=content.encode("utf-8"), root=ref.root))
+
+    managed_sources = [contents[filename] for filename in filenames]
+    target_paths = set(destinations.values())
+    for directory in (ref.root / "project_memory", ref.root / "manager_memory"):
+        for path in direct_regular_files(directory, ref.root, suffix=".md"):
+            if path not in target_paths:
+                managed_sources.append(read_confined_text(path, ref.root))
+    events_by_id: dict[str, ProjectEvent] = {}
+    for content in managed_sources:
+        for block in parse_managed_events(content):
+            if block.event.event_id in events_by_id:
+                raise ValueError("duplicate managed event id")
+            events_by_id[block.event.event_id] = block.event
+    events = tuple(sorted(events_by_id.values(), key=_event_sort_key))
+    if has_problem_solving_evidence(events):
+        visual_path = require_write_destination(
+            ref.root / "project_memory" / "visuals" / "problem-solving.svg",
+            ref.root,
+        )
+        rendered = render_problem_solving_svg(ref, events)
+        try:
+            current_visual = read_confined_text(visual_path, ref.root)
+        except FileNotFoundError:
+            current_visual = ""
+        if rendered != current_visual:
+            planned.append(
+                FileWrite(
+                    path=visual_path,
+                    content=rendered.encode("utf-8"),
+                    root=ref.root,
+                )
+            )
     return tuple(planned)
 
 
-def _selected_events(knowledge: ProjectKnowledge) -> tuple[_MemoryEvent, ...]:
-    selected: list[_MemoryEvent] = []
+def _selected_events(knowledge: ProjectKnowledge) -> tuple[ProjectEvent, ...]:
+    selected: list[ProjectEvent] = []
     for claim in knowledge.winners.values():
         target = _TARGETS.get(claim.claim_type)
         if target is None or (claim.confidence < _MINIMUM_CONFIDENCE and not claim.selected):
             continue
-        selected.append(_event_from_claim(claim, *target))
+        selected.append(_event_from_claim(claim, target[2]))
 
-    deduplicated: dict[str, _MemoryEvent] = {}
+    deduplicated: dict[str, ProjectEvent] = {}
     for event in sorted(selected, key=_event_sort_key):
         deduplicated.setdefault(event.event_id, event)
     return tuple(sorted(deduplicated.values(), key=_event_sort_key))
 
 
 def _event_from_claim(
-    claim: EvidenceClaim, filename: str, section: str, title: str
-) -> _MemoryEvent:
+    claim: EvidenceClaim, title: str
+) -> ProjectEvent:
     if not re.fullmatch(_EVENT_ID, claim.evidence_id):
         raise ValueError("selected history has an invalid event_id")
     if not isinstance(claim.value, str) or not _one_line(claim.value):
         raise ValueError("selected history requires non-empty text evidence")
-    date = _one_line(claim.event_date)
-    if not date:
+    raw_date = _one_line(claim.event_date)
+    if len(raw_date) < 10:
         raise ValueError("selected history requires an event date")
-    return _MemoryEvent(
+    event_date = raw_date[:10]
+    try:
+        date.fromisoformat(event_date)
+    except ValueError:
+        raise ValueError("selected history requires an event date") from None
+    return ProjectEvent(
         event_id=claim.evidence_id,
-        date=date,
+        date=event_date,
         title=title,
         context=f"{claim.source_class} evidence",
         decision=_one_line(claim.value),
         outcome=f"Confidence: {claim.confidence:.2f}",
-        filename=filename,
-        section=section,
+        stage=claim.claim_type,
     )
 
 
-def _updated_content(existing: str, events: list[_MemoryEvent]) -> str:
+def _updated_content(existing: str, events: list[ProjectEvent]) -> str:
     blocks = _parse_managed_blocks(existing)
     by_id = {block.event_id: block for block in blocks}
-    replacements = {event.event_id: managed_event_block(event) for event in events if event.event_id in by_id}
+    section = _TARGETS[events[0].stage][1]
+    original_section = _target_section_bounds(existing, section)
+    relocate_existing = original_section is None and any(
+        event.event_id in by_id for event in events
+    )
+    replacements = {
+        event.event_id: "" if relocate_existing else managed_event_block(event)
+        for event in events
+        if event.event_id in by_id
+    }
     updated = _replace_blocks(existing, blocks, replacements)
-    section_bounds = _target_section_bounds(updated, events[0].section)
+    section_bounds = _target_section_bounds(updated, section)
 
-    additions = [event for event in sorted(events, key=_event_sort_key) if event.event_id not in by_id]
+    additions = [
+        event
+        for event in sorted(events, key=_event_sort_key)
+        if relocate_existing or event.event_id not in by_id
+    ]
     if not additions:
         return updated
 
-    section = events[0].section
     if not updated:
         return f"## {section}\n\n" + "\n".join(managed_event_block(event) for event in additions)
     rendered = "\n".join(managed_event_block(event) for event in additions)
@@ -156,16 +200,9 @@ def _updated_content(existing: str, events: list[_MemoryEvent]) -> str:
     return _insert_before_section_end(updated, section_bounds.end_line, rendered)
 
 
-def managed_event_block(event: _MemoryEvent) -> str:
+def managed_event_block(event: ProjectEvent) -> str:
     """Render the exact local Atlas control metadata block."""
-    return (
-        f"<!-- atlas:event:{event.event_id} -->\n"
-        f"### {event.date} · {event.title}\n\n"
-        f"- 상황: {event.context}\n"
-        f"- 선택: {event.decision}\n"
-        f"- 결과: {event.outcome}\n"
-        f"<!-- /atlas:event:{event.event_id} -->\n"
-    )
+    return render_managed_event(event)
 
 
 def _parse_managed_blocks(content: str) -> tuple[_ManagedBlock, ...]:
@@ -269,5 +306,10 @@ def _one_line(value: str) -> str:
     return " ".join(value.split())
 
 
-def _event_sort_key(event: _MemoryEvent) -> tuple[str, str, str, str]:
-    return (event.date, event.event_id, event.filename, event.decision)
+def _event_sort_key(event: ProjectEvent) -> tuple[str, str, str, str]:
+    return (
+        event.date,
+        event.event_id,
+        _TARGETS[event.stage][0],
+        event.decision,
+    )

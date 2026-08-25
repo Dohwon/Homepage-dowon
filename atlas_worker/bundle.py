@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
 import json
 import os
@@ -10,6 +11,7 @@ import re
 import shutil
 import stat
 from typing import Mapping
+from urllib.parse import quote
 import xml.etree.ElementTree as ET
 
 from .manifest import (
@@ -35,8 +37,9 @@ from .models import (
     validate_schema,
 )
 from .privacy import PrivacyGate
+from .graph import TAG_WEIGHTS
 from .taxonomy import display_tag_label, normalize_tag_label
-from .visuals import render_problem_solving_svg
+from .visuals import has_problem_solving_evidence, render_problem_solving_svg
 
 
 _OPTIONAL_PROJECT_FILES = (
@@ -59,6 +62,10 @@ _MANAGED_COMMENT = re.compile(r"<!-- /?atlas:event:[A-Za-z0-9][A-Za-z0-9._-]* --
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _SVG_TAG = "{http://www.w3.org/2000/svg}svg"
+
+
+class BundleRecoveryError(OSError):
+    """Raised when last-good recovery cannot be completed automatically."""
 
 
 @dataclass(frozen=True)
@@ -117,7 +124,7 @@ def build_candidate_bundle(context: BundleContext, staging_dir: Path) -> BundleM
                     _write_text(project_dir / filename, markdown, context.privacy_gate)
 
         events = context.project_events.get(project.project_id, ())
-        if events:
+        if has_problem_solving_evidence(events):
             svg = render_problem_solving_svg(_project_ref(project), events)
             _validate_svg(svg)
             _write_text(project_dir / "visuals" / "problem-solving.svg", svg, context.privacy_gate)
@@ -127,8 +134,11 @@ def build_candidate_bundle(context: BundleContext, staging_dir: Path) -> BundleM
     topics = _topics(projects)
     changelog = _changelog(context.project_events, project_ids)
     search_index = _search_index(context.search_documents, project_ids)
-    _validate_graph_nodes(nodes)
-    _validate_graph_edges(edges)
+    _validate_graph(
+        nodes,
+        edges,
+        {project.project_id: project.to_dict() for project in projects},
+    )
     _validate_topics(topics, set(project_ids))
     _validate_changelog(changelog, set(project_ids))
     _validate_search_index(search_index, set(project_ids))
@@ -459,11 +469,13 @@ def _validate_bundle(root: Path, tree: Mapping[str, str]) -> BundleManifest:
             raise ValueError(f"manifest file hash mismatch: {path}")
 
     project_hashes = {}
+    project_payloads: dict[str, dict[str, object]] = {}
     for project_id in projects:
         payload = _parse_json(tree, f"projects/{project_id}/project.json")
         validate_schema(payload, "public-project")
         if payload["id"] != project_id:
             raise ValueError(f"project ID does not match bundle path: {project_id}")
+        project_payloads[project_id] = payload
         project_hashes[project_id] = canonical_hash(
             {
                 path: digest
@@ -479,8 +491,11 @@ def _validate_bundle(root: Path, tree: Mapping[str, str]) -> BundleManifest:
         if svg_path in tree:
             _validate_svg(tree[svg_path])
 
-    _validate_graph_nodes(_parse_json(tree, "graph/nodes.json"))
-    _validate_graph_edges(_parse_json(tree, "graph/edges.json"))
+    _validate_graph(
+        _parse_json(tree, "graph/nodes.json"),
+        _parse_json(tree, "graph/edges.json"),
+        project_payloads,
+    )
     project_set = set(projects)
     _validate_topics(_parse_json(tree, "topics.json"), project_set)
     _validate_changelog(_parse_json(tree, "changelog.json"), project_set)
@@ -590,7 +605,7 @@ def _parse_json(tree: Mapping[str, str], path: str) -> object:
         raise ValueError(f"invalid JSON in {path}: {error.msg}") from None
 
 
-def _validate_graph_nodes(value: object) -> None:
+def _validate_graph_nodes(value: object) -> list[dict[str, object]]:
     records = _require_record_list(value, "graph nodes")
     seen = set()
     for record in records:
@@ -601,9 +616,10 @@ def _validate_graph_nodes(value: object) -> None:
         if record["id"] in seen:
             raise ValueError("graph nodes require unique IDs")
         seen.add(record["id"])
+    return records
 
 
-def _validate_graph_edges(value: object) -> None:
+def _validate_graph_edges(value: object) -> list[dict[str, object]]:
     records = _require_record_list(value, "graph edges")
     for record in records:
         _require_exact_keys(record, {"source", "target", "kind", "weight", "reasons"}, "graph edge")
@@ -614,6 +630,185 @@ def _validate_graph_edges(value: object) -> None:
             raise ValueError("graph edge weight must be a positive integer")
         if not _is_string_list(record["reasons"]):
             raise ValueError("graph edge reasons must be strings")
+    return records
+
+
+def _validate_graph(
+    nodes_value: object,
+    edges_value: object,
+    projects: Mapping[str, dict[str, object]],
+) -> None:
+    nodes = _validate_graph_nodes(nodes_value)
+    edges = _validate_graph_edges(edges_value)
+    expected_nodes, expected_memberships, project_tags = _expected_graph(projects)
+    actual_nodes = {str(node["id"]): node for node in nodes}
+    if set(actual_nodes) != set(expected_nodes):
+        raise ValueError("graph nodes do not match canonical project and tag IDs")
+    for node_id, (kind, label) in expected_nodes.items():
+        node = actual_nodes[node_id]
+        if node["kind"] != kind or node["label"] != label:
+            raise ValueError("graph node kind or label is not canonical")
+
+    memberships: set[tuple[str, str]] = set()
+    similarity_pairs: set[tuple[str, str]] = set()
+    seen_edges: set[tuple[str, str, str]] = set()
+    degrees: dict[str, int] = defaultdict(int)
+    for edge in edges:
+        source = str(edge["source"])
+        target = str(edge["target"])
+        kind = str(edge["kind"])
+        identity = (kind, source, target)
+        if identity in seen_edges:
+            raise ValueError("graph edges require unique directed pairs")
+        seen_edges.add(identity)
+        if source == target:
+            raise ValueError("graph edges cannot be self edges")
+        if source not in actual_nodes or target not in actual_nodes:
+            raise ValueError("graph edge has a dangling endpoint")
+
+        source_kind = str(actual_nodes[source]["kind"])
+        target_kind = str(actual_nodes[target]["kind"])
+        reasons = tuple(edge["reasons"])
+        if kind == "tag-membership":
+            if source_kind != "project" or target_kind == "project":
+                raise ValueError("graph membership direction or tag kind is invalid")
+            if edge["weight"] != 1 or reasons:
+                raise ValueError("graph membership weight and reasons must be canonical")
+            pair = (source, target)
+            if pair in memberships:
+                raise ValueError("graph membership pairs must be unique")
+            memberships.add(pair)
+            continue
+
+        if source_kind != "project" or target_kind != "project":
+            raise ValueError("graph similarity endpoints must both be projects")
+        pair = tuple(sorted((source, target)))
+        if (source, target) != pair:
+            raise ValueError("graph similarity endpoints must use canonical ordering")
+        if pair in similarity_pairs:
+            raise ValueError("graph similarity pairs must be unique")
+        similarity_pairs.add(pair)
+        expected_reasons, expected_weight = _similarity_contract(
+            source,
+            target,
+            project_tags,
+            expected_nodes,
+        )
+        if reasons != expected_reasons or edge["weight"] != expected_weight:
+            raise ValueError("graph similarity reasons or weight are not stable")
+        degrees[source] += 1
+        degrees[target] += 1
+        if degrees[source] > 5 or degrees[target] > 5:
+            raise ValueError("graph project similarity degree exceeds five")
+
+    if memberships != expected_memberships:
+        raise ValueError("graph membership edges do not match project tags")
+    if similarity_pairs != _expected_similarity_pairs(project_tags, expected_nodes):
+        raise ValueError("graph similarity edges do not match deterministic selection")
+
+
+def _expected_graph(
+    projects: Mapping[str, dict[str, object]],
+) -> tuple[
+    dict[str, tuple[str, str]],
+    set[tuple[str, str]],
+    dict[str, dict[str, set[str]]],
+]:
+    tag_labels: dict[tuple[str, str], list[str]] = defaultdict(list)
+    project_tags: dict[str, dict[str, set[str]]] = {}
+    for project_id, payload in projects.items():
+        tags = payload["tags"]
+        normalized_by_kind: dict[str, set[str]] = {}
+        for kind in TAG_WEIGHTS:
+            normalized_by_kind[kind] = {
+                normalize_tag_label(label) for label in tags[kind]
+            }
+            for label in tags[kind]:
+                tag_labels[(kind, normalize_tag_label(label))].append(
+                    display_tag_label(label)
+                )
+        project_tags[_project_node_id(project_id)] = normalized_by_kind
+
+    canonical_tag_labels = {
+        key: min(values, key=lambda value: (normalize_tag_label(value), value))
+        for key, values in tag_labels.items()
+    }
+    expected_nodes = {
+        _project_node_id(project_id): ("project", str(payload["name"]))
+        for project_id, payload in projects.items()
+    }
+    expected_nodes.update(
+        {
+            _tag_node_id(kind, identity): (kind, label)
+            for (kind, identity), label in canonical_tag_labels.items()
+        }
+    )
+    memberships = {
+        (project_node_id, _tag_node_id(kind, identity))
+        for project_node_id, by_kind in project_tags.items()
+        for kind, identities in by_kind.items()
+        for identity in identities
+    }
+    return expected_nodes, memberships, project_tags
+
+
+def _similarity_contract(
+    source: str,
+    target: str,
+    project_tags: Mapping[str, Mapping[str, set[str]]],
+    expected_nodes: Mapping[str, tuple[str, str]],
+) -> tuple[tuple[str, ...], int]:
+    reasons = []
+    weight = 0
+    for kind, tag_weight in TAG_WEIGHTS.items():
+        for identity in sorted(project_tags[source][kind] & project_tags[target][kind]):
+            tag_id = _tag_node_id(kind, identity)
+            reasons.append(f"{kind}:{expected_nodes[tag_id][1]}")
+            weight += tag_weight
+    if not reasons or weight <= 0:
+        raise ValueError("graph similarity requires shared project tags")
+    return tuple(reasons), weight
+
+
+def _expected_similarity_pairs(
+    project_tags: Mapping[str, Mapping[str, set[str]]],
+    expected_nodes: Mapping[str, tuple[str, str]],
+) -> set[tuple[str, str]]:
+    project_ids = tuple(sorted(project_tags))
+    candidates: list[tuple[int, str, str, tuple[str, ...]]] = []
+    for index, source in enumerate(project_ids):
+        for target in project_ids[index + 1 :]:
+            try:
+                reasons, weight = _similarity_contract(
+                    source,
+                    target,
+                    project_tags,
+                    expected_nodes,
+                )
+            except ValueError:
+                continue
+            candidates.append((weight, source, target, reasons))
+
+    degrees: dict[str, int] = defaultdict(int)
+    selected: set[tuple[str, str]] = set()
+    for _, source, target, _ in sorted(
+        candidates,
+        key=lambda item: (-item[0], item[1], item[2], item[3]),
+    ):
+        if degrees[source] >= 5 or degrees[target] >= 5:
+            continue
+        degrees[source] += 1
+        degrees[target] += 1
+        selected.add((source, target))
+    return selected
+
+
+def _project_node_id(project_id: str) -> str:
+    return f"project:{quote(project_id, safe='')}"
+
+
+def _tag_node_id(kind: str, identity: str) -> str:
+    return f"{kind}:{quote(identity, safe='')}"
 
 
 def _validate_topics(value: object, project_ids: set[str]) -> None:
@@ -776,7 +971,7 @@ def _restore_backup(
         _copytree(backup, recovery)
     except (OSError, ValueError) as copy_error:
         _best_effort_cleanup(recovery)
-        raise RuntimeError("recovery copy failed; intact backup retained") from copy_error
+        raise BundleRecoveryError("recovery copy failed; intact backup retained") from copy_error
 
     try:
         recovery_tree = _load_text_tree(recovery)
@@ -786,13 +981,13 @@ def _restore_backup(
             raise ValueError("recovery tree does not match last-good bytes")
     except (OSError, ValueError) as validation_error:
         _best_effort_cleanup(recovery)
-        raise RuntimeError("recovery validation failed; intact backup retained") from validation_error
+        raise BundleRecoveryError("recovery validation failed; intact backup retained") from validation_error
 
     try:
         _rename(recovery, public_dir)
     except (OSError, ValueError) as rename_error:
         _best_effort_cleanup(recovery)
-        raise RuntimeError("recovery rename failed; intact backup retained") from rename_error
+        raise BundleRecoveryError("recovery rename failed; intact backup retained") from rename_error
 
     try:
         _cleanup_tree(backup)

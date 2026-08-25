@@ -1,3 +1,4 @@
+import base64
 import os
 import re
 from dataclasses import asdict
@@ -31,6 +32,8 @@ UNSAFE_URL_SCHEME_VALUES = (
     "custom%2Batlas%3Avalue",
 )
 
+PRODUCTION_ALIAS_KEY = b"0123456789abcdef0123456789abcdef"
+
 
 def test_public_bundle_rejects_local_paths_and_secrets():
     gate = PrivacyGate(alias_key=b"unit-test-key")
@@ -38,6 +41,45 @@ def test_public_bundle_rejects_local_paths_and_secrets():
     report = gate.scan({"summary": "read /home/dowon/private", "token": "sk-test-secret-value"})
 
     assert {finding.category for finding in report.findings} == {"absolute_path", "secret"}
+
+
+@pytest.mark.parametrize(
+    "encoded_key",
+    (
+        PRODUCTION_ALIAS_KEY.decode("utf-8"),
+        PRODUCTION_ALIAS_KEY.hex(),
+        PRODUCTION_ALIAS_KEY.hex().upper(),
+        base64.b64encode(PRODUCTION_ALIAS_KEY).decode("ascii"),
+        base64.b64encode(PRODUCTION_ALIAS_KEY).decode("ascii").rstrip("="),
+        base64.urlsafe_b64encode(PRODUCTION_ALIAS_KEY).decode("ascii"),
+        base64.urlsafe_b64encode(PRODUCTION_ALIAS_KEY).decode("ascii").rstrip("="),
+    ),
+)
+def test_production_alias_key_variants_are_blocked_inside_larger_text_without_leak(
+    encoded_key,
+):
+    gate = PrivacyGate(alias_key=PRODUCTION_ALIAS_KEY)
+    candidate = {"summary": f"prefix:{encoded_key}:suffix"}
+
+    report = gate.scan(candidate)
+
+    assert [(finding.category, finding.json_pointer) for finding in report.findings] == [
+        ("alias_key", "/summary")
+    ]
+    with pytest.raises(PrivacyViolation) as caught:
+        gate.require_safe(candidate)
+    assert encoded_key not in str(caught.value)
+    assert PRODUCTION_ALIAS_KEY.decode("utf-8") not in str(caught.value)
+
+
+def test_generic_lowercase_sha256_remains_safe_when_it_is_not_the_alias_key():
+    gate = PrivacyGate(alias_key=PRODUCTION_ALIAS_KEY)
+    digest_with_phone_like_digits = "a01012345678b" + "c" * 51
+
+    assert len(digest_with_phone_like_digits) == 64
+    assert gate.scan(
+        {"version": digest_with_phone_like_digits, "files": {"project.json": "b" * 64}}
+    ).findings == ()
 
 
 @pytest.mark.parametrize(

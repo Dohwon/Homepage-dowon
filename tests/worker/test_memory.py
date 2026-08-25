@@ -3,8 +3,14 @@ from pathlib import Path
 
 from atlas_worker.evidence import merge_claims
 from atlas_worker.memory import load_project_memory
+from atlas_worker.memory_writer import update_project_memory
 from atlas_worker.models import EvidenceClaim
-from tests.worker.helpers import make_project_ref, write_memory_markdown, write_project_profile
+from tests.worker.helpers import (
+    make_decision_knowledge,
+    make_project_ref,
+    write_memory_markdown,
+    write_project_profile,
+)
 
 
 def test_manual_profile_beats_curated_and_inferred_claims():
@@ -46,6 +52,7 @@ def test_missing_optional_memory_files_return_empty_sections(tmp_path):
     assert memory.rollbacks == ()
     assert memory.decisions == ()
     assert memory.build_story == ()
+    assert memory.events == ()
     assert not (tmp_path / "project_memory" / "rollbacks.md").exists()
     assert not (tmp_path / "manager_memory").exists()
 
@@ -155,4 +162,65 @@ def test_invalid_profile_raises_before_memory_is_consumed(tmp_path):
     write_memory_markdown(tmp_path, "project_memory/history.md", "## Decisions\n\n- ignored\n")
 
     with pytest.raises(ValueError, match=r"tags\.domain"):
+        load_project_memory(ref)
+
+
+def test_writer_managed_event_round_trips_as_typed_history_under_owning_h2(tmp_path):
+    ref = make_project_ref(tmp_path)
+    write_project_profile(tmp_path)
+    write_memory_markdown(
+        tmp_path,
+        "project_memory/decisions.md",
+        "## Decisions\n\n- user-authored decision\n\n### Ordinary prose\n\n- not curated structure\n",
+    )
+
+    update_project_memory(ref, make_decision_knowledge(), dry_run=False)
+    memory = load_project_memory(ref)
+
+    assert memory.decisions == (
+        "user-authored decision",
+        "Use typed contracts for project memory",
+    )
+    assert len(memory.events) == 1
+    event = memory.events[0]
+    assert (
+        event.event_id,
+        event.date,
+        event.title,
+        event.context,
+        event.decision,
+        event.outcome,
+        event.stage,
+    ) == (
+        "decision-001",
+        "2026-08-24",
+        "Decision",
+        "source evidence",
+        "Use typed contracts for project memory",
+        "Confidence: 0.90",
+        "decision",
+    )
+    assert not hasattr(event, "source_path")
+
+
+@pytest.mark.parametrize(
+    "managed_content",
+    (
+        "## Decisions\n\n<!-- atlas:event:broken -->\n### 2026-08-24 · Decision\n",
+        "## Decisions\n\n<!-- /atlas:event:broken -->\n",
+        (
+            "## Decisions\n\n<!-- atlas:event:first -->\n"
+            "### 2026-08-24 · Decision\n\n- 상황: evidence\n- 선택: choice\n- 결과: result\n"
+            "<!-- /atlas:event:second -->\n"
+        ),
+    ),
+)
+def test_loader_rejects_malformed_or_unmatched_managed_event_markers(
+    tmp_path, managed_content
+):
+    ref = make_project_ref(tmp_path)
+    write_project_profile(tmp_path)
+    write_memory_markdown(tmp_path, "project_memory/decisions.md", managed_content)
+
+    with pytest.raises(ValueError, match="managed"):
         load_project_memory(ref)

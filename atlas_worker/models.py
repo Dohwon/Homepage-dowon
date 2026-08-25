@@ -37,10 +37,14 @@ class ProjectRef:
     lifecycle: Lifecycle
     publication: Publication
     aliases: tuple[str, ...]
+    profile_path: Path | None = None
+    standalone_asset: bool = False
 
     def to_dict(self) -> dict[str, object]:
         value = asdict(self)
         value["root"] = str(self.root)
+        value.pop("profile_path", None)
+        value.pop("standalone_asset", None)
         return value
 
 
@@ -84,6 +88,7 @@ class ProjectMemory:
     build_story: tuple[str, ...] = ()
     decisions: tuple[str, ...] = ()
     rollbacks: tuple[str, ...] = ()
+    events: tuple["ProjectEvent", ...] = ()
 
 
 @dataclass(frozen=True)

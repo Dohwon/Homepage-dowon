@@ -7,6 +7,7 @@ import sys
 import pytest
 import yaml
 
+import atlas_worker.bundle as bundle_module
 import atlas_worker.cli as cli_module
 import atlas_worker.fs_safety as fs_safety_module
 from atlas_worker.cli import (
@@ -20,9 +21,13 @@ from atlas_worker.cli import (
 from tests.worker.helpers import (
     invoke_cli_json,
     make_workspace_fixture,
+    refresh_fixture_manifest,
     write_bundle_fixture,
     write_project_profile,
 )
+
+
+PRODUCTION_ALIAS_KEY = "0123456789abcdef0123456789abcdef"
 
 
 def _snapshot(root: Path) -> dict[str, tuple[str, bytes]]:
@@ -43,12 +48,16 @@ def _write_session(
     workspace: Path,
     raw_text: str = "TOP_SECRET rollback request",
     project_relative_path: str = "projects/alpha",
+    historical_cwd: str | None = None,
 ) -> None:
     records = (
         {
             "type": "session_meta",
             "timestamp": "2026-08-24T10:00:00Z",
-            "payload": {"id": f"session-{path.stem}", "cwd": str(workspace / project_relative_path)},
+            "payload": {
+                "id": f"session-{path.stem}",
+                "cwd": historical_cwd or str(workspace / project_relative_path),
+            },
         },
         {
             "type": "response_item",
@@ -62,6 +71,42 @@ def _write_session(
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+
+
+def _write_revision_session(path: Path, workspace: Path) -> None:
+    records = (
+        {
+            "type": "session_meta",
+            "timestamp": "2026-08-24T10:00:00Z",
+            "payload": {
+                "id": f"session-{path.stem}",
+                "cwd": str(workspace / "projects" / "alpha"),
+            },
+        },
+        {
+            "type": "response_item",
+            "timestamp": "2026-08-24T10:01:00Z",
+            "payload": {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": "다시 수정해"}],
+            },
+        },
+        {
+            "type": "response_item",
+            "timestamp": "2026-08-24T10:02:00Z",
+            "payload": {
+                "type": "message",
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": "수정 완료"}],
+            },
+        },
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "".join(json.dumps(record, ensure_ascii=False) + "\n" for record in records),
+        encoding="utf-8",
+    )
 
 
 def _reviewed_profile(project_id: str, lifecycle: str = "active") -> dict[str, object]:
@@ -93,6 +138,24 @@ def test_parser_exposes_all_worker_commands_and_required_options(tmp_path):
     assert parser.parse_args(["build", "--workspace", workspace, "--dry-run"]).dry_run
     assert parser.parse_args(["validate", "--fixture", workspace]).fixture == Path(workspace)
     assert parser.parse_args(["run", "--workspace", workspace, "--dry-run"]).dry_run
+
+
+def test_operator_readme_documents_atlas_setup_key_and_recovery_contracts():
+    readme = (Path(__file__).parents[2] / "README.md").read_text(encoding="utf-8")
+
+    for required in (
+        "Python 3.10+",
+        "python3 -m venv .venv",
+        "requirements-atlas.txt",
+        "32 bytes",
+        "chmod 600",
+        "same filesystem",
+        ".public-bundle.previous",
+        ".public-bundle.recovery",
+        "validate --fixture",
+        "category\":\"io",
+    ):
+        assert required in readme
 
 
 def test_discover_reports_active_and_finish_children_without_roots_or_aggregate(tmp_path):
@@ -186,6 +249,195 @@ def test_bootstrap_profiles_applies_schema_valid_reviewed_profiles_atomically(tm
     assert output["written"] == ["projects/gamma/project_memory/project-profile.yaml"]
     assert profile.is_file()
     assert not tuple(profile.parent.glob(".*.tmp"))
+
+
+def test_registered_notebook_sidecar_bootstrap_update_and_build_lifecycle(
+    tmp_path, monkeypatch
+):
+    workspace = make_workspace_fixture(tmp_path)
+    projects = workspace / "projects"
+    asset = projects / "analysis_notebook.ipynb"
+    asset.write_text('{"cells": []}\n', encoding="utf-8")
+    ignored = projects / "ignored_notebook.ipynb"
+    ignored.write_text('{"cells": []}\n', encoding="utf-8")
+    ignored_sidecar = projects / "ignored_notebook.ipynb.project-profile.yaml"
+    ignored_sidecar.write_text(
+        yaml.safe_dump(_reviewed_profile("ignored-notebook")), encoding="utf-8"
+    )
+    runtime = workspace / ".knowledge-worker" / "config.yaml"
+    runtime.parent.mkdir()
+    runtime.write_text(
+        yaml.safe_dump({"registered_assets": ["projects/analysis_notebook.ipynb"]}),
+        encoding="utf-8",
+    )
+    report = tmp_path / "asset-profile.json"
+    private_profile = _reviewed_profile("analysis-notebook")
+    report.write_text(json.dumps({"profiles": [private_profile]}), encoding="utf-8")
+
+    initial = invoke_cli_json(["discover", "--workspace", str(workspace)])
+    created = invoke_cli_json(
+        [
+            "bootstrap-profiles",
+            "--workspace",
+            str(workspace),
+            "--apply-reviewed-report",
+            str(report),
+        ]
+    )
+    sidecar = projects / "analysis_notebook.ipynb.project-profile.yaml"
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+    private_build = invoke_cli_json(["build", "--workspace", str(workspace)])
+
+    assert "analysis-notebook" in initial["ambiguous"]
+    assert created["written"] == [
+        "projects/analysis_notebook.ipynb.project-profile.yaml"
+    ]
+    assert sidecar.is_file()
+    assert "analysis-notebook" not in private_build["projects"]
+    assert "ignored-notebook" not in [item["id"] for item in initial["projects"]]
+
+    public_profile = dict(private_profile)
+    public_profile["publication"] = "public"
+    public_profile["summary"] = "Reviewed public notebook"
+    report.write_text(json.dumps({"profiles": [public_profile]}), encoding="utf-8")
+    updated = invoke_cli_json(
+        [
+            "bootstrap-profiles",
+            "--workspace",
+            str(workspace),
+            "--apply-reviewed-report",
+            str(report),
+        ]
+    )
+    public_build = invoke_cli_json(["build", "--workspace", str(workspace)])
+    rerun = invoke_cli_json(["build", "--workspace", str(workspace)])
+
+    assert updated["written"] == [
+        "projects/analysis_notebook.ipynb.project-profile.yaml"
+    ]
+    assert "analysis-notebook" in public_build["projects"]
+    assert (
+        workspace
+        / "portfolio-homepage"
+        / "public-bundle"
+        / "projects"
+        / "analysis-notebook"
+        / "project.json"
+    ).is_file()
+    assert not rerun["changed"]
+
+
+def test_registered_asset_source_denylist_fails_before_discovery_output(tmp_path, capsys):
+    workspace = make_workspace_fixture(tmp_path)
+    asset = workspace / "projects" / "logs" / "analysis.ipynb"
+    asset.parent.mkdir()
+    asset.write_text('{"cells": []}\n', encoding="utf-8")
+    runtime = workspace / ".knowledge-worker" / "config.yaml"
+    runtime.parent.mkdir()
+    runtime.write_text(
+        yaml.safe_dump({"registered_assets": ["projects/logs/analysis.ipynb"]}),
+        encoding="utf-8",
+    )
+
+    code = main(["discover", "--workspace", str(workspace)])
+
+    captured = capsys.readouterr()
+    assert code == EXIT_PRIVACY
+    assert json.loads(captured.err) == {
+        "error": {"category": "denied_source", "pointer": "$"}
+    }
+    assert str(workspace) not in captured.err
+
+
+def test_standalone_bootstrap_rechecks_asset_no_follow_before_sidecar_write(
+    tmp_path, monkeypatch, capsys
+):
+    workspace = make_workspace_fixture(tmp_path)
+    asset = workspace / "projects" / "analysis.ipynb"
+    asset.write_text('{"cells": []}\n', encoding="utf-8")
+    outside = tmp_path / "outside.ipynb"
+    outside.write_text("outside stays intact\n", encoding="utf-8")
+    runtime = workspace / ".knowledge-worker" / "config.yaml"
+    runtime.parent.mkdir()
+    runtime.write_text(
+        yaml.safe_dump({"registered_assets": ["projects/analysis.ipynb"]}),
+        encoding="utf-8",
+    )
+    report = tmp_path / "asset-profile.json"
+    report.write_text(
+        json.dumps({"profiles": [_reviewed_profile("analysis")]}), encoding="utf-8"
+    )
+    real_load = cli_module._load_reviewed_profiles
+
+    def swap_asset_after_discovery(path):
+        profiles = real_load(path)
+        asset.unlink()
+        asset.symlink_to(outside)
+        return profiles
+
+    monkeypatch.setattr(cli_module, "_load_reviewed_profiles", swap_asset_after_discovery)
+
+    code = main(
+        [
+            "bootstrap-profiles",
+            "--workspace",
+            str(workspace),
+            "--apply-reviewed-report",
+            str(report),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert code == EXIT_VALIDATION
+    assert not (workspace / "projects" / "analysis.ipynb.project-profile.yaml").exists()
+    assert outside.read_text(encoding="utf-8") == "outside stays intact\n"
+    assert str(workspace) not in captured.err
+    assert "traceback" not in captured.err.casefold()
+
+
+def test_cli_backfill_maps_discovered_relative_profile_aliases_on_posix_and_windows(
+    tmp_path,
+):
+    workspace = make_workspace_fixture(tmp_path)
+    profile_path = (
+        workspace / "projects" / "alpha" / "project_memory" / "project-profile.yaml"
+    )
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["aliases"] = ["projects/old-alpha"]
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    sessions = tmp_path / "sessions"
+    _write_session(
+        sessions / "posix.jsonl",
+        workspace,
+        raw_text="We adopted X for the architecture.",
+        historical_cwd="/archive/codex/projects/old-alpha/nested",
+    )
+    _write_session(
+        sessions / "windows.jsonl",
+        workspace,
+        raw_text="We adopted X for the architecture.",
+        historical_cwd=r"C:\Archive\Codex\projects\old-alpha\nested",
+    )
+
+    output = invoke_cli_json(
+        [
+            "backfill",
+            "--workspace",
+            str(workspace),
+            "--sessions-root",
+            str(sessions),
+            "--dry-run",
+        ]
+    )
+
+    assert output["sessions"] == {
+        "files": 2,
+        "mapped_events": 4,
+        "parse_errors": 0,
+        "unmapped_events": 0,
+    }
+    assert len(output["claims"]) == 2
+    assert {claim["project_id"] for claim in output["claims"]} == {"alpha"}
 
 
 def test_bootstrap_profiles_preflights_entire_report_before_any_write(tmp_path, capsys):
@@ -688,7 +940,7 @@ def test_build_real_write_requires_explicit_runtime_alias_key(tmp_path, capsys):
 
 def test_build_real_write_promotes_valid_public_profiles_and_direct_memory(tmp_path, monkeypatch):
     workspace = make_workspace_fixture(tmp_path)
-    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", "approved-unit-test-key")
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
 
     output = invoke_cli_json(["build", "--workspace", str(workspace)])
 
@@ -706,7 +958,7 @@ def test_build_real_write_promotes_valid_public_profiles_and_direct_memory(tmp_p
 def test_build_real_write_accepts_explicit_runtime_alias_key_file(tmp_path):
     workspace = make_workspace_fixture(tmp_path)
     key_path = tmp_path / "atlas-hmac.key"
-    key_path.write_bytes(b"approved-key-file-material")
+    key_path.write_bytes(PRODUCTION_ALIAS_KEY.encode("utf-8") + b"\n")
     runtime = workspace / ".knowledge-worker" / "config.yaml"
     runtime.parent.mkdir()
     runtime.write_text(yaml.safe_dump({"hmac_key_path": str(key_path)}), encoding="utf-8")
@@ -756,7 +1008,7 @@ def test_build_dry_run_blocks_encoded_unsafe_scheme_without_leak_or_write(tmp_pa
 
 def test_build_rejects_unsafe_scheme_and_preserves_last_good_bundle(tmp_path, monkeypatch, capsys):
     workspace = make_workspace_fixture(tmp_path)
-    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", "approved-unit-test-key")
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
     public = workspace / "portfolio-homepage" / "public-bundle"
     write_bundle_fixture(public, version=None, summary="last good")
     public_before = _snapshot(public)
@@ -802,7 +1054,7 @@ def test_build_rejects_symlinked_public_sources_before_candidate_or_promotion(
     outside_before = _snapshot(outside) if outside.is_dir() else outside.read_bytes()
     public = workspace / "portfolio-homepage" / "public-bundle"
     if not dry_run:
-        monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", "approved-unit-test-key")
+        monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
         write_bundle_fixture(public, version=None, summary="last good")
         public_before = _snapshot(public)
 
@@ -983,6 +1235,111 @@ def test_validate_invalid_bundle_returns_sanitized_validation_exit_without_write
     assert _snapshot(fixture) == before
 
 
+@pytest.mark.parametrize("mutation", ("dangling", "six-neighbors"))
+def test_cli_validate_rejects_rehashed_cross_graph_contract_violations(
+    tmp_path, capsys, mutation
+):
+    fixture = tmp_path / "malformed-graph"
+    project_ids = tuple(f"project-{index}" for index in range(7))
+    write_bundle_fixture(fixture, None, "safe", project_ids=project_ids)
+    edges_path = fixture / "graph" / "edges.json"
+    edges = json.loads(edges_path.read_text(encoding="utf-8"))
+    if mutation == "dangling":
+        edges.append(
+            {
+                "kind": "project-similarity",
+                "reasons": ["domain:AI"],
+                "source": "project:project-0",
+                "target": "project:missing",
+                "weight": 4,
+            }
+        )
+    else:
+        edges = [edge for edge in edges if edge["kind"] != "project-similarity"]
+        edges.extend(
+            {
+                "kind": "project-similarity",
+                "reasons": [
+                    "domain:AI",
+                    "outcome:Tool",
+                    "pattern:Evaluation",
+                    "problem:Routing",
+                    "technology:Python",
+                ],
+                "source": "project:project-0",
+                "target": f"project:project-{index}",
+                "weight": 20,
+            }
+            for index in range(1, 7)
+        )
+    edges_path.write_text(
+        json.dumps(edges, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    refresh_fixture_manifest(fixture, None, project_ids)
+    before = _snapshot(fixture)
+
+    code = main(["validate", "--fixture", str(fixture)])
+
+    captured = capsys.readouterr()
+    assert code == EXIT_VALIDATION
+    assert json.loads(captured.err)["error"]["category"] == "validation"
+    assert str(fixture) not in captured.err
+    assert _snapshot(fixture) == before
+
+
+def test_cli_promotion_rejects_malformed_graph_and_preserves_last_good(
+    tmp_path, monkeypatch, capsys
+):
+    workspace = make_workspace_fixture(tmp_path)
+    public = workspace / "portfolio-homepage" / "public-bundle"
+    write_bundle_fixture(public, None, "last good", project_ids=("alpha", "beta"))
+    before = _snapshot(public)
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+    real_build = cli_module.build_candidate_bundle
+    real_validate = cli_module.validate_bundle
+    candidate_manifest = None
+
+    def build_malformed(context, staging):
+        nonlocal candidate_manifest
+        candidate_manifest = real_build(context, staging)
+        edges_path = staging / "graph" / "edges.json"
+        edges = json.loads(edges_path.read_text(encoding="utf-8"))
+        edges.append(
+            {
+                "kind": "project-similarity",
+                "reasons": ["domain:AI"],
+                "source": "project:alpha",
+                "target": "project:missing",
+                "weight": 4,
+            }
+        )
+        edges_path.write_text(
+            json.dumps(edges, sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+        )
+        refresh_fixture_manifest(staging, None, ("alpha", "beta"))
+        return candidate_manifest
+
+    def defer_staging_validation_to_promoter(root, gate):
+        if ".project-atlas-staging-" in root.as_posix():
+            assert candidate_manifest is not None
+            return candidate_manifest
+        return real_validate(root, gate)
+
+    monkeypatch.setattr(cli_module, "build_candidate_bundle", build_malformed)
+    monkeypatch.setattr(cli_module, "validate_bundle", defer_staging_validation_to_promoter)
+
+    code = main(["build", "--workspace", str(workspace)])
+
+    captured = capsys.readouterr()
+    assert code == EXIT_VALIDATION
+    assert json.loads(captured.err)["error"]["category"] == "validation"
+    assert str(workspace) not in captured.err
+    assert _snapshot(public) == before
+    assert not tuple((workspace / "portfolio-homepage").glob(".project-atlas-staging-*"))
+
+
 def test_run_dry_run_with_sessions_changes_no_durable_workspace_tree(tmp_path):
     workspace = make_workspace_fixture(tmp_path)
     sessions = workspace / "runtime-input" / "sessions"
@@ -1118,3 +1475,299 @@ def test_project_atlas_script_adds_repository_root_and_returns_main_code(tmp_pat
     assert json.loads(result.stdout)["ambiguous"] == []
     assert str(workspace) not in result.stdout
     assert result.stderr == ""
+
+
+@pytest.mark.parametrize("dry_run", (True, False))
+def test_cli_build_blocks_configured_alias_key_without_output_or_bundle_leak(
+    tmp_path, monkeypatch, capsys, dry_run
+):
+    workspace = make_workspace_fixture(tmp_path)
+    service = workspace / "portfolio-homepage"
+    public = service / "public-bundle"
+    if not dry_run:
+        write_bundle_fixture(public, None, "last good")
+    public_before = _snapshot(public) if public.exists() else None
+    encoded_key = PRODUCTION_ALIAS_KEY.encode("utf-8").hex().upper()
+    write_project_profile(
+        workspace / "projects" / "alpha",
+        summary=f"prefix:{encoded_key}:suffix",
+    )
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+    before = _snapshot(workspace)
+    arguments = ["build", "--workspace", str(workspace)]
+    if dry_run:
+        arguments.append("--dry-run")
+
+    code = main(arguments)
+
+    captured = capsys.readouterr()
+    assert code == EXIT_PRIVACY
+    assert json.loads(captured.err) == {
+        "error": {"category": "alias_key", "pointer": "$"}
+    }
+    assert PRODUCTION_ALIAS_KEY not in captured.err
+    assert encoded_key not in captured.err
+    assert str(workspace) not in captured.err
+    assert "traceback" not in captured.err.casefold()
+    assert _snapshot(workspace) == before
+    if public_before is None:
+        assert not public.exists()
+    else:
+        assert _snapshot(public) == public_before
+    assert not tuple(service.glob(".project-atlas-staging-*"))
+
+
+def test_non_dry_cli_rejects_short_alias_key_before_publication(tmp_path, monkeypatch, capsys):
+    workspace = make_workspace_fixture(tmp_path)
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", "short-test-key")
+
+    code = main(["build", "--workspace", str(workspace)])
+
+    captured = capsys.readouterr()
+    assert code == EXIT_VALIDATION
+    assert json.loads(captured.err) == {
+        "error": {"category": "config", "pointer": "/alias-key"}
+    }
+    assert "short-test-key" not in captured.err
+    assert not (workspace / "portfolio-homepage" / "public-bundle").exists()
+
+
+@pytest.mark.parametrize("failure_stage", ("copy", "validation", "rename"))
+def test_cli_recovery_failures_return_sanitized_io_and_preserve_last_good(
+    tmp_path, monkeypatch, capsys, failure_stage
+):
+    workspace = make_workspace_fixture(tmp_path)
+    service = workspace / "portfolio-homepage"
+    public = service / "public-bundle"
+    backup = service / ".public-bundle.previous"
+    recovery = service / ".public-bundle.recovery"
+    write_bundle_fixture(public, None, "last good")
+    before = _snapshot(public)
+    write_project_profile(workspace / "projects" / "alpha", summary="new candidate")
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+    real_rename = bundle_module._rename
+    real_validate = bundle_module._validate_bundle
+
+    def fail_candidate_and_restore_renames(source: Path, target: Path) -> None:
+        if target == public and (
+            source.name == "candidate"
+            or source == backup
+            or (source == recovery and failure_stage == "rename")
+        ):
+            raise OSError("injected private recovery path")
+        real_rename(source, target)
+
+    def fail_copy(source: Path, target: Path) -> None:
+        raise OSError("injected private recovery copy")
+
+    def fail_validation(root: Path, tree):
+        if root == recovery:
+            raise ValueError("injected private recovery validation")
+        return real_validate(root, tree)
+
+    monkeypatch.setattr(bundle_module, "_rename", fail_candidate_and_restore_renames)
+    if failure_stage == "copy":
+        monkeypatch.setattr(bundle_module, "_copytree", fail_copy)
+    if failure_stage == "validation":
+        monkeypatch.setattr(bundle_module, "_validate_bundle", fail_validation)
+
+    code = main(["build", "--workspace", str(workspace)])
+
+    captured = capsys.readouterr()
+    assert code == EXIT_IO
+    assert json.loads(captured.err) == {
+        "error": {"category": "io", "pointer": "$"}
+    }
+    assert "injected" not in captured.err
+    assert str(workspace) not in captured.err
+    assert "traceback" not in captured.err.casefold()
+    last_good = public if public.exists() else backup
+    assert _snapshot(last_good) == before
+    assert not recovery.exists()
+    assert not tuple(service.glob(".project-atlas-staging-*"))
+
+
+def test_cli_does_not_hide_programming_runtime_errors(tmp_path, monkeypatch):
+    workspace = make_workspace_fixture(tmp_path)
+
+    def fail_dispatch(args):
+        raise RuntimeError("programming defect")
+
+    monkeypatch.setattr(cli_module, "dispatch", fail_dispatch)
+
+    with pytest.raises(RuntimeError, match="programming defect"):
+        main(["discover", "--workspace", str(workspace)])
+
+
+def test_reviewed_history_round_trips_into_local_and_public_svg_changelog_idempotently(
+    tmp_path, monkeypatch
+):
+    workspace = make_workspace_fixture(tmp_path)
+    sessions = tmp_path / "sessions"
+    _write_session(
+        sessions / "decision.jsonl",
+        workspace,
+        raw_text="We decided the architecture trade-off.",
+    )
+    _write_session(
+        sessions / "rollback.jsonl",
+        workspace,
+        raw_text="Rollback to the reviewed path.",
+    )
+    _write_revision_session(sessions / "revision.jsonl", workspace)
+    dry = invoke_cli_json(
+        [
+            "backfill",
+            "--workspace",
+            str(workspace),
+            "--sessions-root",
+            str(sessions),
+            "--dry-run",
+        ]
+    )
+    assert [claim["claim_type"] for claim in dry["claims"]] == [
+        "decision",
+        "revision",
+        "rollback",
+    ]
+    selected = []
+    for claim in dry["claims"]:
+        reviewed = dict(claim)
+        reviewed["selected"] = True
+        selected.append(reviewed)
+    report = tmp_path / "reviewed-history.json"
+    report.write_text(json.dumps({"claims": selected}), encoding="utf-8")
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+
+    first = invoke_cli_json(
+        [
+            "run",
+            "--workspace",
+            str(workspace),
+            "--sessions-root",
+            str(sessions),
+            "--apply-reviewed-report",
+            str(report),
+        ]
+    )
+
+    local_memory = workspace / "projects" / "alpha" / "project_memory"
+    local_svg = local_memory / "visuals" / "problem-solving.svg"
+    public = workspace / "portfolio-homepage" / "public-bundle"
+    public_decisions = (public / "projects" / "alpha" / "decisions.md").read_text(
+        encoding="utf-8"
+    )
+    public_build_story = (
+        public / "projects" / "alpha" / "build-story.md"
+    ).read_text(encoding="utf-8")
+    public_rollbacks = (public / "projects" / "alpha" / "rollbacks.md").read_text(
+        encoding="utf-8"
+    )
+    changelog = json.loads((public / "changelog.json").read_text(encoding="utf-8"))
+    assert first["backfill"]["applied"] == {"claims": 3, "files": 4, "projects": 1}
+    assert local_svg.is_file()
+    assert (public / "projects" / "alpha" / "visuals" / "problem-solving.svg").is_file()
+    assert "Keep direct curated memory" in public_decisions
+    assert "architecture decision recorded" in public_decisions
+    assert "revision confirmed" in public_build_story
+    assert "rollback requested" in public_rollbacks
+    assert "atlas:event" not in public_build_story + public_decisions + public_rollbacks
+    assert {(entry["stage"], entry["date"]) for entry in changelog} == {
+        ("decision", "2026-08-24"),
+        ("revision", "2026-08-24"),
+        ("rollback", "2026-08-24"),
+    }
+    assert all(set(entry) == {
+        "context",
+        "date",
+        "decision",
+        "event_id",
+        "outcome",
+        "project_id",
+        "stage",
+        "title",
+    } for entry in changelog)
+    assert str(sessions) not in json.dumps(changelog)
+    before_rerun = _snapshot(workspace)
+
+    second = invoke_cli_json(
+        [
+            "run",
+            "--workspace",
+            str(workspace),
+            "--sessions-root",
+            str(sessions),
+            "--apply-reviewed-report",
+            str(report),
+        ]
+    )
+
+    assert not second["build"]["changed"]
+    assert second["backfill"]["applied"] == {"claims": 3, "files": 0, "projects": 1}
+    assert _snapshot(workspace) == before_rerun
+
+
+def test_reviewed_svg_is_in_same_rollback_transaction_as_memory_and_cursor(
+    tmp_path, monkeypatch, capsys
+):
+    workspace = make_workspace_fixture(tmp_path)
+    sessions = tmp_path / "sessions"
+    _write_session(
+        sessions / "decision.jsonl",
+        workspace,
+        raw_text="We decided the architecture trade-off.",
+    )
+    _write_session(
+        sessions / "rollback.jsonl",
+        workspace,
+        raw_text="Rollback to the reviewed path.",
+    )
+    dry = invoke_cli_json(
+        [
+            "backfill",
+            "--workspace",
+            str(workspace),
+            "--sessions-root",
+            str(sessions),
+            "--dry-run",
+        ]
+    )
+    selected = []
+    for claim in dry["claims"]:
+        reviewed = dict(claim)
+        reviewed["selected"] = True
+        selected.append(reviewed)
+    report = tmp_path / "reviewed-history.json"
+    report.write_text(json.dumps({"claims": selected}), encoding="utf-8")
+    before = _snapshot(workspace)
+    real_replace = fs_safety_module._replace_file
+    visual_replacements = 0
+
+    def fail_cursor_after_visual(source, destination):
+        nonlocal visual_replacements
+        if Path(destination).name == "problem-solving.svg":
+            visual_replacements += 1
+        if Path(destination).name == "session-cursor.json":
+            raise OSError("injected cursor failure after SVG")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(fs_safety_module, "_replace_file", fail_cursor_after_visual)
+
+    code = main(
+        [
+            "backfill",
+            "--workspace",
+            str(workspace),
+            "--sessions-root",
+            str(sessions),
+            "--apply-reviewed-report",
+            str(report),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert code == EXIT_IO
+    assert visual_replacements == 1
+    assert _snapshot(workspace) == before
+    assert "injected" not in captured.err
+    assert str(workspace) not in captured.err
