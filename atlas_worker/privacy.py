@@ -22,6 +22,7 @@ PRIVATE_IP = re.compile(
 HTML_COMMENT = re.compile(r"<!--[\s\S]*?-->")
 SOURCE_MAP = re.compile(r"(?:\bsourceMappingURL\s*=\s*\S+|\b[A-Za-z0-9_./-]+\.map\b)", re.I)
 SAFE_ALIAS_PREFIX = re.compile(r"[A-Z][A-Z0-9_]*")
+CONTENT_SHA256 = re.compile(r"[0-9a-f]{64}")
 
 DENIED_SOURCE_NAMES = {".env", "credentials.json", "auth.json"}
 DENIED_SOURCE_PARTS = {".codex/sessions", "logs", "raw-logs", "private-data"}
@@ -134,6 +135,8 @@ class PrivacyGate:
 
 
 def _matching_categories(value: str) -> tuple[str, ...]:
+    if CONTENT_SHA256.fullmatch(value):
+        return ()
     categories: list[str] = []
     if any(pattern.search(value) for pattern in SECRET_PATTERNS.values()):
         categories.append("secret")

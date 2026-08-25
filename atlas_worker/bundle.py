@@ -1,0 +1,710 @@
+"""Build and atomically promote the only local-to-public Atlas boundary."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import shutil
+import stat
+from typing import Mapping
+import xml.etree.ElementTree as ET
+
+from .manifest import bundle_file_hashes, canonical_hash, canonical_json_bytes, iter_tree_files, tree_hash
+from .models import (
+    GRAPH_EDGE_KINDS,
+    GRAPH_NODE_KINDS,
+    BundleManifest,
+    GraphData,
+    ProjectEvent,
+    ProjectMemory,
+    ProjectRef,
+    PromotionResult,
+    PublicProject,
+    validate_schema,
+)
+from .privacy import PrivacyGate
+from .taxonomy import display_tag_label, normalize_tag_label
+from .visuals import render_problem_solving_svg
+
+
+_OPTIONAL_PROJECT_FILES = (
+    "build-story.md",
+    "decisions.md",
+    "rollbacks.md",
+    "visuals/problem-solving.svg",
+)
+_MANDATORY_FILES = frozenset(
+    {
+        "manifest.json",
+        "graph/nodes.json",
+        "graph/edges.json",
+        "topics.json",
+        "changelog.json",
+        "search-index.json",
+    }
+)
+_MANAGED_COMMENT = re.compile(r"<!-- /?atlas:event:[A-Za-z0-9][A-Za-z0-9._-]* -->")
+_SHA256 = re.compile(r"[0-9a-f]{64}")
+_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+_SVG_TAG = "{http://www.w3.org/2000/svg}svg"
+
+
+@dataclass(frozen=True)
+class SearchDocument:
+    document_id: str
+    project_id: str
+    title: str
+    body: str
+    url: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "id": self.document_id,
+            "project_id": self.project_id,
+            "title": self.title,
+            "body": self.body,
+            "url": self.url,
+        }
+
+
+@dataclass(frozen=True)
+class BundleContext:
+    projects: tuple[PublicProject, ...]
+    project_memories: Mapping[str, ProjectMemory]
+    project_events: Mapping[str, tuple[ProjectEvent, ...]]
+    graph: GraphData
+    search_documents: tuple[SearchDocument, ...]
+    source_hashes: Mapping[str, str]
+    previous_manifest: BundleManifest | None
+    privacy_gate: PrivacyGate
+
+
+def build_candidate_bundle(context: BundleContext, staging_dir: Path) -> BundleManifest:
+    """Render a deterministic candidate into a newly empty staging directory."""
+    staging_dir = Path(staging_dir)
+    _prepare_staging(staging_dir)
+    projects = tuple(sorted(context.projects, key=lambda project: project.project_id))
+    project_ids = tuple(project.project_id for project in projects)
+    _validate_context(context, projects, project_ids)
+
+    for project in projects:
+        project_dir = staging_dir / "projects" / project.project_id
+        project_payload = project.to_dict()
+        validate_schema(project_payload, "public-project")
+        _write_json(project_dir / "project.json", project_payload, context.privacy_gate)
+
+        memory = context.project_memories.get(project.project_id)
+        if memory is not None:
+            for field_name, title, filename in (
+                ("build_story", "Build Story", "build-story.md"),
+                ("decisions", "Decisions", "decisions.md"),
+                ("rollbacks", "Rollbacks", "rollbacks.md"),
+            ):
+                markdown = _render_markdown(title, getattr(memory, field_name))
+                if markdown is not None:
+                    _write_text(project_dir / filename, markdown, context.privacy_gate)
+
+        events = context.project_events.get(project.project_id, ())
+        if events:
+            svg = render_problem_solving_svg(_project_ref(project), events)
+            _validate_svg(svg)
+            _write_text(project_dir / "visuals" / "problem-solving.svg", svg, context.privacy_gate)
+
+    nodes = _graph_nodes(context.graph)
+    edges = _graph_edges(context.graph)
+    topics = _topics(projects)
+    changelog = _changelog(context.project_events, project_ids)
+    search_index = _search_index(context.search_documents, project_ids)
+    _validate_graph_nodes(nodes)
+    _validate_graph_edges(edges)
+    _validate_topics(topics, set(project_ids))
+    _validate_changelog(changelog, set(project_ids))
+    _validate_search_index(search_index, set(project_ids))
+    _write_json(staging_dir / "graph" / "nodes.json", nodes, context.privacy_gate)
+    _write_json(staging_dir / "graph" / "edges.json", edges, context.privacy_gate)
+    _write_json(staging_dir / "topics.json", topics, context.privacy_gate)
+    _write_json(staging_dir / "changelog.json", changelog, context.privacy_gate)
+    _write_json(staging_dir / "search-index.json", search_index, context.privacy_gate)
+
+    files = bundle_file_hashes(staging_dir)
+    project_hashes = {
+        project_id: canonical_hash(
+            {
+                path: digest
+                for path, digest in files.items()
+                if path.startswith(f"projects/{project_id}/")
+            }
+        )
+        for project_id in project_ids
+    }
+    version = canonical_hash(
+        {
+            "files": files,
+            "projects": project_hashes,
+            "sources": dict(sorted(context.source_hashes.items())),
+        }
+    )
+    manifest = BundleManifest(
+        version=version,
+        projects=project_ids,
+        files=files,
+        project_hashes=project_hashes,
+    )
+    manifest_payload = manifest.to_dict()
+    validate_schema(manifest_payload, "public-manifest")
+    _write_json(staging_dir / "manifest.json", manifest_payload, context.privacy_gate)
+
+    tree = _load_text_tree(staging_dir)
+    context.privacy_gate.require_safe(_privacy_tree(tree))
+    _validate_bundle(staging_dir, tree)
+    return manifest
+
+
+def promote_bundle(staging_dir: Path, public_dir: Path, gate: PrivacyGate) -> PromotionResult:
+    """Validate a candidate completely, then promote it with rename rollback."""
+    staging_dir = Path(staging_dir)
+    public_dir = Path(public_dir)
+    candidate = _load_text_tree(staging_dir)
+    gate.require_safe(_privacy_tree(candidate))
+    candidate_manifest = _validate_bundle(staging_dir, candidate)
+
+    previous_hash = tree_hash(public_dir) if public_dir.exists() else None
+    candidate_hash = tree_hash(staging_dir)
+    if previous_hash == candidate_hash:
+        return PromotionResult(changed=False, changed_projects=())
+
+    _require_safe_destination(public_dir)
+    _require_same_filesystem(staging_dir, public_dir.parent)
+    changed_projects = _changed_project_ids(staging_dir, public_dir, candidate_manifest)
+    backup = public_dir.parent / ".public-bundle.previous"
+    if backup.exists() or backup.is_symlink():
+        raise FileExistsError(f"stale backup requires recovery: {backup}")
+
+    if not public_dir.exists():
+        _rename(staging_dir, public_dir)
+        return PromotionResult(changed=True, changed_projects=changed_projects)
+
+    _rename(public_dir, backup)
+    try:
+        _rename(staging_dir, public_dir)
+    except BaseException:
+        _restore_backup(backup, public_dir)
+        raise
+    try:
+        shutil.rmtree(backup)
+    except OSError:
+        # The promoted public tree is already complete. A retained backup is
+        # detected and refused deterministically on the next promotion.
+        pass
+    return PromotionResult(changed=True, changed_projects=changed_projects)
+
+
+def _prepare_staging(staging_dir: Path) -> None:
+    absolute = staging_dir.absolute()
+    resolved = staging_dir.resolve(strict=False)
+    protected = {
+        Path("/").resolve(),
+        Path.home().resolve(),
+        Path.cwd().resolve(),
+        Path(__file__).parent.parent.resolve(),
+    }
+    if resolved in protected:
+        raise ValueError(f"unsafe staging root: {staging_dir}")
+    _reject_symlink_components(absolute.parent)
+    if staging_dir.exists() or staging_dir.is_symlink():
+        mode = staging_dir.lstat().st_mode
+        if stat.S_ISLNK(mode):
+            raise ValueError(f"unsafe staging root symlink: {staging_dir}")
+        if not stat.S_ISDIR(mode):
+            raise ValueError(f"unsafe staging root is not a directory: {staging_dir}")
+        tuple(iter_tree_files(staging_dir))
+        shutil.rmtree(staging_dir)
+    staging_dir.mkdir(parents=True)
+    (staging_dir / "projects").mkdir()
+
+
+def _validate_context(
+    context: BundleContext,
+    projects: tuple[PublicProject, ...],
+    project_ids: tuple[str, ...],
+) -> None:
+    if len(project_ids) != len(set(project_ids)):
+        raise ValueError("bundle projects require unique project IDs")
+    for project in projects:
+        _require_project_id(project.project_id)
+        if project.publication != "public":
+            raise ValueError(f"bundle project is not public: {project.project_id}")
+    known = set(project_ids)
+    for mapping_name, mapping in (
+        ("project_memories", context.project_memories),
+        ("project_events", context.project_events),
+    ):
+        unknown = sorted(set(mapping) - known)
+        if unknown:
+            raise ValueError(f"{mapping_name} contains unknown project: {unknown[0]}")
+    for key, digest in context.source_hashes.items():
+        if not isinstance(key, str) or not key or not isinstance(digest, str) or _SHA256.fullmatch(digest) is None:
+            raise ValueError("source_hashes must map non-empty strings to SHA-256 hashes")
+
+
+def _render_markdown(title: str, entries: tuple[str, ...]) -> str | None:
+    rendered_entries = []
+    for entry in entries:
+        cleaned = _strip_managed_comments(str(entry)).strip()
+        if cleaned:
+            rendered_entries.append("- " + cleaned.replace("\n", "\n  "))
+    if not rendered_entries:
+        return None
+    return f"# {title}\n\n" + "\n".join(rendered_entries) + "\n"
+
+
+def _strip_managed_comments(value: str) -> str:
+    kept = []
+    for line in value.splitlines(keepends=True):
+        marker = line.rstrip("\r\n")
+        if _MANAGED_COMMENT.fullmatch(marker):
+            continue
+        kept.append(line)
+    return "".join(kept)
+
+
+def _project_ref(project: PublicProject) -> ProjectRef:
+    return ProjectRef(
+        project_id=project.project_id,
+        display_name=project.display_name,
+        root=Path("."),
+        relative_path=f"projects/{project.project_id}",
+        lifecycle=project.lifecycle,
+        publication="public",
+        aliases=project.aliases,
+    )
+
+
+def _graph_nodes(graph: GraphData) -> list[dict[str, str]]:
+    return [
+        {"id": node.node_id, "label": node.label, "kind": node.kind}
+        for node in sorted(graph.nodes, key=lambda item: (item.kind, item.node_id, item.label))
+    ]
+
+
+def _graph_edges(graph: GraphData) -> list[dict[str, object]]:
+    return [
+        {
+            "source": edge.source_id,
+            "target": edge.target_id,
+            "kind": edge.kind,
+            "weight": edge.weight,
+            "reasons": list(edge.reasons),
+        }
+        for edge in sorted(
+            graph.edges,
+            key=lambda item: (item.kind, item.source_id, item.target_id, -item.weight, item.reasons),
+        )
+    ]
+
+
+def _topics(projects: tuple[PublicProject, ...]) -> list[dict[str, object]]:
+    grouped: dict[tuple[str, str], dict[str, object]] = {}
+    for project in projects:
+        for kind in ("domain", "problem", "pattern", "technology", "outcome"):
+            for raw_label in getattr(project.tags, kind):
+                key = (kind, normalize_tag_label(raw_label))
+                topic = grouped.setdefault(
+                    key,
+                    {"kind": kind, "label": display_tag_label(raw_label), "project_ids": []},
+                )
+                topic["project_ids"].append(project.project_id)
+                topic["label"] = min(str(topic["label"]), display_tag_label(raw_label))
+    return [
+        {
+            "kind": topic["kind"],
+            "label": topic["label"],
+            "project_ids": sorted(set(topic["project_ids"])),
+        }
+        for _, topic in sorted(grouped.items())
+    ]
+
+
+def _changelog(
+    events_by_project: Mapping[str, tuple[ProjectEvent, ...]],
+    project_ids: tuple[str, ...],
+) -> list[dict[str, str]]:
+    entries = []
+    for project_id in project_ids:
+        for event in events_by_project.get(project_id, ()):
+            entry = {
+                "project_id": project_id,
+                "event_id": event.event_id,
+                "title": event.title,
+                "stage": event.stage,
+                "context": event.context,
+                "decision": event.decision,
+                "outcome": event.outcome,
+            }
+            if event.date:
+                entry["date"] = event.date
+            entries.append(entry)
+    return sorted(
+        entries,
+        key=lambda item: (
+            item.get("date", ""),
+            item["project_id"],
+            item["event_id"],
+            item["title"],
+        ),
+    )
+
+
+def _search_index(documents: tuple[SearchDocument, ...], project_ids: tuple[str, ...]) -> list[dict[str, str]]:
+    known = set(project_ids)
+    if any(document.project_id not in known for document in documents):
+        raise ValueError("search document references unknown project")
+    return [
+        document.to_dict()
+        for document in sorted(
+            documents,
+            key=lambda item: (item.project_id, item.document_id, item.title, item.url, item.body),
+        )
+    ]
+
+
+def _write_json(path: Path, value: object, gate: PrivacyGate) -> None:
+    gate.require_safe(value)
+    _write_bytes(path, canonical_json_bytes(value))
+
+
+def _write_text(path: Path, value: str, gate: PrivacyGate) -> None:
+    gate.require_safe(value)
+    payload = value if value.endswith("\n") else value + "\n"
+    _write_bytes(path, payload.encode("utf-8"))
+
+
+def _write_bytes(path: Path, payload: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(payload)
+
+
+def _load_text_tree(root: Path) -> dict[str, str]:
+    tree = {}
+    for relative_path, path in iter_tree_files(root):
+        try:
+            tree[relative_path] = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            raise ValueError(f"bundle artifact is not UTF-8: {relative_path}") from None
+    return tree
+
+
+def _privacy_tree(tree: Mapping[str, str]) -> dict[str, object]:
+    rendered: dict[str, object] = {}
+    for path, value in tree.items():
+        if path.endswith(".json"):
+            try:
+                rendered[path] = json.loads(value, object_pairs_hook=lambda pairs: pairs)
+            except json.JSONDecodeError as error:
+                raise ValueError(f"invalid JSON in {path}: {error.msg}") from None
+        else:
+            rendered[path] = value
+    return rendered
+
+
+def _validate_bundle(root: Path, tree: Mapping[str, str]) -> BundleManifest:
+    _validate_exact_directories(root)
+    manifest_payload = _parse_json(tree, "manifest.json")
+    validate_schema(manifest_payload, "public-manifest")
+    projects = tuple(manifest_payload["projects"])
+    if projects != tuple(sorted(projects)):
+        raise ValueError("manifest projects must use stable ordering")
+    for project_id in projects:
+        _require_project_id(project_id)
+
+    allowed_files = set(_MANDATORY_FILES)
+    required_files = set(_MANDATORY_FILES)
+    for project_id in projects:
+        project_path = f"projects/{project_id}/project.json"
+        required_files.add(project_path)
+        allowed_files.add(project_path)
+        allowed_files.update(f"projects/{project_id}/{path}" for path in _OPTIONAL_PROJECT_FILES)
+    actual_files = set(tree)
+    missing = sorted(required_files - actual_files)
+    if missing:
+        raise ValueError(f"bundle is missing required file: {missing[0]}")
+    unexpected = sorted(actual_files - allowed_files)
+    if unexpected:
+        raise ValueError(f"bundle contains unexpected file: {unexpected[0]}")
+
+    expected_hashes = dict(manifest_payload["files"])
+    actual_hashes = bundle_file_hashes(root)
+    if set(expected_hashes) != set(actual_hashes):
+        raise ValueError("manifest files do not match the complete bundle tree")
+    for path, digest in expected_hashes.items():
+        if not isinstance(path, str) or not _safe_relative_path(path):
+            raise ValueError(f"manifest contains unsafe file path: {path}")
+        if not isinstance(digest, str) or _SHA256.fullmatch(digest) is None:
+            raise ValueError(f"manifest contains invalid SHA-256: {path}")
+        if digest != actual_hashes[path]:
+            raise ValueError(f"manifest file hash mismatch: {path}")
+
+    project_hashes = {}
+    for project_id in projects:
+        payload = _parse_json(tree, f"projects/{project_id}/project.json")
+        validate_schema(payload, "public-project")
+        if payload["id"] != project_id:
+            raise ValueError(f"project ID does not match bundle path: {project_id}")
+        project_hashes[project_id] = canonical_hash(
+            {
+                path: digest
+                for path, digest in actual_hashes.items()
+                if path.startswith(f"projects/{project_id}/")
+            }
+        )
+        for markdown_name in ("build-story.md", "decisions.md", "rollbacks.md"):
+            markdown_path = f"projects/{project_id}/{markdown_name}"
+            if markdown_path in tree and not tree[markdown_path].strip():
+                raise ValueError(f"optional project artifact must be non-empty: {markdown_path}")
+        svg_path = f"projects/{project_id}/visuals/problem-solving.svg"
+        if svg_path in tree:
+            _validate_svg(tree[svg_path])
+
+    _validate_graph_nodes(_parse_json(tree, "graph/nodes.json"))
+    _validate_graph_edges(_parse_json(tree, "graph/edges.json"))
+    project_set = set(projects)
+    _validate_topics(_parse_json(tree, "topics.json"), project_set)
+    _validate_changelog(_parse_json(tree, "changelog.json"), project_set)
+    _validate_search_index(_parse_json(tree, "search-index.json"), project_set)
+    return BundleManifest(
+        version=manifest_payload["version"],
+        projects=projects,
+        files=expected_hashes,
+        project_hashes=project_hashes,
+    )
+
+
+def _validate_exact_directories(root: Path) -> None:
+    actual = set()
+    for path in root.rglob("*"):
+        if path.is_symlink():
+            raise ValueError(f"bundle tree contains symlink: {path.relative_to(root).as_posix()}")
+        if path.is_dir():
+            actual.add(path.relative_to(root).as_posix())
+    tree = _load_text_tree(root)
+    manifest_payload = _parse_json(tree, "manifest.json")
+    projects = manifest_payload.get("projects", []) if isinstance(manifest_payload, dict) else []
+    expected = {"projects", "graph"}
+    for project_id in projects:
+        if isinstance(project_id, str) and _safe_project_id(project_id):
+            expected.add(f"projects/{project_id}")
+            if f"projects/{project_id}/visuals/problem-solving.svg" in tree:
+                expected.add(f"projects/{project_id}/visuals")
+    unexpected = sorted(actual - expected)
+    if unexpected:
+        raise ValueError(f"bundle contains unexpected directory: {unexpected[0]}")
+    missing = sorted(expected - actual)
+    if missing:
+        raise ValueError(f"bundle is missing required directory: {missing[0]}")
+
+
+def _parse_json(tree: Mapping[str, str], path: str) -> object:
+    if path not in tree:
+        raise ValueError(f"bundle is missing required file: {path}")
+    try:
+        return json.loads(tree[path])
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid JSON in {path}: {error.msg}") from None
+
+
+def _validate_graph_nodes(value: object) -> None:
+    records = _require_record_list(value, "graph nodes")
+    seen = set()
+    for record in records:
+        _require_exact_keys(record, {"id", "label", "kind"}, "graph node")
+        _require_non_empty_strings(record, ("id", "label", "kind"), "graph node")
+        if record["kind"] not in GRAPH_NODE_KINDS:
+            raise ValueError("graph node has unknown kind")
+        if record["id"] in seen:
+            raise ValueError("graph nodes require unique IDs")
+        seen.add(record["id"])
+
+
+def _validate_graph_edges(value: object) -> None:
+    records = _require_record_list(value, "graph edges")
+    for record in records:
+        _require_exact_keys(record, {"source", "target", "kind", "weight", "reasons"}, "graph edge")
+        _require_non_empty_strings(record, ("source", "target", "kind"), "graph edge")
+        if record["kind"] not in GRAPH_EDGE_KINDS:
+            raise ValueError("graph edge has unknown kind")
+        if not isinstance(record["weight"], int) or isinstance(record["weight"], bool) or record["weight"] <= 0:
+            raise ValueError("graph edge weight must be a positive integer")
+        if not _is_string_list(record["reasons"]):
+            raise ValueError("graph edge reasons must be strings")
+
+
+def _validate_topics(value: object, project_ids: set[str]) -> None:
+    records = _require_record_list(value, "topics")
+    for record in records:
+        _require_exact_keys(record, {"kind", "label", "project_ids"}, "topic")
+        _require_non_empty_strings(record, ("kind", "label"), "topic")
+        if record["kind"] not in GRAPH_NODE_KINDS - {"project"}:
+            raise ValueError("topic has unknown kind")
+        if not _is_string_list(record["project_ids"], non_empty=True):
+            raise ValueError("topic project_ids must be non-empty strings")
+        if tuple(record["project_ids"]) != tuple(sorted(set(record["project_ids"]))):
+            raise ValueError("topic project_ids must be unique and sorted")
+        if not set(record["project_ids"]) <= project_ids:
+            raise ValueError("topic references unknown project")
+
+
+def _validate_changelog(value: object, project_ids: set[str]) -> None:
+    records = _require_record_list(value, "changelog")
+    required = {"project_id", "event_id", "title", "stage", "context", "decision", "outcome"}
+    for record in records:
+        if set(record) not in (required, required | {"date"}):
+            raise ValueError("changelog entry has unexpected or missing fields")
+        _require_non_empty_strings(record, ("project_id", "event_id", "title", "stage"), "changelog entry")
+        for field in ("context", "decision", "outcome"):
+            if not isinstance(record[field], str):
+                raise ValueError(f"changelog entry {field} must be a string")
+        if record["project_id"] not in project_ids:
+            raise ValueError("changelog references unknown project")
+        if "date" in record and (not isinstance(record["date"], str) or _DATE.fullmatch(record["date"]) is None):
+            raise ValueError("changelog date must be source-supplied YYYY-MM-DD")
+
+
+def _validate_search_index(value: object, project_ids: set[str]) -> None:
+    records = _require_record_list(value, "search index")
+    for record in records:
+        _require_exact_keys(record, {"id", "project_id", "title", "body", "url"}, "search document")
+        _require_non_empty_strings(record, ("id", "project_id", "title", "url"), "search document")
+        if not isinstance(record["body"], str):
+            raise ValueError("search document body must be a string")
+        if record["project_id"] not in project_ids:
+            raise ValueError("search document references unknown project")
+        if not record["url"].startswith("/projects/"):
+            raise ValueError("search document URL must be a project-relative route")
+
+
+def _validate_svg(svg: str) -> None:
+    try:
+        root = ET.fromstring(svg)
+    except ET.ParseError as error:
+        raise ValueError(f"invalid SVG XML: {error}") from None
+    if root.tag != _SVG_TAG:
+        raise ValueError("SVG artifact requires an SVG namespace root")
+    for element in root.iter():
+        local_name = element.tag.rsplit("}", 1)[-1].casefold()
+        if local_name in {"script", "foreignobject"}:
+            raise ValueError(f"SVG artifact contains forbidden element: {local_name}")
+        for attribute in element.attrib:
+            attribute_name = attribute.rsplit("}", 1)[-1].casefold()
+            if attribute_name == "href" or attribute_name.startswith("on"):
+                raise ValueError(f"SVG artifact contains active attribute: {attribute_name}")
+
+
+def _require_record_list(value: object, label: str) -> list[dict[str, object]]:
+    if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
+        raise ValueError(f"{label} must be an array of objects")
+    return value
+
+
+def _require_exact_keys(record: dict[str, object], keys: set[str], label: str) -> None:
+    if set(record) != keys:
+        raise ValueError(f"{label} has unexpected or missing fields")
+
+
+def _require_non_empty_strings(record: dict[str, object], fields: tuple[str, ...], label: str) -> None:
+    if any(not isinstance(record[field], str) or not record[field] for field in fields):
+        raise ValueError(f"{label} fields must be non-empty strings")
+
+
+def _is_string_list(value: object, *, non_empty: bool = False) -> bool:
+    return (
+        isinstance(value, list)
+        and (not non_empty or bool(value))
+        and all(isinstance(item, str) and item for item in value)
+    )
+
+
+def _require_project_id(project_id: str) -> None:
+    if not _safe_project_id(project_id):
+        raise ValueError(f"unsafe project ID: {project_id}")
+
+
+def _safe_project_id(project_id: str) -> bool:
+    return (
+        isinstance(project_id, str)
+        and bool(project_id)
+        and project_id not in {".", ".."}
+        and "/" not in project_id
+        and "\\" not in project_id
+        and "\x00" not in project_id
+    )
+
+
+def _safe_relative_path(path: str) -> bool:
+    candidate = PurePosixPath(path)
+    return not candidate.is_absolute() and ".." not in candidate.parts and path == candidate.as_posix()
+
+
+def _changed_project_ids(
+    staging_dir: Path,
+    public_dir: Path,
+    candidate_manifest: BundleManifest,
+) -> tuple[str, ...]:
+    current_projects: tuple[str, ...] = ()
+    if public_dir.exists():
+        current_tree = _load_text_tree(public_dir)
+        current_payload = _parse_json(current_tree, "manifest.json")
+        validate_schema(current_payload, "public-manifest")
+        current_projects = tuple(current_payload["projects"])
+    changed = []
+    for project_id in sorted(set(candidate_manifest.projects) | set(current_projects)):
+        candidate_path = staging_dir / "projects" / project_id
+        current_path = public_dir / "projects" / project_id
+        candidate_hash = tree_hash(candidate_path) if candidate_path.exists() else None
+        current_hash = tree_hash(current_path) if current_path.exists() else None
+        if candidate_hash != current_hash:
+            changed.append(project_id)
+    return tuple(changed)
+
+
+def _require_safe_destination(public_dir: Path) -> None:
+    _reject_symlink_components(public_dir.absolute().parent)
+    if public_dir.is_symlink():
+        raise ValueError(f"public bundle root is a symlink: {public_dir}")
+    if public_dir.exists() and not public_dir.is_dir():
+        raise ValueError(f"public bundle root is not a directory: {public_dir}")
+    public_dir.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _reject_symlink_components(path: Path) -> None:
+    current = Path(path.anchor) if path.is_absolute() else Path()
+    for part in path.parts[1:] if path.is_absolute() else path.parts:
+        current /= part
+        if current.exists() or current.is_symlink():
+            if stat.S_ISLNK(current.lstat().st_mode):
+                raise ValueError(f"unsafe symlink path component: {current}")
+
+
+def _require_same_filesystem(staging_dir: Path, destination_parent: Path) -> None:
+    destination_parent.mkdir(parents=True, exist_ok=True)
+    if staging_dir.stat().st_dev != destination_parent.stat().st_dev:
+        raise OSError("bundle promotion requires staging and public directory on the same filesystem")
+
+
+def _restore_backup(backup: Path, public_dir: Path) -> None:
+    try:
+        _rename(backup, public_dir)
+    except BaseException as rename_error:
+        try:
+            if public_dir.exists():
+                shutil.rmtree(public_dir)
+            shutil.copytree(backup, public_dir)
+        except BaseException as copy_error:
+            raise RuntimeError("failed to restore prior public bundle") from copy_error
+        raise RuntimeError("restored prior public bundle after rename rollback failure") from rename_error
+
+
+def _rename(source: Path, target: Path) -> None:
+    os.replace(source, target)

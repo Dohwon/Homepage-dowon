@@ -1,3 +1,5 @@
+import hashlib
+import json
 from pathlib import Path
 
 import yaml
@@ -121,4 +123,64 @@ def make_challenge_events() -> tuple[ProjectEvent, ...]:
         ProjectEvent("revision-001", "2026-08-22", "Revision", "Review rejected broad extraction", "Select high-confidence facts", "Scope narrowed", "revision"),
         ProjectEvent("decision-001", "2026-08-23", "Decision", "Memory needs stable updates", "Use managed blocks", "Reruns are idempotent", "decision"),
         ProjectEvent("result-001", "2026-08-24", "Result", "Evidence is curated", "Render the map", "Story is readable", "result"),
+    )
+
+
+def write_bundle_fixture(
+    root: Path,
+    version: str,
+    summary: str,
+    project_ids: tuple[str, ...] = ("alpha",),
+) -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    for project_id in sorted(project_ids):
+        project_dir = root / "projects" / project_id
+        project_dir.mkdir(parents=True, exist_ok=True)
+        project = make_public_project(project_id).to_dict()
+        project["summary"] = summary
+        _write_fixture_json(project_dir / "project.json", project)
+
+    _write_fixture_json(
+        root / "graph" / "nodes.json",
+        [
+            {"id": f"project:{project_id}", "kind": "project", "label": project_id.title()}
+            for project_id in sorted(project_ids)
+        ],
+    )
+    _write_fixture_json(root / "graph" / "edges.json", [])
+    _write_fixture_json(root / "topics.json", [])
+    _write_fixture_json(root / "changelog.json", [])
+    _write_fixture_json(
+        root / "search-index.json",
+        [
+            {
+                "body": summary,
+                "id": f"project:{project_id}",
+                "project_id": project_id,
+                "title": project_id.title(),
+                "url": f"/projects/{project_id}",
+            }
+            for project_id in sorted(project_ids)
+        ],
+    )
+    refresh_fixture_manifest(root, version=version, project_ids=project_ids)
+
+
+def refresh_fixture_manifest(root: Path, version: str, project_ids: tuple[str, ...]) -> None:
+    files = {
+        path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(root.rglob("*"), key=lambda item: item.as_posix())
+        if path.is_file() and path.name != "manifest.json"
+    }
+    _write_fixture_json(
+        root / "manifest.json",
+        {"files": files, "projects": sorted(project_ids), "version": version},
+    )
+
+
+def _write_fixture_json(path: Path, value: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
     )

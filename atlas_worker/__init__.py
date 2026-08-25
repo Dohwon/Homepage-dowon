@@ -17,9 +17,11 @@ from .models import (
     TagSet,
     validate_schema,
 )
+from .bundle import BundleContext, SearchDocument
 
 __all__ = [
     "BundleManifest",
+    "BundleContext",
     "DiscoveryReport",
     "EvidenceClaim",
     "GraphData",
@@ -31,6 +33,7 @@ __all__ = [
     "PromotionResult",
     "PublicProject",
     "SessionEvent",
+    "SearchDocument",
     "TagCandidate",
     "TagSet",
     "validate_schema",

@@ -206,8 +206,17 @@ class GraphData:
 @dataclass(frozen=True)
 class BundleManifest:
     version: str
-    project_hashes: dict[str, str]
+    projects: tuple[str, ...]
     files: dict[str, str] = field(default_factory=dict)
+    project_hashes: dict[str, str] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, object]:
+        """Serialize only the schema-defined public manifest fields."""
+        return {
+            "version": self.version,
+            "projects": list(self.projects),
+            "files": dict(self.files),
+        }
 
 
 @dataclass(frozen=True)
