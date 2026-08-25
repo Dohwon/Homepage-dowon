@@ -208,6 +208,15 @@ def promote_bundle(staging_dir: Path, public_dir: Path, gate: PrivacyGate) -> Pr
     return PromotionResult(changed=True, changed_projects=changed_projects)
 
 
+def validate_bundle(bundle_dir: Path, gate: PrivacyGate) -> BundleManifest:
+    """Validate an existing public bundle without promotion or mutation."""
+    bundle_dir = Path(bundle_dir)
+    require_no_symlink_path(bundle_dir)
+    tree = _load_text_tree(bundle_dir)
+    gate.require_safe(_privacy_tree(tree))
+    return _validate_bundle(bundle_dir, tree)
+
+
 def _prepare_staging(staging_dir: Path) -> None:
     absolute = staging_dir.absolute()
     require_no_symlink_path(absolute)

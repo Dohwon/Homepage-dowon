@@ -48,6 +48,7 @@ SEARCH_DOCUMENT_KEYS = frozenset({"id", "project_id", "title", "body", "url"})
 PUBLIC_ROUTE_EXACT_PATHS = frozenset({"/", "/projects", "/topics", "/graph", "/changelog", "/search"})
 PUBLIC_ROUTE_DESCENDANT_PREFIXES = ("/projects/", "/topics/")
 PUBLIC_ASSET_PREFIX = "/assets/"
+URL_ATTRIBUTE_DECODE_LIMIT = 16
 
 
 @dataclass(frozen=True)
@@ -303,9 +304,44 @@ def _raw_attribute_fragment_contains_absolute_path(parsed_tag: _ParsedStartTag) 
 
 
 def _attribute_contains_absolute_path(name: str, value: str) -> bool:
-    if name.casefold() in URL_BEARING_ATTRIBUTES and value.startswith("/"):
-        return not _is_safe_public_route(value)
+    if name.casefold() in URL_BEARING_ATTRIBUTES:
+        normalized = _normalize_url_attribute(value)
+        if normalized is None:
+            return True
+        if HTTP_URL_START.match(normalized):
+            return _plain_text_contains_absolute_path(normalized)
+        if normalized.startswith("//"):
+            return True
+        if normalized.startswith("/"):
+            return not value.startswith("/") or not _is_safe_public_route(value)
+        if _relative_url_has_dot_traversal(normalized):
+            return True
+        return _plain_text_contains_absolute_path(normalized)
     return _plain_text_contains_absolute_path(value)
+
+
+def _normalize_url_attribute(value: str) -> str | None:
+    current = value
+    seen: set[str] = set()
+    for _ in range(URL_ATTRIBUTE_DECODE_LIMIT):
+        if current in seen or INVALID_PERCENT_ESCAPE.search(current):
+            return None
+        seen.add(current)
+        if "\\" in current or any(unicodedata.category(character) == "Cc" for character in current):
+            return None
+        try:
+            decoded = unquote(current, errors="strict")
+        except UnicodeDecodeError:
+            return None
+        if decoded == current:
+            return current
+        current = decoded
+    return None
+
+
+def _relative_url_has_dot_traversal(value: str) -> bool:
+    path = re.split(r"[?#]", value, maxsplit=1)[0]
+    return any(segment in {".", ".."} for segment in path.split("/"))
 
 
 def _is_safe_public_route(value: str) -> bool:

@@ -1,5 +1,7 @@
 import hashlib
+import io
 import json
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import yaml
@@ -95,6 +97,36 @@ def write_memory_markdown(root: Path, relative_path: str, content: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return path
+
+
+def make_workspace_fixture(root: Path) -> Path:
+    workspace = root / "workspace"
+    active = workspace / "projects" / "alpha"
+    finished = workspace / "projects" / "finish" / "beta"
+    service = workspace / "portfolio-homepage"
+    active.mkdir(parents=True)
+    finished.mkdir(parents=True)
+    service.mkdir(parents=True)
+    write_project_profile(active, id="alpha", name="Alpha", lifecycle="active")
+    write_project_profile(finished, id="beta", name="Beta", lifecycle="finished")
+    write_memory_markdown(
+        active,
+        "project_memory/decisions.md",
+        "## Decisions\n\n- Keep direct curated memory\n",
+    )
+    return workspace
+
+
+def invoke_cli_json(args: list[str]) -> dict[str, object]:
+    from atlas_worker.cli import main
+
+    output = io.StringIO()
+    with redirect_stdout(output):
+        code = main(args)
+    assert code == 0
+    value = json.loads(output.getvalue())
+    assert isinstance(value, dict)
+    return value
 
 
 def make_decision_knowledge(

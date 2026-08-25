@@ -2,6 +2,7 @@ import os
 import re
 from dataclasses import asdict
 from pathlib import Path
+from urllib.parse import quote
 
 import pytest
 
@@ -240,6 +241,19 @@ def test_allowlisted_public_routes_are_safe_in_url_bearing_attributes(attribute,
         '<a href="/projects/%252e%252e/tmp">Atlas</a>',
         '<a href="/projects/%252Ftmp">Atlas</a>',
         '<a href="/%2574mp">Atlas</a>',
+        '<a href="%2Ftmp/private">Atlas</a>',
+        '<a href="%252Ftmp/private">Atlas</a>',
+        '<a href="%5Ctmp%5Cprivate">Atlas</a>',
+        '<a href="%255Ctmp%255Cprivate">Atlas</a>',
+        '<a href="%2E%2E%2Ftmp">Atlas</a>',
+        '<a href="%252E%252E%252Ftmp">Atlas</a>',
+        '<a href="%2F%2Fexample.com/projects/alpha">Atlas</a>',
+        '<a href="%252F%252Fexample.com/projects/alpha">Atlas</a>',
+        '<a href="/%2Fexample.com/projects/alpha">Atlas</a>',
+        '<a href="%2F/projects/alpha">Atlas</a>',
+        '<a href="docs/%2E%2E/tmp">Atlas</a>',
+        '<a href="docs%2500private">Atlas</a>',
+        '<a href="docs\x1fprivate">Atlas</a>',
         '<div data-route="/projects/alpha">Atlas</div>',
         '<div title="/topics/ai">Atlas</div>',
         '<p>/projects/alpha</p>',
@@ -258,6 +272,45 @@ def test_hostile_or_out_of_context_public_route_lookalikes_are_blocked(markup):
         gate.require_safe({"summary": markup})
     assert str(error.value) == "public bundle blocked: absolute_path"
     assert markup not in str(error.value)
+
+
+def test_url_attribute_decode_limit_exhaustion_fails_closed():
+    encoded = "%41tlas"
+    for _ in range(32):
+        encoded = quote(encoded, safe="")
+    markup = f'<a href="{encoded}">Atlas</a>'
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    report = gate.scan({"summary": markup})
+
+    assert [(finding.category, finding.json_pointer) for finding in report.findings] == [
+        ("absolute_path", "/summary")
+    ]
+    with pytest.raises(PrivacyViolation) as error:
+        gate.require_safe({"summary": markup})
+    assert str(error.value) == "public bundle blocked: absolute_path"
+    assert encoded not in str(error.value)
+
+
+def test_url_attribute_decode_non_convergence_fails_closed(monkeypatch):
+    original_unquote = privacy_module.unquote
+
+    def cycle_unquote(value, *args, **kwargs):
+        if value == "cycle-a":
+            return "cycle-b"
+        if value == "cycle-b":
+            return "cycle-a"
+        return original_unquote(value, *args, **kwargs)
+
+    monkeypatch.setattr(privacy_module, "unquote", cycle_unquote)
+    markup = '<a href="cycle-a">Atlas</a>'
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    report = gate.scan({"summary": markup})
+
+    assert [(finding.category, finding.json_pointer) for finding in report.findings] == [
+        ("absolute_path", "/summary")
+    ]
 
 
 @pytest.mark.parametrize(
