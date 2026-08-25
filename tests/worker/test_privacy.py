@@ -136,6 +136,31 @@ def test_markup_attribute_local_paths_are_blocked_without_value_leak(markup):
 
 
 @pytest.mark.parametrize(
+    "malformed_markup",
+    (
+        "<div /tmp/private>",
+        r"<div C:\private\x>",
+        r"<div \\server\share\x>",
+        "<DiV \t /tmp/private \n>",
+        "<DIV\tC:\\private\\x \n>",
+        "<dIv\n\\\\server\\share\\x\t>",
+    ),
+)
+def test_name_only_markup_paths_are_blocked_without_value_leak(malformed_markup):
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    report = gate.scan({"summary": malformed_markup})
+
+    assert [(finding.category, finding.json_pointer) for finding in report.findings] == [
+        ("absolute_path", "/summary")
+    ]
+    with pytest.raises(PrivacyViolation) as error:
+        gate.require_safe({"summary": malformed_markup})
+    assert str(error.value) == "public bundle blocked: absolute_path"
+    assert malformed_markup not in str(error.value)
+
+
+@pytest.mark.parametrize(
     "markup",
     (
         '<a href="https://example.com/docs/path?q=/tmp/example#top">Docs</a>',
@@ -146,6 +171,19 @@ def test_markup_attribute_local_paths_are_blocked_without_value_leak(markup):
     ),
 )
 def test_public_urls_in_markup_attributes_and_visible_text_remain_safe(markup):
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    assert "absolute_path" not in {finding.category for finding in gate.scan(markup).findings}
+
+
+@pytest.mark.parametrize(
+    "markup",
+    (
+        "<img />",
+        '<div class="summary" data-state=ready>content</div>',
+    ),
+)
+def test_ordinary_start_and_self_closing_tags_remain_safe(markup):
     gate = PrivacyGate(alias_key=b"unit-test-key")
 
     assert "absolute_path" not in {finding.category for finding in gate.scan(markup).findings}
@@ -177,6 +215,19 @@ def test_markup_parser_failure_falls_back_to_path_scan(monkeypatch):
         raise RuntimeError("injected parser failure")
 
     monkeypatch.setattr(privacy_module._SingleStartTagParser, "feed", fail_parser)
+
+    report = gate.scan({"summary": markup})
+
+    assert [(finding.category, finding.json_pointer) for finding in report.findings] == [
+        ("absolute_path", "/summary")
+    ]
+
+
+def test_raw_start_tag_isolation_failure_falls_back_to_path_scan(monkeypatch):
+    markup = "<div /tmp/private>"
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    monkeypatch.setattr(privacy_module._SingleStartTagParser, "get_starttag_text", lambda parser: "<div>")
 
     report = gate.scan({"summary": markup})
 

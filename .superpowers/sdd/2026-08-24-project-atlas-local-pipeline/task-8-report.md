@@ -126,3 +126,32 @@ Verified quote-aware tag boundaries, attribute callback completeness, malformed 
 
 - `HTMLParser` is intentionally tolerant, so the bounded tokenizer and raw-fragment fallback remain the fail-closed control when a tag cannot be represented as exactly one parsed start event.
 - No known blocking concern remains in the reviewed Task 8 boundary.
+
+## Fix Round 4
+
+### Status
+
+Resolved the malformed name-only attribute absolute-path bypass without changing bundle, promotion, rollback, manifest, version, or symlink behavior. Tests continued to use only `tmp_path`; the real `public-bundle/` was not read or written.
+
+### TDD Evidence
+
+- Scanner RED: the exact `<div /tmp/private>`, Windows-drive, and UNC probes plus three mixed-case/whitespace variants produced no findings. An injected raw-start-tag isolation mismatch also bypassed blocking.
+- Boundary RED: all three exact malformed probes passed through the builder and promoter. The targeted RED run failed `13` cases: scanner `7`, builder `3`, and promoter `3`.
+- Targeted GREEN: the new malformed, raw-isolation, normal-tag, self-closing-tag, safe-URL, and valid-local-attribute coverage passed `25` cases.
+- Focused GREEN: `.venv/bin/python -m pytest tests/worker/test_privacy.py tests/worker/test_bundle.py -q` passed `146` with `1` Linux platform-conditional skip.
+- Full suite, run once after code and test freeze: `.venv/bin/python -m pytest -v` passed `274` with `1` Linux platform-conditional skip.
+
+### Delivered Fixes
+
+- Every parsed start or self-closing tag now retains `HTMLParser.get_starttag_text()` and requires it to equal the bounded input tag before raw attribute isolation is trusted.
+- The scanner removes only the exact leading tag name plus the syntactic closing `>` and parser-confirmed self-closing `/`, then applies the existing URL-aware POSIX/Windows/UNC detector to the untouched raw attribute fragment before scanning parsed non-null attribute values.
+- Parser exceptions, invalid callback shapes, raw-text mismatches, and unsafe fragment isolation return to whole-tag path scanning. Ordinary closing tags, `<img />`, normal attributes, and HTTPS attributes remain safe.
+- Builder regressions assert category-only errors and an empty candidate tree. Promoter regressions assert category-only errors, unchanged candidate bytes, and byte-identical last-good public content for each malformed path family.
+
+### Self-Review
+
+Production changes are limited to `atlas_worker/privacy.py`; boundary regressions are limited to the existing privacy and bundle test files. `git diff --check`, Python bytecode compilation, focused tests, and the full suite passed. No stale-backup, cross-filesystem, rollback, manifest, version, schema, symlink, or rendering code changed.
+
+### Concerns
+
+- No known blocking concern remains within the approved Fix Round 4 scope.

@@ -21,6 +21,7 @@ POSIX_ABSOLUTE_PATH = re.compile(r"(?<![A-Za-z0-9_/\\])/(?![/>#])(?:[^\s<>\"']*)
 WINDOWS_DRIVE_PATH = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:[\\/]")
 UNC_PATH = re.compile(r"(?<![A-Za-z0-9])(?:\\\\|//)[^\\/\s]+[\\/][^\\/\s]+")
 CLOSING_TAG = re.compile(r"</\s*[A-Za-z][A-Za-z0-9:._-]*\s*>")
+START_TAG_NAME = re.compile(r"<([A-Za-z][A-Za-z0-9:._-]*)")
 EMAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)
 PHONE = re.compile(r"(?<!\d)(?:\+?82[- ]?)?0?1[016789][- ]?\d{3,4}[- ]?\d{4}(?!\d)")
 PRIVATE_IP = re.compile(
@@ -45,6 +46,12 @@ class PrivacyFinding:
 @dataclass(frozen=True)
 class PrivacyReport:
     findings: tuple[PrivacyFinding, ...]
+
+
+@dataclass(frozen=True)
+class _ParsedStartTag:
+    raw_attribute_fragment: str
+    attribute_values: tuple[str, ...]
 
 
 class PrivacyViolation(ValueError):
@@ -178,11 +185,14 @@ def _contains_absolute_path(value: str) -> bool:
             return _plain_text_contains_absolute_path(value[tag_start:])
         tag = value[tag_start : tag_end + 1]
         if not CLOSING_TAG.fullmatch(tag):
-            attributes = _parse_start_tag_attributes(tag)
-            if attributes is None:
+            parsed_tag = _parse_start_tag_attributes(tag)
+            if parsed_tag is None:
                 if _plain_text_contains_absolute_path(tag):
                     return True
-            elif any(_plain_text_contains_absolute_path(attribute) for attribute in attributes):
+            elif _plain_text_contains_absolute_path(parsed_tag.raw_attribute_fragment) or any(
+                _plain_text_contains_absolute_path(attribute)
+                for attribute in parsed_tag.attribute_values
+            ):
                 return True
         cursor = tag_end + 1
     return False
@@ -213,7 +223,7 @@ def _find_tag_end(value: str, start: int) -> int | None:
     return None
 
 
-def _parse_start_tag_attributes(tag: str) -> tuple[str, ...] | None:
+def _parse_start_tag_attributes(tag: str) -> _ParsedStartTag | None:
     parser = _SingleStartTagParser()
     try:
         parser.feed(tag)
@@ -222,13 +232,50 @@ def _parse_start_tag_attributes(tag: str) -> tuple[str, ...] | None:
         return None
     if not parser.valid:
         return None
-    return tuple(value for _, value in parser.attributes if value is not None)
+    if parser.raw_start_tag_text != tag or parser.tag_name is None:
+        return None
+    raw_attribute_fragment = _isolate_raw_attribute_fragment(
+        parser.raw_start_tag_text,
+        parser.tag_name,
+        self_closing=parser.self_closing,
+    )
+    if raw_attribute_fragment is None:
+        return None
+    return _ParsedStartTag(
+        raw_attribute_fragment=raw_attribute_fragment,
+        attribute_values=tuple(value for _, value in parser.attributes if value is not None),
+    )
+
+
+def _isolate_raw_attribute_fragment(
+    raw_start_tag_text: str,
+    tag_name: str,
+    *,
+    self_closing: bool,
+) -> str | None:
+    name_match = START_TAG_NAME.match(raw_start_tag_text)
+    if (
+        name_match is None
+        or name_match.group(1).casefold() != tag_name.casefold()
+        or not raw_start_tag_text.endswith(">")
+    ):
+        return None
+
+    fragment = raw_start_tag_text[name_match.end() : -1]
+    if self_closing:
+        if not fragment.endswith("/"):
+            return None
+        fragment = fragment[:-1]
+    return fragment
 
 
 class _SingleStartTagParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=False)
         self.attributes: list[tuple[str, str | None]] = []
+        self.raw_start_tag_text: str | None = None
+        self.tag_name: str | None = None
+        self.self_closing = False
         self._start_events = 0
         self._invalid = False
 
@@ -237,10 +284,10 @@ class _SingleStartTagParser(HTMLParser):
         return self._start_events == 1 and not self._invalid
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        self._accept_start(attrs)
+        self._accept_start(tag, attrs, self_closing=False)
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        self._accept_start(attrs)
+        self._accept_start(tag, attrs, self_closing=True)
 
     def handle_endtag(self, tag: str) -> None:
         self._invalid = True
@@ -261,10 +308,19 @@ class _SingleStartTagParser(HTMLParser):
     def unknown_decl(self, data: str) -> None:
         self._invalid = True
 
-    def _accept_start(self, attrs: list[tuple[str, str | None]]) -> None:
+    def _accept_start(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+        *,
+        self_closing: bool,
+    ) -> None:
         self._start_events += 1
         if self._start_events == 1:
             self.attributes = attrs
+            self.raw_start_tag_text = self.get_starttag_text()
+            self.tag_name = tag
+            self.self_closing = self_closing
         else:
             self._invalid = True
 
