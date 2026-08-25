@@ -21,6 +21,7 @@ _SECTION_NAMES = {
 }
 _HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 _LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+(.+?)\s*$")
+_FENCE_OPEN = re.compile(r"^\s*(`{3,}|~{3,}).*$")
 
 
 def load_project_memory(ref: ProjectRef) -> ProjectMemory:
@@ -54,13 +55,23 @@ def _load_profile(path: Path) -> dict[str, Any]:
 def _markdown_files(directory: Path) -> tuple[Path, ...]:
     if not directory.is_dir():
         return ()
-    return tuple(sorted(directory.rglob("*.md"), key=lambda path: path.as_posix()))
+    return tuple(sorted(directory.glob("*.md"), key=lambda path: path.as_posix()))
 
 
 def _parse_memory_sections(path: Path) -> dict[str, tuple[str, ...]]:
     sections: dict[str, list[str]] = defaultdict(list)
     active_section: str | None = None
+    fence: str | None = None
     for line in path.read_text(encoding="utf-8").splitlines():
+        if fence is not None:
+            if re.match(rf"^\s*{re.escape(fence[0])}{{{len(fence)},}}\s*$", line):
+                fence = None
+            continue
+
+        fence_open = _FENCE_OPEN.match(line)
+        if fence_open:
+            fence = fence_open.group(1)
+            continue
         heading = _HEADING.match(line)
         if heading:
             active_section = _section_name(heading) if len(heading.group(1)) == 2 else None

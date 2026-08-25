@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 
 from atlas_worker.evidence import merge_claims
 from atlas_worker.memory import load_project_memory
@@ -68,6 +69,84 @@ def test_memory_reads_only_list_items_under_explicit_level_two_headings(tmp_path
     assert memory.decisions == ("keep typed contracts", "reject unknown classes")
     assert memory.rollbacks == ("restored last public bundle",)
     assert memory.build_story == ("migrated from legacy memory",)
+
+
+def test_nested_memory_markdown_is_not_imported(tmp_path):
+    ref = make_project_ref(tmp_path)
+    write_project_profile(tmp_path)
+    write_memory_markdown(
+        tmp_path,
+        "project_memory/history.md",
+        "## Decisions\n\n- direct project memory\n",
+    )
+    write_memory_markdown(
+        tmp_path,
+        "project_memory/visuals/README.md",
+        "## Decisions\n\n- nested project artifact\n",
+    )
+    write_memory_markdown(
+        tmp_path,
+        "manager_memory/legacy.md",
+        "## Decisions\n\n- direct legacy memory\n",
+    )
+    write_memory_markdown(
+        tmp_path,
+        "manager_memory/archive/history.md",
+        "## Decisions\n\n- nested legacy archive\n",
+    )
+
+    memory = load_project_memory(ref)
+
+    assert memory.decisions == ("direct project memory", "direct legacy memory")
+
+
+@pytest.mark.parametrize("fence", ("```", "~~~"))
+def test_memory_ignores_bullets_inside_fenced_code_blocks(tmp_path, fence):
+    ref = make_project_ref(tmp_path)
+    write_project_profile(tmp_path)
+    write_memory_markdown(
+        tmp_path,
+        "project_memory/history.md",
+        f"## Decisions\n\n- kept decision\n\n{fence}text\n- example, not memory\n{fence}\n\n- final decision\n",
+    )
+
+    memory = load_project_memory(ref)
+
+    assert memory.decisions == ("kept decision", "final decision")
+
+
+@pytest.mark.parametrize(
+    "value",
+    (Path("/private/project"), "/private/project", r"C:\private\project", r"\\server\share\project"),
+)
+def test_merge_claims_rejects_standalone_absolute_path_values(value):
+    claim = EvidenceClaim("summary", value, "source", 1.0, "local-claim", source_path="/local/evidence")
+
+    with pytest.raises(ValueError, match="summary"):
+        merge_claims([claim])
+
+
+def test_merge_claims_preserves_prose_that_mentions_an_absolute_path():
+    prose = "Read /private/project/README.md before the next deploy."
+    claim = EvidenceClaim("summary", prose, "source", 1.0, "local-claim")
+
+    assert merge_claims([claim]).values["summary"] == prose
+
+
+def test_merge_claims_allows_absolute_path_metadata_outside_values():
+    claim = EvidenceClaim(
+        "summary",
+        "Public summary",
+        "source",
+        1.0,
+        "/local/evidence-id",
+        source_path="/local/source.md",
+    )
+
+    knowledge = merge_claims([claim])
+
+    assert knowledge.values == {"summary": "Public summary"}
+    assert knowledge.winners["summary"].source_path == "/local/source.md"
 
 
 def test_invalid_profile_raises_before_memory_is_consumed(tmp_path):
