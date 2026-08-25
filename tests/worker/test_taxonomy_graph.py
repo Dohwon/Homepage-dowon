@@ -165,6 +165,34 @@ def test_project_neighbors_accepts_project_ids_that_need_canonical_encoding():
     assert neighbors[0].source_id == "project:alpha%2Fbeta"
 
 
+def test_project_neighbors_keeps_raw_ids_distinct_from_canonical_node_ids():
+    special_tags = TagSet(
+        domain=("Data",),
+        problem=("Search",),
+        pattern=("Pipeline",),
+        technology=("Rust",),
+        outcome=("Report",),
+    )
+    graph = build_graph(
+        (
+            make_public_project("alpha"),
+            make_public_project("beta"),
+            replace(make_public_project("project:alpha"), tags=special_tags),
+            replace(make_public_project("gamma"), tags=special_tags),
+        )
+    )
+
+    alpha_neighbors = graph.project_neighbors("alpha")
+    special_neighbors = graph.project_neighbors("project:alpha")
+
+    assert {(edge.source_id, edge.target_id) for edge in alpha_neighbors} == {
+        ("project:alpha", "project:beta")
+    }
+    assert {(edge.source_id, edge.target_id) for edge in special_neighbors} == {
+        ("project:gamma", "project:project%3Aalpha")
+    }
+
+
 def test_similarity_edges_are_limited_to_five_neighbors_globally_and_are_input_stable():
     projects = tuple(make_public_project(f"project-{index}") for index in range(8))
 

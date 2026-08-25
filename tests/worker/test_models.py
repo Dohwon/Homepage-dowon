@@ -5,6 +5,7 @@ import pytest
 from atlas_worker.models import (
     GraphData,
     GraphEdge,
+    GraphNode,
     ProjectRef,
     PublicProject,
     TagSet,
@@ -144,22 +145,30 @@ def test_project_neighbors_are_ranked_and_limited_to_five():
     graph = GraphData(
         nodes=(),
         edges=(
-            GraphEdge("alpha", "project-6", "project-similarity", 1),
-            GraphEdge("alpha", "project-5", "project-similarity", 2),
-            GraphEdge("alpha", "project-4", "project-similarity", 3),
-            GraphEdge("alpha", "project-3", "project-similarity", 4),
-            GraphEdge("alpha", "project-2", "project-similarity", 5),
-            GraphEdge("alpha", "project-1", "project-similarity", 6),
-            GraphEdge("alpha", "topic-ai", "tag-membership", 100),
+            GraphEdge("project:alpha", "project:project-6", "project-similarity", 1),
+            GraphEdge("project:alpha", "project:project-5", "project-similarity", 2),
+            GraphEdge("project:alpha", "project:project-4", "project-similarity", 3),
+            GraphEdge("project:alpha", "project:project-3", "project-similarity", 4),
+            GraphEdge("project:alpha", "project:project-2", "project-similarity", 5),
+            GraphEdge("project:alpha", "project:project-1", "project-similarity", 6),
+            GraphEdge("project:alpha", "domain:ai", "tag-membership", 100),
         ),
     )
 
     neighbors = graph.project_neighbors("alpha")
 
     assert [edge.target_id for edge in neighbors] == [
-        "project-1",
-        "project-2",
-        "project-3",
-        "project-4",
-        "project-5",
+        "project:project-1",
+        "project:project-2",
+        "project:project-3",
+        "project:project-4",
+        "project:project-5",
     ]
+
+
+def test_graph_data_rejects_unknown_node_and_edge_kinds():
+    with pytest.raises(ValueError, match="Unknown graph node kind: unknown"):
+        GraphData(nodes=(GraphNode("unknown:1", "Unknown", "unknown"),), edges=())
+
+    with pytest.raises(ValueError, match="Unknown graph edge kind: unknown"):
+        GraphData(nodes=(), edges=(GraphEdge("project:alpha", "project:beta", "unknown", 1),))

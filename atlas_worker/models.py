@@ -13,6 +13,11 @@ from jsonschema.exceptions import ValidationError
 Lifecycle = Literal["active", "finished"]
 Publication = Literal["public", "private", "excluded"]
 TagKind = Literal["domain", "problem", "pattern", "technology", "outcome"]
+GraphNodeKind = Literal["project", "domain", "problem", "pattern", "technology", "outcome"]
+GraphEdgeKind = Literal["tag-membership", "project-similarity"]
+
+GRAPH_NODE_KINDS = frozenset({"project", "domain", "problem", "pattern", "technology", "outcome"})
+GRAPH_EDGE_KINDS = frozenset({"tag-membership", "project-similarity"})
 
 TAG_LIMITS = {
     "domain": (1, 2),
@@ -151,14 +156,14 @@ class DiscoveryReport:
 class GraphNode:
     node_id: str
     label: str
-    kind: str
+    kind: GraphNodeKind
 
 
 @dataclass(frozen=True)
 class GraphEdge:
     source_id: str
     target_id: str
-    kind: str
+    kind: GraphEdgeKind
     weight: int
     reasons: tuple[str, ...] = ()
 
@@ -168,8 +173,16 @@ class GraphData:
     nodes: tuple[GraphNode, ...]
     edges: tuple[GraphEdge, ...]
 
+    def __post_init__(self) -> None:
+        for node in self.nodes:
+            if node.kind not in GRAPH_NODE_KINDS:
+                raise ValueError(f"Unknown graph node kind: {node.kind}")
+        for edge in self.edges:
+            if edge.kind not in GRAPH_EDGE_KINDS:
+                raise ValueError(f"Unknown graph edge kind: {edge.kind}")
+
     def project_neighbors(self, project_id: str) -> tuple[GraphEdge, ...]:
-        canonical_id = _graph_project_id(project_id, self.edges)
+        canonical_id = _graph_project_id(project_id)
         neighbors = (
             edge
             for edge in self.edges
@@ -257,7 +270,5 @@ def _neighbor_id(edge: GraphEdge, project_id: str) -> str:
     return edge.target_id if edge.source_id == project_id else edge.source_id
 
 
-def _graph_project_id(project_id: str, edges: tuple[GraphEdge, ...]) -> str:
-    if any(project_id in (edge.source_id, edge.target_id) for edge in edges):
-        return project_id
+def _graph_project_id(project_id: str) -> str:
     return f"project:{quote(project_id, safe='')}"

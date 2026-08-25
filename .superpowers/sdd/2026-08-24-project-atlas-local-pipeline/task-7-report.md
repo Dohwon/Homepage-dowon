@@ -26,3 +26,22 @@ Focused tests cover source threshold, manual approve/reject, single-source and d
 ## Concerns
 
 The taxonomy accepts only the existing `SOURCE_PRIORITY` classes and requires profile as the source class for explicit decisions. Project metadata/profile loading must emit those exact strings before Task 8 consumes selected tags.
+
+## Fix Round 1
+
+### RED
+
+- `.venv/bin/python -m pytest tests/worker/test_models.py tests/worker/test_taxonomy_graph.py -v` failed `2` checks: raw ID `project:alpha` resolved to another project's canonical `project:alpha` node, and direct `GraphData` construction accepted unknown node/edge kinds.
+
+### GREEN
+
+- `GraphData.project_neighbors()` now accepts raw project IDs only and always applies the graph's canonical URL encoding. Direct-constructed tests use canonical node IDs, eliminating ambiguous dual lookup semantics.
+- `GraphNodeKind` and `GraphEdgeKind` define the closed six-node/two-edge contract. `GraphData.__post_init__()` rejects unknown node and edge kinds while retaining every existing valid construction path.
+- Focused suite: `.venv/bin/python -m pytest tests/worker/test_models.py tests/worker/test_taxonomy_graph.py -v` passed `23/23`.
+- Full suite: `.venv/bin/python -m pytest -v` passed `144` with `1` existing Linux platform-conditional skip.
+
+### Self-Review
+
+- Confirmed raw `alpha` resolves only `project:alpha`, while raw `project:alpha` resolves only `project:project%3Aalpha`; both IDs remain valid and distinct.
+- Confirmed the direct `GraphData` test now supplies canonical project/tag node IDs and valid existing `tag-membership`/`project-similarity` edge kinds remain backward-compatible.
+- Confirmed runtime validation reads only public graph kind values and does not add evidence, provenance, or path fields to graph output.
