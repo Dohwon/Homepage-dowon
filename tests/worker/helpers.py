@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 
-from atlas_worker.models import ProjectRef
+from atlas_worker.models import ProjectRef, SessionEvent
 
 
 def make_project_ref(
@@ -19,6 +19,22 @@ def make_project_ref(
         lifecycle=lifecycle,
         publication=publication,
         aliases=(),
+    )
+
+
+def make_session_event(
+    text: str,
+    cwd: str = "/workspace/projects/alpha",
+    session_id: str = "s1",
+) -> SessionEvent:
+    return SessionEvent(
+        session_id=session_id,
+        timestamp="2026-04-01T10:00:00Z",
+        cwd=cwd,
+        role="user",
+        text=text,
+        source_path="/local/sessions/s1.jsonl",
+        line_number=1,
     )
 
 
