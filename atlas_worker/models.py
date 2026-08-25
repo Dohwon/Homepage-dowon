@@ -62,6 +62,7 @@ class EvidenceClaim:
     evidence_id: str
     claim_type: str = "fact"
     event_date: str = ""
+    source_path: str = ""
 
 
 @dataclass(frozen=True)
