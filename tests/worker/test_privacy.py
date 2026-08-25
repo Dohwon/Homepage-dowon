@@ -71,6 +71,46 @@ def test_http_url_does_not_mask_a_later_local_path():
     assert {finding.category for finding in report.findings} == {"absolute_path"}
 
 
+@pytest.mark.parametrize(
+    "value",
+    (
+        "https://example.com,/tmp/private",
+        "https://example.com);/root/private",
+        "prefix</Users/private/atlas",
+        r"https://example.com,C:\private\atlas",
+        r"https://example.com);\\server\share\atlas",
+    ),
+)
+def test_url_delimiters_do_not_mask_adjacent_local_paths(value):
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    report = gate.scan({"summary": value})
+
+    assert [(finding.category, finding.json_pointer) for finding in report.findings] == [
+        ("absolute_path", "/summary")
+    ]
+    with pytest.raises(PrivacyViolation) as error:
+        gate.require_safe({"summary": value})
+    assert str(error.value) == "public bundle blocked: absolute_path"
+    assert value not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "url",
+    (
+        "https://example.com/docs/v1/getting-started",
+        "https://example.com/search?q=/tmp/example&mode=exact",
+        "https://example.com/projects/alpha?view=full#decisions",
+        "http://localhost:8080/a/b?next=/projects/alpha#top",
+        "See (https://example.com/a/b?q=one,two#part).",
+    ),
+)
+def test_http_url_paths_queries_and_fragments_remain_safe(url):
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    assert "absolute_path" not in {finding.category for finding in gate.scan(url).findings}
+
+
 def test_alias_is_deterministic_and_does_not_embed_source():
     first = hmac_alias("Private Client", b"local-key", "CLIENT")
     second = hmac_alias("Private Client", b"local-key", "CLIENT")

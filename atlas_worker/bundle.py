@@ -168,6 +168,10 @@ def promote_bundle(staging_dir: Path, public_dir: Path, gate: PrivacyGate) -> Pr
     public_dir = Path(public_dir)
     require_no_symlink_path(staging_dir)
     require_no_symlink_path(public_dir)
+    backup = public_dir.parent / ".public-bundle.previous"
+    require_no_symlink_path(backup)
+    if backup.exists() or backup.is_symlink():
+        raise FileExistsError(f"stale backup requires recovery: {backup}")
     candidate = _load_text_tree(staging_dir)
     gate.require_safe(_privacy_tree(candidate))
     candidate_manifest = _validate_bundle(staging_dir, candidate)
@@ -180,12 +184,8 @@ def promote_bundle(staging_dir: Path, public_dir: Path, gate: PrivacyGate) -> Pr
     _require_safe_destination(public_dir)
     _require_same_filesystem(staging_dir, public_dir.parent)
     changed_projects = _changed_project_ids(staging_dir, public_dir, candidate_manifest)
-    backup = public_dir.parent / ".public-bundle.previous"
     recovery = public_dir.parent / ".public-bundle.recovery"
-    require_no_symlink_path(backup)
     require_no_symlink_path(recovery)
-    if backup.exists() or backup.is_symlink():
-        raise FileExistsError(f"stale backup requires recovery: {backup}")
     if recovery.exists() or recovery.is_symlink():
         raise FileExistsError(f"stale recovery tree requires cleanup: {recovery}")
 

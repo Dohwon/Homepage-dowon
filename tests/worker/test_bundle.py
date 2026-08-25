@@ -1,3 +1,4 @@
+import errno
 import json
 import os
 import shutil
@@ -36,6 +37,11 @@ ABSOLUTE_PATH_CASES = (
     "E:/atlas/private",
     r"\\server\share\atlas",
     "//server/share/atlas",
+)
+URL_ADJACENT_PATH_PROBES = (
+    "https://example.com,/tmp/private",
+    "https://example.com);/root/private",
+    "prefix</Users/private/atlas",
 )
 
 
@@ -314,6 +320,16 @@ def test_build_rejects_every_absolute_path_family(tmp_path, local_path):
     assert local_path not in str(error.value)
 
 
+@pytest.mark.parametrize("probe", URL_ADJACENT_PATH_PROBES)
+def test_build_rejects_url_delimiter_adjacent_local_paths(tmp_path, probe):
+    project = replace(make_public_project("alpha"), summary=probe)
+
+    with pytest.raises(PrivacyViolation, match="absolute_path") as error:
+        build_candidate_bundle(_context(projects=(project,)), tmp_path / "staging")
+
+    assert probe not in str(error.value)
+
+
 def test_build_rejects_existing_staging_symlink_before_cleanup(tmp_path):
     target = tmp_path / "target"
     target.mkdir()
@@ -426,6 +442,21 @@ def test_promote_rejects_every_absolute_path_family_and_preserves_last_good(tmp_
         promote_bundle(staging, public_dir, PrivacyGate(alias_key=b"key"))
 
     assert local_path not in str(error.value)
+    assert _tree_bytes(public_dir) == before
+
+
+@pytest.mark.parametrize("probe", URL_ADJACENT_PATH_PROBES)
+def test_promote_rejects_url_delimiter_adjacent_paths_and_preserves_last_good(tmp_path, probe):
+    public_dir = tmp_path / "public-bundle"
+    staging = tmp_path / "staging"
+    write_bundle_fixture(public_dir, version=None, summary="safe")
+    write_bundle_fixture(staging, version=None, summary=probe)
+    before = _tree_bytes(public_dir)
+
+    with pytest.raises(PrivacyViolation, match="absolute_path") as error:
+        promote_bundle(staging, public_dir, PrivacyGate(alias_key=b"key"))
+
+    assert probe not in str(error.value)
     assert _tree_bytes(public_dir) == before
 
 
@@ -768,6 +799,89 @@ def test_stale_backup_is_not_overwritten(tmp_path):
 
     assert _tree_bytes(backup) == backup_before
     assert _tree_bytes(public_dir) == public_before
+
+
+def test_stale_backup_blocks_identical_noop_without_touching_public_or_staging(tmp_path):
+    public_dir = tmp_path / "public-bundle"
+    staging = tmp_path / "staging"
+    backup = tmp_path / ".public-bundle.previous"
+    write_bundle_fixture(public_dir, None, "same")
+    write_bundle_fixture(staging, None, "same")
+    write_bundle_fixture(backup, None, "older")
+    public_before = _tree_bytes(public_dir)
+    staging_before = _tree_bytes(staging)
+    backup_before = _tree_bytes(backup)
+    public_inode = public_dir.stat().st_ino
+    staging_inode = staging.stat().st_ino
+
+    with pytest.raises(FileExistsError, match="stale backup"):
+        promote_bundle(staging, public_dir, PrivacyGate(alias_key=b"key"))
+
+    assert public_dir.stat().st_ino == public_inode
+    assert staging.stat().st_ino == staging_inode
+    assert _tree_bytes(public_dir) == public_before
+    assert _tree_bytes(staging) == staging_before
+    assert _tree_bytes(backup) == backup_before
+
+
+def test_cross_filesystem_device_mismatch_blocks_before_public_rename(tmp_path, monkeypatch):
+    public_dir = tmp_path / "public-bundle"
+    staging = tmp_path / "staging"
+    write_bundle_fixture(public_dir, None, "old")
+    write_bundle_fixture(staging, None, "new")
+    public_before = _tree_bytes(public_dir)
+    staging_before = _tree_bytes(staging)
+    real_stat = Path.stat
+    rename_calls = []
+
+    def mismatched_device_stat(path: Path, *args, **kwargs):
+        result = real_stat(path, *args, **kwargs)
+        if path == staging:
+            values = list(result)
+            values[2] = result.st_dev + 1
+            return os.stat_result(values)
+        return result
+
+    def track_rename(source: Path, target: Path) -> None:
+        rename_calls.append((source, target))
+        raise AssertionError("rename must not run across filesystems")
+
+    monkeypatch.setattr(Path, "stat", mismatched_device_stat)
+    monkeypatch.setattr(bundle_module, "_rename", track_rename)
+
+    with pytest.raises(OSError, match="same filesystem"):
+        promote_bundle(staging, public_dir, PrivacyGate(alias_key=b"key"))
+
+    assert rename_calls == []
+    assert _tree_bytes(public_dir) == public_before
+    assert _tree_bytes(staging) == staging_before
+    assert not (tmp_path / ".public-bundle.previous").exists()
+
+
+def test_exdev_at_first_rename_preserves_last_good_public(tmp_path, monkeypatch):
+    public_dir = tmp_path / "public-bundle"
+    staging = tmp_path / "staging"
+    backup = tmp_path / ".public-bundle.previous"
+    write_bundle_fixture(public_dir, None, "old")
+    write_bundle_fixture(staging, None, "new")
+    public_before = _tree_bytes(public_dir)
+    staging_before = _tree_bytes(staging)
+    rename_calls = []
+
+    def fail_cross_device_rename(source: Path, target: Path) -> None:
+        rename_calls.append((source, target))
+        raise OSError(errno.EXDEV, "injected cross-device rename")
+
+    monkeypatch.setattr(bundle_module, "_rename", fail_cross_device_rename)
+
+    with pytest.raises(OSError) as error:
+        promote_bundle(staging, public_dir, PrivacyGate(alias_key=b"key"))
+
+    assert error.value.errno == errno.EXDEV
+    assert rename_calls == [(public_dir, backup)]
+    assert _tree_bytes(public_dir) == public_before
+    assert _tree_bytes(staging) == staging_before
+    assert not backup.exists()
 
 
 def test_tree_hash_uses_relative_paths_and_bytes_not_mtime(tmp_path):

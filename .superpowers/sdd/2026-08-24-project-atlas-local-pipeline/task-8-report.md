@@ -68,3 +68,32 @@ Verified exact public serialization and layout, no-follow operation ordering, ro
 
 - A stale `.public-bundle.previous` or `.public-bundle.recovery` remains an explicit operator recovery condition and blocks changed promotion deterministically.
 - Cross-filesystem promotion remains intentionally rejected before public state changes.
+
+## Fix Round 2
+
+### Status
+
+Resolved the remaining delimiter-adjacent privacy bypass and stale-backup no-op finding, and added executable cross-filesystem coverage. Tests continued to use only `tmp_path`; the real `public-bundle/` was not read or written.
+
+### TDD Evidence
+
+- Privacy RED: all five delimiter-adjacent POSIX/Windows/UNC probes produced no finding, while five ordinary HTTP(S) path/query/fragment cases remained safe. The three required probes also passed through both builder and promoter.
+- Stale-backup RED: an identical candidate returned a successful no-op while `.public-bundle.previous` existed.
+- Cross-filesystem characterization: injected `st_dev` mismatch and first-rename `EXDEV` tests passed against the retained precondition and demonstrated byte-identical public/staging preservation before any public move.
+- Focused GREEN: `.venv/bin/python -m pytest tests/worker/test_bundle.py tests/worker/test_privacy.py -v` passed `109` with `1` Linux platform-conditional skip.
+- Full suite, run once after code freeze: `.venv/bin/python -m pytest -v` passed `237` with `1` Linux platform-conditional skip.
+
+### Delivered Fixes
+
+- HTTP(S) recognition now masks one URL token only through its privacy delimiter. Normal URL paths, queries, and fragments remain allowed, while a following `/tmp`, `/root`, `/Users`, drive-rooted path, or UNC path is scanned independently. Existing rendered markup tags are excluded without hiding malformed delimiter-adjacent path probes.
+- Stale `.public-bundle.previous` detection now runs after no-follow ancestry checks but before candidate/public tree reads, hashes, or no-op return. Changed and identical candidates both fail without mutating public or staging.
+- Cross-filesystem tests inject a mismatched device ID before promotion and `EXDEV` at the first rename boundary. The device mismatch permits no rename attempt; `EXDEV` permits no completed public move. Both preserve bytes, and the production same-filesystem precondition remains intact.
+
+### Self-Review
+
+Verified token boundaries, category-only privacy errors, safe SVG/HTTP(S) regression behavior, stale-backup operation ordering, and pre-rename cross-filesystem state. Findings 2-5 from Re-review 1 were not altered. `git diff --check` and Python bytecode compilation passed before the full suite.
+
+### Concerns
+
+- A runtime `EXDEV` can still occur after the device precheck due to external filesystem changes; it propagates before a first rename moves public, while later candidate-rename failures remain covered by the existing atomic rollback path.
+- Stale backup/recovery trees remain explicit operator recovery conditions rather than being overwritten automatically.

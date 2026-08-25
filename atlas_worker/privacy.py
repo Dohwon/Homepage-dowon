@@ -13,9 +13,11 @@ SECRET_PATTERNS = {
     "openai_key": re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b"),
     "private_key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
 }
-HTTP_URL = re.compile(r"https?://[^\s<>\"']+", re.I)
+HTTP_URL_START = re.compile(r"https?://", re.I)
+HTTP_URL_TERMINATORS = frozenset(" \t\r\n<>\"',;)]}")
+MARKUP_TAG = re.compile(r"</?[A-Za-z][A-Za-z0-9:._-]*(?:\s[^<>]*)?/?>")
 PUBLIC_PROJECT_ROUTE = re.compile(r"/projects/[A-Za-z0-9._~!$&'()*+,;=:@%-]+(?:[?#][^\s<>\"']*)?")
-POSIX_ABSOLUTE_PATH = re.compile(r"(?<![A-Za-z0-9_</\\])/(?![/>#])(?:[^\s<>\"']*)?")
+POSIX_ABSOLUTE_PATH = re.compile(r"(?<![A-Za-z0-9_/\\])/(?![/>#])(?:[^\s<>\"']*)?")
 WINDOWS_DRIVE_PATH = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:[\\/]")
 UNC_PATH = re.compile(r"(?<![A-Za-z0-9])(?:\\\\|//)[^\\/\s]+[\\/][^\\/\s]+")
 EMAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)
@@ -162,11 +164,22 @@ def _matching_categories(value: str) -> tuple[str, ...]:
 def _contains_absolute_path(value: str) -> bool:
     if PUBLIC_PROJECT_ROUTE.fullmatch(value):
         return False
-    without_urls = HTTP_URL.sub("", value)
+    without_markup = MARKUP_TAG.sub("", value)
+    without_urls = _mask_http_urls(without_markup)
     return any(
         pattern.search(without_urls)
         for pattern in (WINDOWS_DRIVE_PATH, UNC_PATH, POSIX_ABSOLUTE_PATH)
     )
+
+
+def _mask_http_urls(value: str) -> str:
+    masked = list(value)
+    for match in HTTP_URL_START.finditer(value):
+        end = match.end()
+        while end < len(value) and value[end] not in HTTP_URL_TERMINATORS:
+            end += 1
+        masked[match.start() : end] = " " * (end - match.start())
+    return "".join(masked)
 
 
 def _validate_alias_key(key: bytes) -> bytes:
