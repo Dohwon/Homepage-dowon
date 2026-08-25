@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import atlas_worker.privacy as privacy_module
 from atlas_worker.privacy import (
     PrivacyGate,
     PrivacyViolation,
@@ -109,6 +110,79 @@ def test_http_url_paths_queries_and_fragments_remain_safe(url):
     gate = PrivacyGate(alias_key=b"unit-test-key")
 
     assert "absolute_path" not in {finding.category for finding in gate.scan(url).findings}
+
+
+@pytest.mark.parametrize(
+    "markup",
+    (
+        '<a href="/tmp/private">link</a>',
+        r"<div data-path='C:\private\x'>content</div>",
+        r"<img src=\\server\share\x>",
+        '<div style="background:url(/root/private)">content</div>',
+    ),
+)
+def test_markup_attribute_local_paths_are_blocked_without_value_leak(markup):
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    report = gate.scan({"summary": markup})
+
+    assert [(finding.category, finding.json_pointer) for finding in report.findings] == [
+        ("absolute_path", "/summary")
+    ]
+    with pytest.raises(PrivacyViolation) as error:
+        gate.require_safe({"summary": markup})
+    assert str(error.value) == "public bundle blocked: absolute_path"
+    assert markup not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "markup",
+    (
+        '<a href="https://example.com/docs/path?q=/tmp/example#top">Docs</a>',
+        "<img src='https://cdn.example.com/assets/image.png?size=2x'>",
+        "Visible https://example.com/docs/path?q=/tmp/example#top",
+        "<a href=https://example.com/docs/path>https://example.com/public/path</a>",
+        "Closing tag </a> remains ordinary text",
+    ),
+)
+def test_public_urls_in_markup_attributes_and_visible_text_remain_safe(markup):
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    assert "absolute_path" not in {finding.category for finding in gate.scan(markup).findings}
+
+
+@pytest.mark.parametrize(
+    "malformed_markup",
+    (
+        '<a href="/tmp/private>',
+        r"<div data-path='C:\private\x>",
+        '<div style="background:url(/root/private)>',
+    ),
+)
+def test_malformed_markup_with_plausible_local_path_fails_closed(malformed_markup):
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    with pytest.raises(PrivacyViolation) as error:
+        gate.require_safe({"summary": malformed_markup})
+
+    assert str(error.value) == "public bundle blocked: absolute_path"
+    assert malformed_markup not in str(error.value)
+
+
+def test_markup_parser_failure_falls_back_to_path_scan(monkeypatch):
+    markup = '<a href="/tmp/private">link</a>'
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    def fail_parser(parser, value):
+        raise RuntimeError("injected parser failure")
+
+    monkeypatch.setattr(privacy_module._SingleStartTagParser, "feed", fail_parser)
+
+    report = gate.scan({"summary": markup})
+
+    assert [(finding.category, finding.json_pointer) for finding in report.findings] == [
+        ("absolute_path", "/summary")
+    ]
 
 
 def test_alias_is_deterministic_and_does_not_embed_source():

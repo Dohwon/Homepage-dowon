@@ -4,6 +4,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 import hashlib
 import hmac
+from html.parser import HTMLParser
 import os
 from pathlib import Path
 import re
@@ -15,11 +16,11 @@ SECRET_PATTERNS = {
 }
 HTTP_URL_START = re.compile(r"https?://", re.I)
 HTTP_URL_TERMINATORS = frozenset(" \t\r\n<>\"',;)]}")
-MARKUP_TAG = re.compile(r"</?[A-Za-z][A-Za-z0-9:._-]*(?:\s[^<>]*)?/?>")
 PUBLIC_PROJECT_ROUTE = re.compile(r"/projects/[A-Za-z0-9._~!$&'()*+,;=:@%-]+(?:[?#][^\s<>\"']*)?")
 POSIX_ABSOLUTE_PATH = re.compile(r"(?<![A-Za-z0-9_/\\])/(?![/>#])(?:[^\s<>\"']*)?")
 WINDOWS_DRIVE_PATH = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:[\\/]")
 UNC_PATH = re.compile(r"(?<![A-Za-z0-9])(?:\\\\|//)[^\\/\s]+[\\/][^\\/\s]+")
+CLOSING_TAG = re.compile(r"</\s*[A-Za-z][A-Za-z0-9:._-]*\s*>")
 EMAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)
 PHONE = re.compile(r"(?<!\d)(?:\+?82[- ]?)?0?1[016789][- ]?\d{3,4}[- ]?\d{4}(?!\d)")
 PRIVATE_IP = re.compile(
@@ -164,12 +165,108 @@ def _matching_categories(value: str) -> tuple[str, ...]:
 def _contains_absolute_path(value: str) -> bool:
     if PUBLIC_PROJECT_ROUTE.fullmatch(value):
         return False
-    without_markup = MARKUP_TAG.sub("", value)
-    without_urls = _mask_http_urls(without_markup)
+    cursor = 0
+    while cursor < len(value):
+        tag_start = value.find("<", cursor)
+        if tag_start < 0:
+            return _plain_text_contains_absolute_path(value[cursor:])
+        if _plain_text_contains_absolute_path(value[cursor:tag_start]):
+            return True
+
+        tag_end = _find_tag_end(value, tag_start)
+        if tag_end is None:
+            return _plain_text_contains_absolute_path(value[tag_start:])
+        tag = value[tag_start : tag_end + 1]
+        if not CLOSING_TAG.fullmatch(tag):
+            attributes = _parse_start_tag_attributes(tag)
+            if attributes is None:
+                if _plain_text_contains_absolute_path(tag):
+                    return True
+            elif any(_plain_text_contains_absolute_path(attribute) for attribute in attributes):
+                return True
+        cursor = tag_end + 1
+    return False
+
+
+def _plain_text_contains_absolute_path(value: str) -> bool:
+    if PUBLIC_PROJECT_ROUTE.fullmatch(value):
+        return False
+    without_urls = _mask_http_urls(value)
     return any(
         pattern.search(without_urls)
         for pattern in (WINDOWS_DRIVE_PATH, UNC_PATH, POSIX_ABSOLUTE_PATH)
     )
+
+
+def _find_tag_end(value: str, start: int) -> int | None:
+    quote: str | None = None
+    for index in range(start + 1, len(value)):
+        character = value[index]
+        if quote is not None:
+            if character == quote:
+                quote = None
+            continue
+        if character in {'"', "'"}:
+            quote = character
+        elif character == ">":
+            return index
+    return None
+
+
+def _parse_start_tag_attributes(tag: str) -> tuple[str, ...] | None:
+    parser = _SingleStartTagParser()
+    try:
+        parser.feed(tag)
+        parser.close()
+    except Exception:
+        return None
+    if not parser.valid:
+        return None
+    return tuple(value for _, value in parser.attributes if value is not None)
+
+
+class _SingleStartTagParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=False)
+        self.attributes: list[tuple[str, str | None]] = []
+        self._start_events = 0
+        self._invalid = False
+
+    @property
+    def valid(self) -> bool:
+        return self._start_events == 1 and not self._invalid
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self._accept_start(attrs)
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self._accept_start(attrs)
+
+    def handle_endtag(self, tag: str) -> None:
+        self._invalid = True
+
+    def handle_data(self, data: str) -> None:
+        if data:
+            self._invalid = True
+
+    def handle_comment(self, data: str) -> None:
+        self._invalid = True
+
+    def handle_decl(self, decl: str) -> None:
+        self._invalid = True
+
+    def handle_pi(self, data: str) -> None:
+        self._invalid = True
+
+    def unknown_decl(self, data: str) -> None:
+        self._invalid = True
+
+    def _accept_start(self, attrs: list[tuple[str, str | None]]) -> None:
+        self._start_events += 1
+        if self._start_events == 1:
+            self.attributes = attrs
+        else:
+            self._invalid = True
 
 
 def _mask_http_urls(value: str) -> str:

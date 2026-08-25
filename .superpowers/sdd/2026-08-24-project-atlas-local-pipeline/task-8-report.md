@@ -97,3 +97,32 @@ Verified token boundaries, category-only privacy errors, safe SVG/HTTP(S) regres
 
 - A runtime `EXDEV` can still occur after the device precheck due to external filesystem changes; it propagates before a first rename moves public, while later candidate-rename failures remain covered by the existing atomic rollback path.
 - Stale backup/recovery trees remain explicit operator recovery conditions rather than being overwritten automatically.
+
+## Fix Round 3
+
+### Status
+
+Resolved the remaining Critical markup-attribute privacy regression. Tests used only `tmp_path`; the real `public-bundle/` was not read or written.
+
+### TDD Evidence
+
+- Scanner RED: quoted POSIX, single-quoted Windows drive, unquoted UNC, and style-like local-path attributes all produced no privacy finding. Three malformed quoted tags and an injected parser failure also bypassed category-based blocking.
+- Boundary RED: all four exact probes passed through builder and promoter. Builder wrote the local path into candidate `project.json`; promoter accepted the candidate instead of preserving the last-good public tree.
+- Focused GREEN: `.venv/bin/python -m pytest tests/worker/test_privacy.py tests/worker/test_bundle.py -q` passed `131` with `1` Linux platform-conditional skip.
+- Full suite, run once after code freeze: `.venv/bin/python -m pytest -v` passed `259` with `1` Linux platform-conditional skip.
+
+### Delivered Fixes
+
+- Removed whole-tag `MARKUP_TAG` substitution. A quote-aware bounded tokenizer now separates visible text, closing tag syntax, and complete start/self-closing tags without erasing attribute content.
+- Complete start/self-closing tags are parsed with `HTMLParser`; every non-null attribute value is checked by the same delimiter-aware HTTP(S)/absolute-path detector used for visible text. Normal HTTPS `href`, `src`, and visible URLs remain allowed, and ordinary closing tags do not become POSIX false positives.
+- Unterminated quotes, incomplete tags, invalid parser callback shapes, and parser exceptions fall back to scanning the original bounded tag fragment. Plausible local paths therefore fail closed instead of being discarded.
+- Scanner/build/promote tests cover all four exact probes with category/pointer-only findings, no candidate artifact leak on build failure, unchanged staging on promote rejection, and byte-identical last-good public preservation.
+
+### Self-Review
+
+Verified quote-aware tag boundaries, attribute callback completeness, malformed raw fallback, closing-tag exclusion, URL-safe values, generated SVG regression behavior, and category-only exceptions. Production changes are limited to `atlas_worker/privacy.py`; stale-backup, cross-filesystem, rollback, manifest, and version logic were not altered. `git diff --check` and Python bytecode compilation passed before the full suite.
+
+### Concerns
+
+- `HTMLParser` is intentionally tolerant, so the bounded tokenizer and raw-fragment fallback remain the fail-closed control when a tag cannot be represented as exactly one parsed start event.
+- No known blocking concern remains in the reviewed Task 8 boundary.

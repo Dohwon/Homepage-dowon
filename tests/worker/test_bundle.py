@@ -43,6 +43,12 @@ URL_ADJACENT_PATH_PROBES = (
     "https://example.com);/root/private",
     "prefix</Users/private/atlas",
 )
+MARKUP_ATTRIBUTE_PATH_PROBES = (
+    '<a href="/tmp/private">link</a>',
+    r"<div data-path='C:\private\x'>content</div>",
+    r"<img src=\\server\share\x>",
+    '<div style="background:url(/root/private)">content</div>',
+)
 
 
 def _context(
@@ -330,6 +336,32 @@ def test_build_rejects_url_delimiter_adjacent_local_paths(tmp_path, probe):
     assert probe not in str(error.value)
 
 
+@pytest.mark.parametrize("probe", MARKUP_ATTRIBUTE_PATH_PROBES)
+def test_build_rejects_markup_attribute_paths_without_candidate_leak(tmp_path, probe):
+    staging = tmp_path / "staging"
+    project = replace(make_public_project("alpha"), summary=probe)
+
+    with pytest.raises(PrivacyViolation) as error:
+        build_candidate_bundle(_context(projects=(project,)), staging)
+
+    assert str(error.value) == "public bundle blocked: absolute_path"
+    assert probe not in str(error.value)
+    assert _tree_bytes(staging) == {}
+
+
+def test_build_allows_public_urls_in_markup_attributes_and_visible_text(tmp_path):
+    summary = (
+        '<a href="https://example.com/docs/path?q=/tmp/example#top">'
+        "Visible https://example.com/public/path</a>"
+    )
+    project = replace(make_public_project("alpha"), summary=summary)
+
+    build_candidate_bundle(_context(projects=(project,)), tmp_path / "staging")
+
+    payload = json.loads((tmp_path / "staging/projects/alpha/project.json").read_text(encoding="utf-8"))
+    assert payload["summary"] == summary
+
+
 def test_build_rejects_existing_staging_symlink_before_cleanup(tmp_path):
     target = tmp_path / "target"
     target.mkdir()
@@ -458,6 +490,24 @@ def test_promote_rejects_url_delimiter_adjacent_paths_and_preserves_last_good(tm
 
     assert probe not in str(error.value)
     assert _tree_bytes(public_dir) == before
+
+
+@pytest.mark.parametrize("probe", MARKUP_ATTRIBUTE_PATH_PROBES)
+def test_promote_rejects_markup_attribute_paths_and_preserves_last_good(tmp_path, probe):
+    public_dir = tmp_path / "public-bundle"
+    staging = tmp_path / "staging"
+    write_bundle_fixture(public_dir, version=None, summary="safe")
+    write_bundle_fixture(staging, version=None, summary=probe)
+    public_before = _tree_bytes(public_dir)
+    staging_before = _tree_bytes(staging)
+
+    with pytest.raises(PrivacyViolation) as error:
+        promote_bundle(staging, public_dir, PrivacyGate(alias_key=b"key"))
+
+    assert str(error.value) == "public bundle blocked: absolute_path"
+    assert probe not in str(error.value)
+    assert _tree_bytes(public_dir) == public_before
+    assert _tree_bytes(staging) == staging_before
 
 
 def test_full_tree_scan_preserves_duplicate_json_values_for_privacy(tmp_path):
