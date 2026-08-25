@@ -152,24 +152,75 @@ def test_negative_deferred_and_quoted_decision_language_is_ignored():
 
 
 @pytest.mark.parametrize(
-    "text",
+    "lead",
     (
-        "Do we adopt this architecture",
-        "Should we choose X as the architecture",
-        "Can we select Y for the architecture",
-        "Which alternative do we choose for the architecture",
-        "Have we selected X for the architecture",
-        "Has the architecture adopted X",
-        "Had we chosen X",
-        "Is X the architecture choice",
-        "Would X be the better alternative",
-        "Which alternative should we adopt",
-        "How do we choose the architecture",
-        "아키텍처를 채택하기로 결정해도 되나요",
+        "am",
+        "is",
+        "are",
+        "was",
+        "were",
+        "do",
+        "does",
+        "did",
+        "have",
+        "has",
+        "had",
+        "can",
+        "could",
+        "will",
+        "would",
+        "shall",
+        "should",
+        "may",
+        "might",
+        "must",
+        "ought",
+        "who",
+        "what",
+        "when",
+        "where",
+        "why",
+        "which",
+        "how",
     ),
 )
-def test_punctuation_free_english_and_korean_questions_are_ignored(text):
-    assert extract_signal_claims((make_session_event(text),)) == ()
+def test_every_sentence_leading_english_interrogative_form_blocks_qualifying_decision(lead):
+    text = f"{lead} we adopted X for the architecture"
+
+    decision_claims = tuple(
+        claim
+        for claim in extract_signal_claims((make_session_event(text),))
+        if claim.claim_type == "decision"
+    )
+
+    assert decision_claims == ()
+
+
+def test_punctuation_free_korean_question_is_ignored():
+    assert extract_signal_claims(
+        (make_session_event("아키텍처를 채택하기로 결정해도 되나요"),)
+    ) == ()
+
+
+@pytest.mark.parametrize(
+    "text",
+    (
+        "We adopted X for the architecture because I am convinced by the trade-off",
+        "We adopted X for the architecture because it is the stable choice",
+        "We adopted X for the architecture after alternatives were reviewed",
+        "We adopted X for the architecture and did document the trade-off",
+        "We have adopted X for the architecture",
+        "We had chosen X for the architecture before implementation",
+        "We adopted X for the architecture and can explain the trade-off",
+        "We adopted X for the architecture after deciding which trade-off mattered",
+        "We adopted X for the architecture and documented why the trade-off was acceptable",
+    ),
+)
+def test_later_auxiliary_and_wh_words_do_not_block_committed_architecture_decisions(text):
+    claims = extract_signal_claims((make_session_event(text),))
+
+    assert [claim.claim_type for claim in claims] == ["decision"]
+    assert [claim.confidence for claim in claims] == [0.85]
 
 
 @pytest.mark.parametrize(

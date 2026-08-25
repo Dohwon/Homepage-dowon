@@ -120,3 +120,26 @@ Session text remains only inside transient `SessionEvent` values while extractio
 
 - Confirmed the interrogative guard is anchored at sentence start, contains every requested BE, DO, HAVE, modal, and WH lead, and does not reject declarations merely containing those words later.
 - Confirmed the diff leaves session streaming, cursor handling, confidence routing, and privacy boundaries unchanged.
+
+## Fix Round 5
+
+### Characterization / Coverage GREEN
+
+- No RED was fabricated: production already passed the independent 28-form probe, and the new committed tests passed on their first run.
+- Replaced the incomplete English negative table with direct cases for all 28 supported sentence-leading BE, DO, HAVE, modal, and WH tokens. Every generated sentence also contains `adopted` plus `architecture`, so it would satisfy the commitment and decision-context rules without the leading interrogative guard; every case asserts that no decision claim is emitted.
+- Added a representative positive matrix covering later-position BE, DO, HAVE, modal, and WH words in grammatical committed architecture/trade-off declarations. Every case emits exactly one `decision` claim at `0.85`.
+- Preserved the existing Korean negative, deferred, quoted, and punctuation-free question coverage.
+- Command: `.venv/bin/python -m pytest tests/worker/test_sessions.py tests/worker/test_backfill.py -v`
+- Exit code: `0`
+- Exact output: `============================== 67 passed in 1.37s ==============================`
+
+### Full Suite
+
+- Command: `.venv/bin/python -m pytest -v`
+- Exit code: `0`
+- Exact output: `======================== 116 passed, 1 skipped in 1.51s ========================`
+- Skip: existing Linux platform-conditional Windows case-semantics test.
+
+### Production Change
+
+- No production code changed. This round adds only committed characterization/regression coverage and this report evidence.
