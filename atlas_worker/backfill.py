@@ -29,7 +29,7 @@ SIGNAL_RULES = {
     ),
     "failure": re.compile(r"테스트 실패|회귀|오류|깨졌|실패 원인", re.I),
     "decision": re.compile(
-        r"결정|채택|선택|trade-?off|대안|\b(?:decide|decision|adopt(?:ed|s)?|select(?:ed|s)?|choose(?:d|s)?|choice|alternative)\b",
+        r"결정|채택|선택|trade-?off|대안|\b(?:decide|decision|adopt(?:ed|s)?|select(?:ed|s)?|choose|chooses|chose|chosen|choice|alternative)\b",
         re.I,
     ),
 }
@@ -37,19 +37,30 @@ SIGNAL_RULES = {
 _PASS_RULE = re.compile(r"테스트 (?:통과|성공)|\btests? (?:pass|passed)|\bpassed\b", re.I)
 _CORRECTION_COMPLETE_RULE = re.compile(r"(?:수정|변경|적용).{0,20}(?:완료|반영)|\b(?:fixed|implemented)\b", re.I)
 _COMMITTED_DECISION_RULE = re.compile(
-    r"채택(?:하기로|했다|함|한다)|결정(?:하기로|했다|함|한다)|선택(?:하기로|했다|함|한다)|\b(?:adopt(?:ed|s)?|decide(?:d|s)?|select(?:ed|s)?|choose(?:d|s)?)\b",
+    r"채택(?:하기로|했다|함|한다)|결정(?:하기로|했다|함|한다)|선택(?:하기로|했다|함|한다)|\b(?:adopt(?:ed|s)?|decide(?:d|s)?|select(?:ed|s)?|choose|chooses|chose|chosen)\b",
     re.I,
 )
-_ARCHITECTURE_CONTEXT_RULE = re.compile(r"아키텍처|architecture|시스템\s*구조|system\s*design|설계\s*구조", re.I)
+_DECISION_CONTEXT_RULE = re.compile(
+    r"아키텍처|architecture|시스템\s*구조|system\s*design|설계\s*구조|trade-?off",
+    re.I,
+)
 _DIRECT_ADOPTION_RULE = re.compile(r"(?:^|\s)\S+(?:을|를)\s+채택한다(?=\s|[.!]|$)")
+_ENGLISH_INTERROGATIVE_RULE = re.compile(
+    r"^\s*(?:"
+    r"(?:am|is|are|was|were)"
+    r"|(?:do|does|did)"
+    r"|(?:have|has|had)"
+    r"|(?:can|could|will|would|shall|should|may|might|must|ought)"
+    r"|(?:who|what|when|where|why|which|how)"
+    r")\b",
+    re.I,
+)
 _NON_COMMITTED_DECISION_RULE = re.compile(
     r"[?？]|할까|인가|(?:결정|선택|채택)\s*(?:하)?지\s*(?:마|말|않(?:음|는다|았다)?|못)"
     r"|(?:결정|선택|채택)\s*(?:안|않|못)\s*(?:함|됨|있음)?|(?:결정|선택|채택)\s*보류"
     r"|\b(?:do\s+not|don't|not|never)\b.*\b(?:decide|decision|select|adopt|choose|choice|alternative)\b"
     r"|\b(?:decide|decision|select|adopt|choose|choice|alternative)\b.*\b(?:not|defer(?:red|ring)?|postpone(?:d|ment)?)\b"
     r"|\b(?:defer(?:red|ring)?|postpone(?:d|ment)?)\b.*\b(?:decision|decide|select|adopt|choose|choice|alternative)\b"
-    r"|^\s*(?:do|does|did|should|can|could|would|will|may|might|is|are)\b.*\b(?:decide|decision|select|adopt|choose|choice|alternative)\b"
-    r"|^\s*(?:which|what|who|where|when|why|how)\b.*\b(?:decide|decision|select|adopt|choose|choice|alternative)\b"
     r"|(?:나요|가요|까요|습니까|인가요)\s*$",
     re.I,
 )
@@ -207,7 +218,8 @@ def _record_revision(claims: list[EvidenceClaim], state: _ContextState, event: S
 def _is_committed_architecture_decision(text: str) -> bool:
     return bool(
         _COMMITTED_DECISION_RULE.search(text)
-        and (_ARCHITECTURE_CONTEXT_RULE.search(text) or _DIRECT_ADOPTION_RULE.search(text))
+        and (_DECISION_CONTEXT_RULE.search(text) or _DIRECT_ADOPTION_RULE.search(text))
+        and not _ENGLISH_INTERROGATIVE_RULE.search(text)
         and not _NON_COMMITTED_DECISION_RULE.search(text)
         and not _QUOTED_TEXT_RULE.search(text)
     )

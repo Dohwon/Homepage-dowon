@@ -1,5 +1,7 @@
 import tracemalloc
 
+import pytest
+
 from atlas_worker.backfill import (
     automatic_merge_claims,
     content_checksum,
@@ -149,35 +151,46 @@ def test_negative_deferred_and_quoted_decision_language_is_ignored():
         assert extract_signal_claims((make_session_event(text, session_id=f"negative-{index}"),)) == ()
 
 
-def test_punctuation_free_english_and_korean_questions_are_ignored():
-    question_texts = (
+@pytest.mark.parametrize(
+    "text",
+    (
         "Do we adopt this architecture",
         "Should we choose X as the architecture",
         "Can we select Y for the architecture",
         "Which alternative do we choose for the architecture",
+        "Have we selected X for the architecture",
+        "Has the architecture adopted X",
+        "Had we chosen X",
+        "Is X the architecture choice",
+        "Would X be the better alternative",
+        "Which alternative should we adopt",
+        "How do we choose the architecture",
         "아키텍처를 채택하기로 결정해도 되나요",
-    )
+    ),
+)
+def test_punctuation_free_english_and_korean_questions_are_ignored(text):
+    assert extract_signal_claims((make_session_event(text),)) == ()
 
-    for index, text in enumerate(question_texts):
-        assert extract_signal_claims((make_session_event(text, session_id=f"question-{index}"),)) == ()
 
+@pytest.mark.parametrize(
+    "text",
+    (
+        "아키텍처는 X로 결정했다",
+        "Y를 채택한다.",
+        "아키텍처 trade-off를 검토한 뒤 X로 결정했다",
+        "We adopted X for the architecture",
+        "Choose X as the architecture",
+        "We have selected X for the architecture",
+        "The architecture has adopted X",
+        "We chose X after evaluating the trade-off",
+        "X is the adopted architecture",
+    ),
+)
+def test_committed_architecture_direct_adoption_and_tradeoff_decisions_remain_auto_eligible(text):
+    claims = extract_signal_claims((make_session_event(text),))
 
-def test_committed_architecture_direct_adoption_and_tradeoff_decisions_remain_auto_eligible():
-    claims = tuple(
-        extract_signal_claims((make_session_event(text, session_id=f"positive-{index}"),))[0]
-        for index, text in enumerate(
-            (
-                "아키텍처는 X로 결정했다",
-                "Y를 채택한다.",
-                "아키텍처 trade-off를 검토한 뒤 X로 결정했다",
-                "We adopted X for the architecture",
-                "Choose X as the architecture",
-            )
-        )
-    )
-
-    assert [claim.claim_type for claim in claims] == ["decision"] * 5
-    assert [claim.confidence for claim in claims] == [0.85] * 5
+    assert [claim.claim_type for claim in claims] == ["decision"]
+    assert [claim.confidence for claim in claims] == [0.85]
 
 
 def test_three_same_target_revisions_and_multiple_visual_alternatives_are_review_candidates():

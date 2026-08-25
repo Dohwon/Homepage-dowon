@@ -91,3 +91,32 @@ Session text remains only inside transient `SessionEvent` values while extractio
 ### Self-Review
 
 - Confirmed interrogative rules are anchored to leading English auxiliary/WH constructions or Korean terminal endings, while declarative English adoption and explicit architecture choice statements remain eligible.
+
+## Fix Round 4
+
+### RED
+
+- Command: `.venv/bin/python -m pytest tests/worker/test_sessions.py tests/worker/test_backfill.py -v`
+- Exit code: `1`
+- Exact output: `========================= 3 failed, 38 passed in 1.35s =========================`
+- Failures: `Have we selected X for the architecture` and `Has the architecture adopted X` each emitted a `0.85` decision claim; `We chose X after evaluating the trade-off` emitted no decision claim.
+
+### GREEN
+
+- Replaced the piecemeal auxiliary/WH branches with one sentence-leading English interrogative guard covering BE, DO, HAVE, modal, and WH forms independent of punctuation.
+- Added irregular `chose`/`chosen` commitment recognition and explicit trade-off decision context while retaining the existing Korean non-commitment, question, and quote guards.
+- Command: `.venv/bin/python -m pytest tests/worker/test_sessions.py tests/worker/test_backfill.py -v`
+- Exit code: `0`
+- Exact output: `============================== 41 passed in 1.27s ==============================`
+
+### Full Suite
+
+- Command: `.venv/bin/python -m pytest -v`
+- Exit code: `0`
+- Exact output: `======================== 90 passed, 1 skipped in 1.42s =========================`
+- Skip: existing Linux platform-conditional Windows case-semantics test.
+
+### Self-Review
+
+- Confirmed the interrogative guard is anchored at sentence start, contains every requested BE, DO, HAVE, modal, and WH lead, and does not reject declarations merely containing those words later.
+- Confirmed the diff leaves session streaming, cursor handling, confidence routing, and privacy boundaries unchanged.
