@@ -7,6 +7,13 @@ from dataclasses import dataclass
 from pathlib import Path
 import re
 
+from .fs_safety import (
+    FileWrite,
+    commit_file_transaction,
+    read_confined_text,
+    require_confined_directory,
+    require_write_destination,
+)
 from .models import EvidenceClaim, MemoryUpdate, ProjectKnowledge, ProjectRef
 
 
@@ -52,28 +59,45 @@ def update_project_memory(
     ref: ProjectRef, knowledge: ProjectKnowledge, dry_run: bool = False
 ) -> MemoryUpdate:
     """Write only selected, high-confidence history while preserving user text."""
+    planned = plan_project_memory_writes(ref, knowledge)
+    if not dry_run:
+        commit_file_transaction(planned)
+    return MemoryUpdate(
+        changed_files=tuple(
+            write.path.relative_to(ref.root).as_posix() for write in planned
+        )
+    )
+
+
+def plan_project_memory_writes(
+    ref: ProjectRef, knowledge: ProjectKnowledge
+) -> tuple[FileWrite, ...]:
+    """Prepare every changed memory payload without mutating the project tree."""
+    require_confined_directory(ref.root, ref.root)
     grouped: dict[str, list[_MemoryEvent]] = defaultdict(list)
     for event in _selected_events(knowledge):
         grouped[event.filename].append(event)
 
-    planned: list[tuple[Path, str]] = []
-    for filename in sorted(grouped):
-        path = ref.root / "project_memory" / filename
-        existing = path.read_text(encoding="utf-8") if path.is_file() else ""
+    destinations = tuple(
+        (
+            filename,
+            require_write_destination(
+                ref.root / "project_memory" / filename,
+                ref.root,
+            ),
+        )
+        for filename in sorted(grouped)
+    )
+    planned: list[FileWrite] = []
+    for filename, path in destinations:
+        try:
+            existing = read_confined_text(path, ref.root)
+        except FileNotFoundError:
+            existing = ""
         content = _updated_content(existing, grouped[filename])
         if content != existing:
-            planned.append((path, content))
-
-    if not dry_run:
-        for path, content in planned:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(content, encoding="utf-8")
-
-    return MemoryUpdate(
-        changed_files=tuple(
-            path.relative_to(ref.root).as_posix() for path, _ in planned
-        )
-    )
+            planned.append(FileWrite(path=path, content=content.encode("utf-8"), root=ref.root))
+    return tuple(planned)
 
 
 def _selected_events(knowledge: ProjectKnowledge) -> tuple[_MemoryEvent, ...]:

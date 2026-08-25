@@ -73,6 +73,21 @@ LEADING_ENCODED_ROUTE_PROBES = (
     '<a href="/%2Fexample.com/projects/alpha">Alpha</a>',
     '<a href="docs%2500private">Alpha</a>',
 )
+UNSAFE_URL_SCHEME_PROBES = (
+    '<a href="javascript:alert(1)">Alpha</a>',
+    '<a href="  JaVaScRiPt:alert(1)">Alpha</a>',
+    '<a href="%6A%61vascript%3Aalert(1)">Alpha</a>',
+    '<a href="data:text/plain,atlas">Alpha</a>',
+    '<a href="%64ata%3Atext/plain,atlas">Alpha</a>',
+    '<a href="vbscript:msgbox(1)">Alpha</a>',
+    '<a href="vbscript%3Amsgbox(1)">Alpha</a>',
+    '<a href="file:///tmp/private">Alpha</a>',
+    '<a href="file%3A%2F%2F%2Ftmp/private">Alpha</a>',
+    '<a href="blob:https://example.com/atlas">Alpha</a>',
+    '<a href="blob%3Ahttps%3A%2F%2Fexample.com/atlas">Alpha</a>',
+    '<a href="custom+atlas:value">Alpha</a>',
+    '<a href="custom%2Batlas%3Avalue">Alpha</a>',
+)
 
 
 def _context(
@@ -433,6 +448,19 @@ def test_build_rejects_leading_encoded_route_markers_without_candidate_leak(tmp_
     assert _tree_bytes(staging) == {}
 
 
+@pytest.mark.parametrize("probe", UNSAFE_URL_SCHEME_PROBES)
+def test_build_rejects_non_http_url_schemes_without_candidate_leak(tmp_path, probe):
+    staging = tmp_path / "staging"
+    project = replace(make_public_project("alpha"), summary=probe)
+
+    with pytest.raises(PrivacyViolation) as error:
+        build_candidate_bundle(_context(projects=(project,)), staging)
+
+    assert str(error.value) == "public bundle blocked: absolute_path"
+    assert probe not in str(error.value)
+    assert _tree_bytes(staging) == {}
+
+
 def test_build_rejects_existing_staging_symlink_before_cleanup(tmp_path):
     target = tmp_path / "target"
     target.mkdir()
@@ -646,6 +674,24 @@ def test_promote_rejects_leading_encoded_route_markers_and_preserves_last_good(t
     public_dir = tmp_path / "public-bundle"
     staging = tmp_path / "staging"
     write_bundle_fixture(public_dir, version=None, summary="safe")
+    write_bundle_fixture(staging, version=None, summary=probe)
+    public_before = _tree_bytes(public_dir)
+    staging_before = _tree_bytes(staging)
+
+    with pytest.raises(PrivacyViolation) as error:
+        promote_bundle(staging, public_dir, PrivacyGate(alias_key=b"key"))
+
+    assert str(error.value) == "public bundle blocked: absolute_path"
+    assert probe not in str(error.value)
+    assert _tree_bytes(public_dir) == public_before
+    assert _tree_bytes(staging) == staging_before
+
+
+@pytest.mark.parametrize("probe", UNSAFE_URL_SCHEME_PROBES)
+def test_promote_rejects_non_http_url_schemes_and_preserves_last_good(tmp_path, probe):
+    public_dir = tmp_path / "public-bundle"
+    staging = tmp_path / "staging"
+    write_bundle_fixture(public_dir, version=None, summary="last good")
     write_bundle_fixture(staging, version=None, summary=probe)
     public_before = _tree_bytes(public_dir)
     staging_before = _tree_bytes(staging)

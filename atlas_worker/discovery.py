@@ -2,28 +2,47 @@
 
 from __future__ import annotations
 
+import os
 import posixpath
 from pathlib import Path
 import re
+import stat
 from typing import Any, Iterable
 
 import yaml
 
 from .config import DiscoveryConfig
+from .fs_safety import read_confined_text, require_confined_directory
 from .models import DiscoveryReport, ProjectRef
+from .privacy import PrivacyGate
 
 
-def discover_projects(config: DiscoveryConfig) -> DiscoveryReport:
+def discover_projects(
+    config: DiscoveryConfig, source_gate: PrivacyGate | None = None
+) -> DiscoveryReport:
     """Return known projects without traversing finished-project descendants."""
-    candidates = list(_direct_candidates(config))
-    candidates.extend(_registered_assets(config))
+    candidates = list(_direct_candidates(config, source_gate))
+    candidates.extend(_registered_assets(config, source_gate))
 
     refs: list[tuple[ProjectRef, bool]] = []
-    for root, lifecycle, profile in candidates:
-        ref = _classify_candidate(config.workspace_root, root, lifecycle, profile)
+    for root, lifecycle, profile, preserve_root in candidates:
+        ref = _classify_candidate(
+            config.workspace_root,
+            root,
+            lifecycle,
+            profile,
+            preserve_root=preserve_root,
+        )
         refs.append((ref, profile is None))
-        if lifecycle == "active" and root.is_dir():
-            refs.extend(_nested_profile_refs(config.workspace_root, root, ref.project_id))
+        if lifecycle == "active" and not preserve_root and root.is_dir():
+            refs.extend(
+                _nested_profile_refs(
+                    config.workspace_root,
+                    root,
+                    ref.project_id,
+                    source_gate,
+                )
+            )
 
     projects = tuple(sorted((ref for ref, _ in refs), key=lambda ref: ref.project_id))
     _require_unique_project_ids(projects)
@@ -38,59 +57,100 @@ def discover_projects(config: DiscoveryConfig) -> DiscoveryReport:
 
 def _direct_candidates(
     config: DiscoveryConfig,
-) -> Iterable[tuple[Path, str, dict[str, Any] | None]]:
+    source_gate: PrivacyGate | None,
+) -> Iterable[tuple[Path, str, dict[str, Any] | None, bool]]:
     if not config.projects_root.is_dir():
         return ()
 
-    candidates: list[tuple[Path, str, dict[str, Any] | None]] = []
+    candidates: list[tuple[Path, str, dict[str, Any] | None, bool]] = []
     for root in sorted(config.projects_root.iterdir(), key=_path_sort_key):
-        if root.name == "finish" or not _is_eligible_directory(root, config):
+        if root.name == "finish" or not _is_eligible_directory(root, config, source_gate):
             continue
-        candidates.append((root.resolve(), "active", _load_optional_profile(root)))
+        candidates.append(_direct_candidate(root, "active", config, source_gate))
 
     finish = config.projects_root / "finish"
     if finish.is_dir():
         for root in sorted(finish.iterdir(), key=_path_sort_key):
-            if _is_eligible_directory(root, config):
-                candidates.append((root.resolve(), "finished", _load_optional_profile(root)))
+            if _is_eligible_directory(root, config, source_gate):
+                candidates.append(_direct_candidate(root, "finished", config, source_gate))
     return candidates
 
 
 def _registered_assets(
     config: DiscoveryConfig,
-) -> Iterable[tuple[Path, str, dict[str, Any] | None]]:
+    source_gate: PrivacyGate | None,
+) -> Iterable[tuple[Path, str, dict[str, Any] | None, bool]]:
     for asset in config.registered_assets:
-        if not asset.is_file():
-            raise ValueError(f"Registered asset is not a file: {asset}")
-        yield asset, "active", None
+        read_confined_text(asset, config.workspace_root, source_gate)
+        yield asset, "active", None, False
+
+
+def _direct_candidate(
+    root: Path,
+    lifecycle: str,
+    config: DiscoveryConfig,
+    source_gate: PrivacyGate | None,
+) -> tuple[Path, str, dict[str, Any] | None, bool]:
+    if root.is_symlink():
+        profile_path = root / "project_memory" / "project-profile.yaml"
+        if profile_path.exists() or profile_path.is_symlink():
+            raise ValueError("profiled project root cannot be a symlink")
+        return Path(os.path.abspath(root)), lifecycle, None, True
+    return (
+        root.resolve(),
+        lifecycle,
+        _load_optional_profile(root, config.workspace_root, source_gate),
+        False,
+    )
 
 
 def _nested_profile_refs(
-    workspace_root: Path, parent_root: Path, parent_project_id: str
+    workspace_root: Path,
+    parent_root: Path,
+    parent_project_id: str,
+    source_gate: PrivacyGate | None,
 ) -> Iterable[tuple[ProjectRef, bool]]:
     profiles = sorted(parent_root.rglob("project_memory/project-profile.yaml"), key=_path_sort_key)
     for profile_path in profiles:
         nested_root = profile_path.parent.parent.resolve()
         if nested_root == parent_root:
             continue
-        profile = _load_profile(profile_path)
+        profile = _load_profile(profile_path, parent_root, source_gate)
         profile_id = _project_id(profile.get("id"), nested_root)
         if profile_id == parent_project_id:
             continue
         yield _classify_candidate(workspace_root, nested_root, "active", profile), False
 
 
-def _is_eligible_directory(root: Path, config: DiscoveryConfig) -> bool:
-    return root.is_dir() and not root.name.startswith(".") and root.name not in config.excluded_names
+def _is_eligible_directory(
+    root: Path, config: DiscoveryConfig, source_gate: PrivacyGate | None
+) -> bool:
+    if root.name.startswith(".") or root.name in config.excluded_names:
+        return False
+    mode = root.lstat().st_mode
+    if stat.S_ISLNK(mode):
+        return root.is_dir()
+    if not stat.S_ISDIR(mode):
+        return False
+    require_confined_directory(root, config.workspace_root, source_gate)
+    return True
 
 
-def _load_optional_profile(root: Path) -> dict[str, Any] | None:
+def _load_optional_profile(
+    root: Path, workspace_root: Path, source_gate: PrivacyGate | None
+) -> dict[str, Any] | None:
     profile_path = root / "project_memory" / "project-profile.yaml"
-    return _load_profile(profile_path) if profile_path.is_file() else None
+    try:
+        profile_path.lstat()
+    except FileNotFoundError:
+        return None
+    return _load_profile(profile_path, workspace_root, source_gate)
 
 
-def _load_profile(profile_path: Path) -> dict[str, Any]:
-    data = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+def _load_profile(
+    profile_path: Path, root: Path, source_gate: PrivacyGate | None
+) -> dict[str, Any]:
+    data = yaml.safe_load(read_confined_text(profile_path, root, source_gate))
     if not isinstance(data, dict):
         raise ValueError(f"Project profile must be a mapping: {profile_path}")
     return data
@@ -101,9 +161,11 @@ def _classify_candidate(
     root: Path,
     lifecycle: str,
     profile: dict[str, Any] | None,
+    *,
+    preserve_root: bool = False,
 ) -> ProjectRef:
     profile = profile or {}
-    root = root.resolve()
+    root = Path(os.path.abspath(root)) if preserve_root else root.resolve()
     project_id = _project_id(profile.get("id"), root)
     profile_lifecycle = lifecycle if lifecycle == "finished" else profile.get("lifecycle", lifecycle)
     publication = profile.get("publication", "private")

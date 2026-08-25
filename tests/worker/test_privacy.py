@@ -15,6 +15,23 @@ from atlas_worker.privacy import (
 )
 
 
+UNSAFE_URL_SCHEME_VALUES = (
+    "javascript:alert(1)",
+    "  JaVaScRiPt:alert(1)",
+    "%6A%61vascript%3Aalert(1)",
+    "data:text/plain,atlas",
+    "%64ata%3Atext/plain,atlas",
+    "vbscript:msgbox(1)",
+    "vbscript%3Amsgbox(1)",
+    "file:///tmp/private",
+    "file%3A%2F%2F%2Ftmp/private",
+    "blob:https://example.com/atlas",
+    "blob%3Ahttps%3A%2F%2Fexample.com/atlas",
+    "custom+atlas:value",
+    "custom%2Batlas%3Avalue",
+)
+
+
 def test_public_bundle_rejects_local_paths_and_secrets():
     gate = PrivacyGate(alias_key=b"unit-test-key")
 
@@ -175,6 +192,22 @@ def test_public_urls_in_markup_attributes_and_visible_text_remain_safe(markup):
     gate = PrivacyGate(alias_key=b"unit-test-key")
 
     assert "absolute_path" not in {finding.category for finding in gate.scan(markup).findings}
+
+
+@pytest.mark.parametrize("value", UNSAFE_URL_SCHEME_VALUES)
+def test_url_attributes_reject_non_http_schemes_after_fixed_point_decoding(value):
+    markup = f'<a href="{value}">Atlas</a>'
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    report = gate.scan({"summary": markup})
+
+    assert [(finding.category, finding.json_pointer) for finding in report.findings] == [
+        ("absolute_path", "/summary")
+    ]
+    with pytest.raises(PrivacyViolation) as error:
+        gate.require_safe({"summary": markup})
+    assert str(error.value) == "public bundle blocked: absolute_path"
+    assert value not in str(error.value)
 
 
 @pytest.mark.parametrize(

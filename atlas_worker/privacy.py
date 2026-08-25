@@ -18,6 +18,7 @@ SECRET_PATTERNS = {
     "private_key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
 }
 HTTP_URL_START = re.compile(r"https?://", re.I)
+URI_SCHEME_START = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 HTTP_URL_TERMINATORS = frozenset(" \t\r\n<>\"',;)]}")
 POSIX_ABSOLUTE_PATH = re.compile(r"(?<![A-Za-z0-9_/\\])/(?![/>#])(?:[^\s<>\"']*)?")
 WINDOWS_DRIVE_PATH = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:[\\/]")
@@ -308,15 +309,18 @@ def _attribute_contains_absolute_path(name: str, value: str) -> bool:
         normalized = _normalize_url_attribute(value)
         if normalized is None:
             return True
-        if HTTP_URL_START.match(normalized):
-            return _plain_text_contains_absolute_path(normalized)
-        if normalized.startswith("//"):
+        classified = normalized.strip(" ")
+        if HTTP_URL_START.match(classified):
+            return _plain_text_contains_absolute_path(classified)
+        if URI_SCHEME_START.match(classified):
             return True
-        if normalized.startswith("/"):
+        if classified.startswith("//"):
+            return True
+        if classified.startswith("/"):
             return not value.startswith("/") or not _is_safe_public_route(value)
-        if _relative_url_has_dot_traversal(normalized):
+        if _relative_url_has_dot_traversal(classified):
             return True
-        return _plain_text_contains_absolute_path(normalized)
+        return _plain_text_contains_absolute_path(classified)
     return _plain_text_contains_absolute_path(value)
 
 

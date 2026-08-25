@@ -35,10 +35,10 @@ from .bundle import (
 from .config import DiscoveryConfig
 from .discovery import discover_projects
 from .evidence import merge_claims
+from .fs_safety import FileWrite, commit_file_transaction, require_write_destination
 from .graph import build_graph
-from .manifest import require_no_symlink_path
 from .memory import load_project_memory
-from .memory_writer import update_project_memory
+from .memory_writer import plan_project_memory_writes
 from .models import (
     DiscoveryReport,
     EvidenceClaim,
@@ -204,13 +204,12 @@ def _command_bootstrap_profiles(args: argparse.Namespace) -> dict[str, object]:
     profiles = _load_reviewed_profiles(args.apply_reviewed_report)
     writes = _profile_write_plan(workspace, report, profiles)
     if not args.dry_run:
-        for path, content, _ in writes:
-            _atomic_write_text(path, content)
+        commit_file_transaction(tuple(write for write, _ in writes))
     return {
         "ambiguous": list(ambiguous),
         "dry_run": bool(args.dry_run),
-        "written": [] if args.dry_run else [relative for _, _, relative in writes],
-        "would_write": [relative for _, _, relative in writes] if args.dry_run else [],
+        "written": [] if args.dry_run else [relative for _, relative in writes],
+        "would_write": [relative for _, relative in writes] if args.dry_run else [],
     }
 
 
@@ -238,8 +237,8 @@ def _command_backfill(args: argparse.Namespace) -> dict[str, object]:
 def _command_build(args: argparse.Namespace) -> dict[str, object]:
     workspace = _workspace(args.workspace)
     config = _load_runtime_config(workspace)
-    report = _discover(workspace, config)
     gate = _privacy_gate(workspace, config, ephemeral=bool(args.dry_run))
+    report = _discover(workspace, config, source_gate=gate)
     return _execute_build(workspace, config, report, gate, dry_run=bool(args.dry_run))
 
 
@@ -261,8 +260,8 @@ def _command_validate(args: argparse.Namespace) -> dict[str, object]:
 def _command_run(args: argparse.Namespace) -> dict[str, object]:
     workspace = _workspace(args.workspace)
     config = _load_runtime_config(workspace)
-    report = _discover(workspace, config)
     gate = _privacy_gate(workspace, config, ephemeral=bool(args.dry_run))
+    report = _discover(workspace, config, source_gate=gate)
     sessions_root = _sessions_root(workspace, config, args.sessions_root)
 
     if sessions_root is None:
@@ -307,15 +306,48 @@ def _load_runtime_config(workspace: Path) -> dict[str, object]:
     path = workspace / ".knowledge-worker" / "config.yaml"
     if not path.is_file():
         return {}
-    value = yaml.safe_load(path.read_text(encoding="utf-8"))
+    try:
+        value = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except YAMLError:
+        raise ConfigError("/runtime-config") from None
     if value is None:
         return {}
     if not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
         raise ConfigError("/runtime-config")
-    return dict(value)
+    config = dict(value)
+    _validate_runtime_config(config)
+    return config
 
 
-def _discover(workspace: Path, runtime_config: Mapping[str, object]) -> DiscoveryReport:
+def _validate_runtime_config(config: Mapping[str, object]) -> None:
+    if "registered_assets" in config:
+        registered = config["registered_assets"]
+        if not isinstance(registered, list) or any(not isinstance(item, str) for item in registered):
+            raise ConfigError("/runtime-config/registered-assets")
+    for key in (
+        "sessions_root",
+        "aliases_file",
+        "service_root",
+        "alias_key_file",
+        "hmac_key_path",
+    ):
+        if key in config and (not isinstance(config[key], str) or not config[key]):
+            raise ConfigError(f"/runtime-config/{key.replace('_', '-')}")
+    if "sessions" in config:
+        sessions = config["sessions"]
+        if not isinstance(sessions, dict) or any(not isinstance(key, str) for key in sessions):
+            raise ConfigError("/runtime-config/sessions")
+        if "root" in sessions and (
+            not isinstance(sessions["root"], str) or not sessions["root"]
+        ):
+            raise ConfigError("/runtime-config/sessions/root")
+
+
+def _discover(
+    workspace: Path,
+    runtime_config: Mapping[str, object],
+    source_gate: PrivacyGate | None = None,
+) -> DiscoveryReport:
     registered = runtime_config.get("registered_assets", ())
     if registered is None:
         registered = ()
@@ -325,7 +357,7 @@ def _discover(workspace: Path, runtime_config: Mapping[str, object]) -> Discover
         workspace,
         registered_assets=tuple(Path(item) for item in registered),
     )
-    return discover_projects(config)
+    return discover_projects(config, source_gate=source_gate)
 
 
 def _discovery_payload(report: DiscoveryReport) -> dict[str, object]:
@@ -360,10 +392,10 @@ def _profile_write_plan(
     workspace: Path,
     report: DiscoveryReport,
     profiles: tuple[dict[str, object], ...],
-) -> tuple[tuple[Path, str, str], ...]:
+) -> tuple[tuple[FileWrite, str], ...]:
     targets = {ref.project_id: ref for ref in report.ambiguous}
     seen: set[str] = set()
-    writes: list[tuple[Path, str, str]] = []
+    writes: list[tuple[FileWrite, str]] = []
     for profile in profiles:
         validate_schema(profile, "project-profile")
         project_id = profile.get("id")
@@ -377,12 +409,12 @@ def _profile_write_plan(
         ordered = {key: profile[key] for key in _PROFILE_KEYS if key in profile}
         content = yaml.safe_dump(ordered, allow_unicode=True, sort_keys=False)
         path = ref.root / "project_memory" / "project-profile.yaml"
-        require_no_symlink_path(path)
+        path = require_write_destination(path, ref.root)
         if path.exists():
             raise ConfigError("/profiles/id")
         relative = path.relative_to(workspace).as_posix()
-        writes.append((path, content, relative))
-    return tuple(sorted(writes, key=lambda item: item[2]))
+        writes.append((FileWrite(path=path, content=content.encode("utf-8"), root=ref.root), relative))
+    return tuple(sorted(writes, key=lambda item: item[1]))
 
 
 def _validate_profile_aliases(value: object) -> None:
@@ -436,8 +468,8 @@ def _execute_backfill(
     reviewed_report: Path | None,
 ) -> dict[str, object]:
     aliases = _load_aliases(workspace, runtime_config)
-    cursor_path = workspace / ".knowledge-worker" / "session-cursor.json"
-    require_no_symlink_path(cursor_path)
+    runtime_root = workspace / ".knowledge-worker"
+    cursor_path = require_write_destination(runtime_root / "session-cursor.json", runtime_root)
     cursors = _load_cursor(cursor_path)
     paths = tuple(
         path
@@ -470,6 +502,7 @@ def _execute_backfill(
     applied_claims = 0
     applied_files = 0
     applied_projects = 0
+    transaction: list[FileWrite] = []
     if selected:
         refs = {ref.project_id: ref for ref in discovery.projects}
         grouped: dict[str, list[EvidenceClaim]] = defaultdict(list)
@@ -477,15 +510,23 @@ def _execute_backfill(
             grouped[project_id].append(claim)
         for project_id in sorted(grouped):
             knowledge = merge_claims(grouped[project_id])
-            update = update_project_memory(refs[project_id], knowledge, dry_run=dry_run)
+            writes = plan_project_memory_writes(refs[project_id], knowledge)
+            transaction.extend(writes)
             applied_claims += len(grouped[project_id])
-            applied_files += len(update.changed_files)
+            applied_files += len(writes)
             applied_projects += 1
 
     cursor_written = False
-    if not dry_run and reviewed_report is not None:
+    if reviewed_report is not None:
         next_cursors = updated_cursors(paths, cursors)
-        cursor_written = _atomic_write_json(cursor_path, next_cursors)
+        cursor_content = (
+            json.dumps(next_cursors, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            + "\n"
+        ).encode("utf-8")
+        transaction.append(FileWrite(path=cursor_path, content=cursor_content, root=runtime_root))
+    if not dry_run:
+        changed_paths = commit_file_transaction(transaction)
+        cursor_written = cursor_path in changed_paths
 
     return {
         "applied": {
@@ -648,7 +689,10 @@ def _load_aliases(workspace: Path, runtime_config: Mapping[str, object]) -> dict
         if configured is not None:
             raise OSError("configured aliases file is unavailable")
         return {}
-    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    try:
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except YAMLError:
+        raise ConfigError("/aliases") from None
     if isinstance(payload, dict) and "aliases" in payload:
         payload = payload["aliases"]
     if not isinstance(payload, dict) or any(
@@ -711,7 +755,7 @@ def _bundle_context(discovery: DiscoveryReport, gate: PrivacyGate) -> BundleCont
     for ref in discovery.projects:
         if ref.publication != "public" or ref.project_id in ambiguous_ids:
             continue
-        memory = load_project_memory(ref)
+        memory = load_project_memory(ref, gate)
         profile = memory.profile
         if profile.get("id") != ref.project_id or profile.get("publication") != "public":
             raise ConfigError("/project-profile/id")
@@ -827,34 +871,6 @@ def _runtime_alias_key(
 
 def _load_json(path: Path) -> object:
     return json.loads(Path(path).read_text(encoding="utf-8"))
-
-
-def _atomic_write_json(path: Path, value: object) -> bool:
-    content = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
-    return _atomic_write_text(path, content)
-
-
-def _atomic_write_text(path: Path, content: str) -> bool:
-    encoded = content.encode("utf-8")
-    require_no_symlink_path(path)
-    if path.is_file() and path.read_bytes() == encoded:
-        return False
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "wb") as target:
-            target.write(encoded)
-            target.flush()
-            os.fsync(target.fileno())
-        os.replace(temporary, path)
-    except BaseException:
-        try:
-            temporary.unlink()
-        except FileNotFoundError:
-            pass
-        raise
-    return True
 
 
 def _emit_json(value: object) -> None:
