@@ -190,6 +190,77 @@ def test_ordinary_start_and_self_closing_tags_remain_safe(markup):
 
 
 @pytest.mark.parametrize(
+    ("attribute", "route", "quoted"),
+    (
+        ("href", "/", True),
+        ("href", "/?from=atlas#top", True),
+        ("href", "/projects", True),
+        ("href", "/projects/alpha", True),
+        ("href", "/projects/alpha", False),
+        ("href", "/projects/alpha%2Ebeta?tab=decisions#evidence", True),
+        ("href", "/topics", True),
+        ("href", "/topics/ai?sort=recent#projects", True),
+        ("href", "/graph?mode=full#canvas", True),
+        ("href", "/changelog#latest", True),
+        ("action", "/search?q=/tmp/example#results", True),
+        ("src", "/assets/images/atlas.png?v=2#preview", True),
+    ),
+)
+def test_allowlisted_public_routes_are_safe_in_url_bearing_attributes(attribute, route, quoted):
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+    attribute_value = f'"{route}"' if quoted else route
+    markup = f"<a {attribute}={attribute_value}>Atlas</a>"
+
+    assert not gate.scan({"summary": markup}).findings
+
+
+@pytest.mark.parametrize(
+    "markup",
+    (
+        '<a href="/tmp/private">Atlas</a>',
+        '<a href="/root/private">Atlas</a>',
+        '<a href="/home/dowon/private">Atlas</a>',
+        '<a href="/Users/private/atlas">Atlas</a>',
+        '<a href="/etc/passwd">Atlas</a>',
+        '<a href="/project/alpha">Atlas</a>',
+        '<a href="/projects-archive/alpha">Atlas</a>',
+        '<a href="/graph/private">Atlas</a>',
+        '<a href="/changelog/2026">Atlas</a>',
+        '<a href="/search/advanced">Atlas</a>',
+        '<img src="/assets">',
+        '<a href="/projects/./alpha">Atlas</a>',
+        '<a href="/projects/../tmp">Atlas</a>',
+        '<a href="//example.com/projects/alpha">Atlas</a>',
+        '<a href="///projects/alpha">Atlas</a>',
+        '<a href="/projects\\alpha">Atlas</a>',
+        '<a href="/projects/alpha\x1fprivate">Atlas</a>',
+        '<a href="/projects%2Falpha">Atlas</a>',
+        '<a href="/projects%5Calpha">Atlas</a>',
+        '<a href="/projects/%2e%2e/tmp">Atlas</a>',
+        '<a href="/projects/%252e%252e/tmp">Atlas</a>',
+        '<a href="/projects/%252Ftmp">Atlas</a>',
+        '<a href="/%2574mp">Atlas</a>',
+        '<div data-route="/projects/alpha">Atlas</div>',
+        '<div title="/topics/ai">Atlas</div>',
+        '<p>/projects/alpha</p>',
+        "/projects/alpha",
+    ),
+)
+def test_hostile_or_out_of_context_public_route_lookalikes_are_blocked(markup):
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    report = gate.scan({"summary": markup})
+
+    assert [(finding.category, finding.json_pointer) for finding in report.findings] == [
+        ("absolute_path", "/summary")
+    ]
+    with pytest.raises(PrivacyViolation) as error:
+        gate.require_safe({"summary": markup})
+    assert str(error.value) == "public bundle blocked: absolute_path"
+    assert markup not in str(error.value)
+
+
+@pytest.mark.parametrize(
     "malformed_markup",
     (
         '<a href="/tmp/private>',

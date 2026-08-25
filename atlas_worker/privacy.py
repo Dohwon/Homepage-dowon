@@ -4,10 +4,13 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 import hashlib
 import hmac
+from html import unescape
 from html.parser import HTMLParser
 import os
 from pathlib import Path
 import re
+import unicodedata
+from urllib.parse import unquote
 
 
 SECRET_PATTERNS = {
@@ -16,12 +19,17 @@ SECRET_PATTERNS = {
 }
 HTTP_URL_START = re.compile(r"https?://", re.I)
 HTTP_URL_TERMINATORS = frozenset(" \t\r\n<>\"',;)]}")
-PUBLIC_PROJECT_ROUTE = re.compile(r"/projects/[A-Za-z0-9._~!$&'()*+,;=:@%-]+(?:[?#][^\s<>\"']*)?")
 POSIX_ABSOLUTE_PATH = re.compile(r"(?<![A-Za-z0-9_/\\])/(?![/>#])(?:[^\s<>\"']*)?")
 WINDOWS_DRIVE_PATH = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:[\\/]")
 UNC_PATH = re.compile(r"(?<![A-Za-z0-9])(?:\\\\|//)[^\\/\s]+[\\/][^\\/\s]+")
 CLOSING_TAG = re.compile(r"</\s*[A-Za-z][A-Za-z0-9:._-]*\s*>")
 START_TAG_NAME = re.compile(r"<([A-Za-z][A-Za-z0-9:._-]*)")
+RAW_ATTRIBUTE_ASSIGNMENT = re.compile(
+    r"(?<!\S)(?P<name>[A-Za-z_:][A-Za-z0-9:._-]*)\s*=\s*"
+    r'(?:"(?P<double>[^\"]*)"|\'(?P<single>[^\']*)\'|(?P<unquoted>[^\s\"\'=<>`]+))'
+)
+INVALID_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
+ENCODED_PATH_SEPARATOR = re.compile(r"%(?:2f|5c)", re.I)
 EMAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)
 PHONE = re.compile(r"(?<!\d)(?:\+?82[- ]?)?0?1[016789][- ]?\d{3,4}[- ]?\d{4}(?!\d)")
 PRIVATE_IP = re.compile(
@@ -35,6 +43,11 @@ CONTENT_SHA256 = re.compile(r"[0-9a-f]{64}")
 DENIED_SOURCE_NAMES = {".env", "credentials.json", "auth.json"}
 DENIED_SOURCE_PARTS = {".codex/sessions", "logs", "raw-logs", "private-data"}
 NON_STRING_KEY_POINTER = "<non-string-key>"
+URL_BEARING_ATTRIBUTES = frozenset({"href", "src", "action"})
+SEARCH_DOCUMENT_KEYS = frozenset({"id", "project_id", "title", "body", "url"})
+PUBLIC_ROUTE_EXACT_PATHS = frozenset({"/", "/projects", "/topics", "/graph", "/changelog", "/search"})
+PUBLIC_ROUTE_DESCENDANT_PREFIXES = ("/projects/", "/topics/")
+PUBLIC_ASSET_PREFIX = "/assets/"
 
 
 @dataclass(frozen=True)
@@ -51,7 +64,7 @@ class PrivacyReport:
 @dataclass(frozen=True)
 class _ParsedStartTag:
     raw_attribute_fragment: str
-    attribute_values: tuple[str, ...]
+    attributes: tuple[tuple[str, str | None], ...]
 
 
 class PrivacyViolation(ValueError):
@@ -79,7 +92,13 @@ class PrivacyGate:
 
     def scan(self, record: object) -> PrivacyReport:
         findings: list[PrivacyFinding] = []
-        self._scan_value(record, "", findings, allow_approved_value=True)
+        self._scan_value(
+            record,
+            "",
+            findings,
+            allow_approved_value=True,
+            allow_public_route=False,
+        )
         return PrivacyReport(findings=tuple(findings))
 
     def require_safe(self, record: object) -> None:
@@ -99,26 +118,25 @@ class PrivacyGate:
         findings: list[PrivacyFinding],
         *,
         allow_approved_value: bool,
+        allow_public_route: bool,
     ) -> None:
         if isinstance(value, str):
-            self._scan_text(value, pointer, findings, allow_approved_value=allow_approved_value)
+            self._scan_text(
+                value,
+                pointer,
+                findings,
+                allow_approved_value=allow_approved_value,
+                allow_public_route=allow_public_route,
+            )
             return
         if value is None or isinstance(value, (bool, int, float)):
             return
         if isinstance(value, Mapping):
-            for key, nested_value in value.items():
-                if not isinstance(key, str):
-                    findings.append(PrivacyFinding("unsupported_value", pointer))
-                    self._scan_value(
-                        nested_value,
-                        _json_pointer_child(pointer, NON_STRING_KEY_POINTER),
-                        findings,
-                        allow_approved_value=True,
-                    )
-                    continue
-                sensitive_key = self._scan_text(key, pointer, findings, allow_approved_value=False)
-                child_pointer = pointer if sensitive_key else _json_pointer_child(pointer, key)
-                self._scan_value(nested_value, child_pointer, findings, allow_approved_value=True)
+            self._scan_mapping_items(tuple(value.items()), pointer, findings)
+            return
+        object_pairs = _json_object_pairs(value)
+        if object_pairs is not None:
+            self._scan_mapping_items(object_pairs, pointer, findings)
             return
         if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
             for index, nested_value in enumerate(value):
@@ -127,10 +145,45 @@ class PrivacyGate:
                     _json_pointer_child(pointer, str(index)),
                     findings,
                     allow_approved_value=True,
+                    allow_public_route=False,
                 )
             return
 
         findings.append(PrivacyFinding("unsupported_value", pointer))
+
+    def _scan_mapping_items(
+        self,
+        items: tuple[tuple[object, object], ...],
+        pointer: str,
+        findings: list[PrivacyFinding],
+    ) -> None:
+        route_url_allowed = _is_search_document(items)
+        for key, nested_value in items:
+            if not isinstance(key, str):
+                findings.append(PrivacyFinding("unsupported_value", pointer))
+                self._scan_value(
+                    nested_value,
+                    _json_pointer_child(pointer, NON_STRING_KEY_POINTER),
+                    findings,
+                    allow_approved_value=True,
+                    allow_public_route=False,
+                )
+                continue
+            sensitive_key = self._scan_text(
+                key,
+                pointer,
+                findings,
+                allow_approved_value=False,
+                allow_public_route=False,
+            )
+            child_pointer = pointer if sensitive_key else _json_pointer_child(pointer, key)
+            self._scan_value(
+                nested_value,
+                child_pointer,
+                findings,
+                allow_approved_value=True,
+                allow_public_route=route_url_allowed and key == "url",
+            )
 
     def _scan_text(
         self,
@@ -139,22 +192,39 @@ class PrivacyGate:
         findings: list[PrivacyFinding],
         *,
         allow_approved_value: bool,
+        allow_public_route: bool,
     ) -> bool:
         if allow_approved_value and value in self._approved_public_values:
             return False
 
-        categories = _matching_categories(value)
+        categories = _matching_categories(value, allow_public_route=allow_public_route)
         findings.extend(PrivacyFinding(category, pointer) for category in categories)
         return bool(categories)
 
 
-def _matching_categories(value: str) -> tuple[str, ...]:
+def _json_object_pairs(value: object) -> tuple[tuple[object, object], ...] | None:
+    if not isinstance(value, list) or not value:
+        return None
+    if not all(isinstance(item, tuple) and len(item) == 2 for item in value):
+        return None
+    return tuple((item[0], item[1]) for item in value)
+
+
+def _is_search_document(items: tuple[tuple[object, object], ...]) -> bool:
+    return (
+        len(items) == len(SEARCH_DOCUMENT_KEYS)
+        and all(isinstance(key, str) for key, _ in items)
+        and frozenset(key for key, _ in items) == SEARCH_DOCUMENT_KEYS
+    )
+
+
+def _matching_categories(value: str, *, allow_public_route: bool = False) -> tuple[str, ...]:
     if CONTENT_SHA256.fullmatch(value):
         return ()
     categories: list[str] = []
     if any(pattern.search(value) for pattern in SECRET_PATTERNS.values()):
         categories.append("secret")
-    if _contains_absolute_path(value):
+    if _contains_absolute_path(value, allow_public_route=allow_public_route):
         categories.append("absolute_path")
     if EMAIL.search(value):
         categories.append("email")
@@ -169,8 +239,8 @@ def _matching_categories(value: str) -> tuple[str, ...]:
     return tuple(categories)
 
 
-def _contains_absolute_path(value: str) -> bool:
-    if PUBLIC_PROJECT_ROUTE.fullmatch(value):
+def _contains_absolute_path(value: str, *, allow_public_route: bool = False) -> bool:
+    if allow_public_route and _is_safe_public_route(value):
         return False
     cursor = 0
     while cursor < len(value):
@@ -189,9 +259,10 @@ def _contains_absolute_path(value: str) -> bool:
             if parsed_tag is None:
                 if _plain_text_contains_absolute_path(tag):
                     return True
-            elif _plain_text_contains_absolute_path(parsed_tag.raw_attribute_fragment) or any(
-                _plain_text_contains_absolute_path(attribute)
-                for attribute in parsed_tag.attribute_values
+            elif _raw_attribute_fragment_contains_absolute_path(parsed_tag) or any(
+                _attribute_contains_absolute_path(name, attribute)
+                for name, attribute in parsed_tag.attributes
+                if attribute is not None
             ):
                 return True
         cursor = tag_end + 1
@@ -199,13 +270,96 @@ def _contains_absolute_path(value: str) -> bool:
 
 
 def _plain_text_contains_absolute_path(value: str) -> bool:
-    if PUBLIC_PROJECT_ROUTE.fullmatch(value):
-        return False
     without_urls = _mask_http_urls(value)
     return any(
         pattern.search(without_urls)
         for pattern in (WINDOWS_DRIVE_PATH, UNC_PATH, POSIX_ABSOLUTE_PATH)
     )
+
+
+def _raw_attribute_fragment_contains_absolute_path(parsed_tag: _ParsedStartTag) -> bool:
+    confirmed_safe_routes = [
+        (name.casefold(), value)
+        for name, value in parsed_tag.attributes
+        if value is not None
+        and name.casefold() in URL_BEARING_ATTRIBUTES
+        and _is_safe_public_route(value)
+    ]
+    masked = list(parsed_tag.raw_attribute_fragment)
+    for match in RAW_ATTRIBUTE_ASSIGNMENT.finditer(parsed_tag.raw_attribute_fragment):
+        value_group = next(
+            group
+            for group in ("double", "single", "unquoted")
+            if match.group(group) is not None
+        )
+        route = unescape(match.group(value_group))
+        confirmed = (match.group("name").casefold(), route)
+        if confirmed not in confirmed_safe_routes:
+            continue
+        confirmed_safe_routes.remove(confirmed)
+        start, end = match.span(value_group)
+        masked[start:end] = " " * (end - start)
+    return _plain_text_contains_absolute_path("".join(masked))
+
+
+def _attribute_contains_absolute_path(name: str, value: str) -> bool:
+    if name.casefold() in URL_BEARING_ATTRIBUTES and value.startswith("/"):
+        return not _is_safe_public_route(value)
+    return _plain_text_contains_absolute_path(value)
+
+
+def _is_safe_public_route(value: str) -> bool:
+    if not value.startswith("/") or value.startswith("//"):
+        return False
+    if _decoded_route_has_control_or_backslash(value):
+        return False
+
+    path = re.split(r"[?#]", value, maxsplit=1)[0]
+    if INVALID_PERCENT_ESCAPE.search(path):
+        return False
+    decoded_path = _decode_public_route_path(path)
+    if decoded_path is None:
+        return False
+    if decoded_path in PUBLIC_ROUTE_EXACT_PATHS:
+        return True
+    if any(decoded_path.startswith(prefix) for prefix in PUBLIC_ROUTE_DESCENDANT_PREFIXES):
+        return True
+    return decoded_path.startswith(PUBLIC_ASSET_PREFIX) and len(decoded_path) > len(PUBLIC_ASSET_PREFIX)
+
+
+def _decoded_route_has_control_or_backslash(value: str) -> bool:
+    current = value
+    for _ in range(len(value) + 1):
+        if "\\" in current or any(unicodedata.category(character) == "Cc" for character in current):
+            return True
+        try:
+            decoded = unquote(current, errors="strict")
+        except UnicodeDecodeError:
+            return True
+        if decoded == current:
+            return False
+        current = decoded
+    return True
+
+
+def _decode_public_route_path(path: str) -> str | None:
+    current = path
+    for _ in range(len(path) + 1):
+        if (
+            current.startswith("//")
+            or ENCODED_PATH_SEPARATOR.search(current)
+            or any(character.isspace() or character in "<>\"'" for character in current)
+            or any(segment in {".", ".."} for segment in current.split("/"))
+        ):
+            return None
+        try:
+            decoded = unquote(current, errors="strict")
+        except UnicodeDecodeError:
+            return None
+        if decoded == current:
+            return current
+        current = decoded
+    return None
 
 
 def _find_tag_end(value: str, start: int) -> int | None:
@@ -243,7 +397,7 @@ def _parse_start_tag_attributes(tag: str) -> _ParsedStartTag | None:
         return None
     return _ParsedStartTag(
         raw_attribute_fragment=raw_attribute_fragment,
-        attribute_values=tuple(value for _, value in parser.attributes if value is not None),
+        attributes=tuple(parser.attributes),
     )
 
 

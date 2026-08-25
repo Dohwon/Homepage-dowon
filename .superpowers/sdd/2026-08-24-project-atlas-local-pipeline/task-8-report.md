@@ -155,3 +155,33 @@ Production changes are limited to `atlas_worker/privacy.py`; boundary regression
 ### Concerns
 
 - No known blocking concern remains within the approved Fix Round 4 scope.
+
+## Fix Round 5
+
+### Status
+
+Resolved the remaining Important root-relative route false positive without changing bundle, promotion, rollback, manifest, version, schema, symlink, or rendering production code. Tests continued to use only `tmp_path`; the real `public-bundle/` was not read or written.
+
+### TDD Evidence
+
+- Reproduction confirmed that exact `/projects/alpha` was globally exempt while quoted and unquoted `href` anchors were reported as `absolute_path`.
+- Targeted RED: the new scanner, builder, publish/no-op, and last-good regressions failed `16` cases and passed `30`; every allowed attribute route plus builder and publish/no-op failed for the missing context-aware behavior, while exact and visible project routes exposed the global exception.
+- Targeted GREEN: the same command passed `46/46` cases.
+- Focused GREEN: `.venv/bin/python -m pytest tests/worker/test_privacy.py tests/worker/test_bundle.py -q` passed `192` with `1` Linux platform-conditional skip.
+- Full suite after code freeze: `.venv/bin/python -m pytest -v` passed `320` with `1` Linux platform-conditional skip.
+
+### Delivered Fixes
+
+- Replaced the global project-route exemption with parser-confirmed `href`, `src`, and `action` handling plus the existing exact Atlas search-document `url` context.
+- Added an explicit decoded-path allowlist for `/`, `/projects` and descendants, `/topics` and descendants, `/graph`, `/changelog`, `/search`, and non-empty `/assets/` descendants. Queries and fragments remain allowed when the decoded path is safe.
+- Root-route validation rejects non-allowlisted paths, dot segments, repeated leading slashes, scheme-relative URLs, backslashes, control characters, encoded separators, encoded traversal, malformed path escapes, and unsafe paths reached through repeated decoding.
+- Raw attribute masking applies only to exact parser-confirmed safe route spans. Remaining raw syntax, non-URL attributes, visible text, malformed tags, and parsed unsafe values continue through the POSIX/Windows/UNC scanner.
+- Builder coverage proves a safe internal anchor survives unchanged in public JSON. Promotion coverage proves first publish and identical no-op success, while unsafe lookalikes leave candidate bytes and the last-good public tree unchanged.
+
+### Self-Review
+
+Production changes are limited to `atlas_worker/privacy.py`; boundary regressions are limited to the existing privacy and bundle tests. Verified that HTTPS behavior and malformed POSIX/Windows/UNC probes remain intact, route exceptions do not apply to summaries, visible text, or arbitrary attributes, and findings/exceptions remain category/pointer only.
+
+### Concerns
+
+- No known blocking concern remains within the Fix Round 5 scope.

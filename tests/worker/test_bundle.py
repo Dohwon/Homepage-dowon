@@ -54,6 +54,14 @@ MALFORMED_MARKUP_PATH_PROBES = (
     r"<div C:\private\x>",
     r"<div \\server\share\x>",
 )
+SAFE_INTERNAL_ANCHOR = '<a href="/projects/alpha?next=/tmp/example#overview">Alpha</a>'
+UNSAFE_PUBLIC_ROUTE_LOOKALIKES = (
+    '<a href="/projects-archive/alpha">Alpha</a>',
+    '<a href="/projects/../tmp">Alpha</a>',
+    '<a href="//projects/alpha">Alpha</a>',
+    '<a href="/projects%252F..%252Ftmp">Alpha</a>',
+    '<div data-route="/projects/alpha">Alpha</div>',
+)
 
 
 def _context(
@@ -380,6 +388,16 @@ def test_build_allows_public_urls_in_markup_attributes_and_visible_text(tmp_path
     assert payload["summary"] == summary
 
 
+def test_build_preserves_safe_internal_anchor_in_public_json(tmp_path):
+    staging = tmp_path / "staging"
+    project = replace(make_public_project("alpha"), summary=SAFE_INTERNAL_ANCHOR)
+
+    build_candidate_bundle(_context(projects=(project,)), staging)
+
+    payload = json.loads((staging / "projects/alpha/project.json").read_text(encoding="utf-8"))
+    assert payload["summary"] == SAFE_INTERNAL_ANCHOR
+
+
 def test_build_rejects_existing_staging_symlink_before_cleanup(tmp_path):
     target = tmp_path / "target"
     target.mkdir()
@@ -530,6 +548,48 @@ def test_promote_rejects_markup_attribute_paths_and_preserves_last_good(tmp_path
 
 @pytest.mark.parametrize("probe", MALFORMED_MARKUP_PATH_PROBES)
 def test_promote_rejects_malformed_markup_paths_and_preserves_last_good(tmp_path, probe):
+    public_dir = tmp_path / "public-bundle"
+    staging = tmp_path / "staging"
+    write_bundle_fixture(public_dir, version=None, summary="safe")
+    write_bundle_fixture(staging, version=None, summary=probe)
+    public_before = _tree_bytes(public_dir)
+    staging_before = _tree_bytes(staging)
+
+    with pytest.raises(PrivacyViolation) as error:
+        promote_bundle(staging, public_dir, PrivacyGate(alias_key=b"key"))
+
+    assert str(error.value) == "public bundle blocked: absolute_path"
+    assert probe not in str(error.value)
+    assert _tree_bytes(public_dir) == public_before
+    assert _tree_bytes(staging) == staging_before
+
+
+def test_safe_internal_anchor_can_publish_and_then_noop(tmp_path):
+    public_dir = tmp_path / "public-bundle"
+    staging = tmp_path / "staging"
+    write_bundle_fixture(staging, version=None, summary=SAFE_INTERNAL_ANCHOR)
+
+    published = promote_bundle(staging, public_dir, PrivacyGate(alias_key=b"key"))
+
+    assert published.changed
+    payload = json.loads((public_dir / "projects/alpha/project.json").read_text(encoding="utf-8"))
+    assert payload["summary"] == SAFE_INTERNAL_ANCHOR
+
+    public_before = _tree_bytes(public_dir)
+    public_inode = public_dir.stat().st_ino
+    write_bundle_fixture(staging, version=None, summary=SAFE_INTERNAL_ANCHOR)
+
+    no_op = promote_bundle(staging, public_dir, PrivacyGate(alias_key=b"key"))
+
+    assert not no_op.changed
+    assert no_op.changed_projects == ()
+    assert public_dir.stat().st_ino == public_inode
+    assert _tree_bytes(public_dir) == public_before
+    assert staging.exists()
+
+
+@pytest.mark.parametrize("probe", UNSAFE_PUBLIC_ROUTE_LOOKALIKES)
+def test_promote_rejects_unsafe_route_lookalikes_and_preserves_last_good(tmp_path, probe):
     public_dir = tmp_path / "public-bundle"
     staging = tmp_path / "staging"
     write_bundle_fixture(public_dir, version=None, summary="safe")
