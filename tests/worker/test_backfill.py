@@ -149,6 +149,19 @@ def test_negative_deferred_and_quoted_decision_language_is_ignored():
         assert extract_signal_claims((make_session_event(text, session_id=f"negative-{index}"),)) == ()
 
 
+def test_punctuation_free_english_and_korean_questions_are_ignored():
+    question_texts = (
+        "Do we adopt this architecture",
+        "Should we choose X as the architecture",
+        "Can we select Y for the architecture",
+        "Which alternative do we choose for the architecture",
+        "아키텍처를 채택하기로 결정해도 되나요",
+    )
+
+    for index, text in enumerate(question_texts):
+        assert extract_signal_claims((make_session_event(text, session_id=f"question-{index}"),)) == ()
+
+
 def test_committed_architecture_direct_adoption_and_tradeoff_decisions_remain_auto_eligible():
     claims = tuple(
         extract_signal_claims((make_session_event(text, session_id=f"positive-{index}"),))[0]
@@ -157,12 +170,14 @@ def test_committed_architecture_direct_adoption_and_tradeoff_decisions_remain_au
                 "아키텍처는 X로 결정했다",
                 "Y를 채택한다.",
                 "아키텍처 trade-off를 검토한 뒤 X로 결정했다",
+                "We adopted X for the architecture",
+                "Choose X as the architecture",
             )
         )
     )
 
-    assert [claim.claim_type for claim in claims] == ["decision", "decision", "decision"]
-    assert [claim.confidence for claim in claims] == [0.85, 0.85, 0.85]
+    assert [claim.claim_type for claim in claims] == ["decision"] * 5
+    assert [claim.confidence for claim in claims] == [0.85] * 5
 
 
 def test_three_same_target_revisions_and_multiple_visual_alternatives_are_review_candidates():

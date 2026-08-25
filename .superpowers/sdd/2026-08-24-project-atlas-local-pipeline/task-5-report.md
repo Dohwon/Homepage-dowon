@@ -70,3 +70,24 @@ Session text remains only inside transient `SessionEvent` values while extractio
 ### Self-Review
 
 - Reviewed commitment, direct-adoption, non-commitment, and quote guards together. Negative/deferred/question/quoted text is rejected before a decision claim is emitted; only declarative commitments remain eligible.
+
+## Fix Round 3
+
+### RED
+
+- The focused suite reproduced punctuation-free English interrogative auto-promotion with `Do we adopt this architecture`; positive coverage also exposed that `We adopted X for the architecture` was not recognized as a decision signal.
+
+### GREEN
+
+- The non-commitment guard now rejects leading English auxiliary questions (`do/does/did/should/can/could/would/will/may/might/is/are`) and WH questions (`which/what/who/where/when/why/how`) when they contain decision language, independent of trailing punctuation.
+- Korean terminal question endings (`나요`, `가요`, `까요`, `습니까`, `인가요`) now exclude decision claims without requiring `?`.
+- Decision signal recognition covers English committed inflections and choice terms. Positive `.85` coverage preserves architecture decisions, direct Korean adoption, committed trade-offs, `We adopted X for the architecture`, and `Choose X as the architecture`.
+
+### Verification
+
+- Focused suite: `.venv/bin/python -m pytest tests/worker/test_sessions.py tests/worker/test_backfill.py -v` passed `22/22`.
+- Full suite: `.venv/bin/python -m pytest -v` passed `71/71` with one existing Linux platform-conditional Windows case-semantics skip.
+
+### Self-Review
+
+- Confirmed interrogative rules are anchored to leading English auxiliary/WH constructions or Korean terminal endings, while declarative English adoption and explicit architecture choice statements remain eligible.
