@@ -4,6 +4,7 @@ from pathlib import Path
 
 import yaml
 
+from atlas_worker.manifest import content_version, project_hashes_from_files
 from atlas_worker.models import (
     EvidenceClaim,
     ProjectEvent,
@@ -128,7 +129,7 @@ def make_challenge_events() -> tuple[ProjectEvent, ...]:
 
 def write_bundle_fixture(
     root: Path,
-    version: str,
+    version: str | None,
     summary: str,
     project_ids: tuple[str, ...] = ("alpha",),
 ) -> None:
@@ -166,15 +167,24 @@ def write_bundle_fixture(
     refresh_fixture_manifest(root, version=version, project_ids=project_ids)
 
 
-def refresh_fixture_manifest(root: Path, version: str, project_ids: tuple[str, ...]) -> None:
+def refresh_fixture_manifest(root: Path, version: str | None, project_ids: tuple[str, ...]) -> None:
     files = {
         path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
         for path in sorted(root.rglob("*"), key=lambda item: item.as_posix())
         if path.is_file() and path.name != "manifest.json"
     }
+    ordered_projects = tuple(sorted(project_ids))
+    derived_version = content_version(
+        files,
+        project_hashes_from_files(ordered_projects, files),
+    )
     _write_fixture_json(
         root / "manifest.json",
-        {"files": files, "projects": sorted(project_ids), "version": version},
+        {
+            "files": files,
+            "projects": list(ordered_projects),
+            "version": version if version is not None else derived_version,
+        },
     )
 
 

@@ -12,7 +12,16 @@ import stat
 from typing import Mapping
 import xml.etree.ElementTree as ET
 
-from .manifest import bundle_file_hashes, canonical_hash, canonical_json_bytes, iter_tree_files, tree_hash
+from .manifest import (
+    bundle_file_hashes,
+    canonical_hash,
+    canonical_json_bytes,
+    content_version,
+    iter_tree_files,
+    project_hashes_from_files,
+    require_no_symlink_path,
+    tree_hash,
+)
 from .models import (
     GRAPH_EDGE_KINDS,
     GRAPH_NODE_KINDS,
@@ -130,28 +139,18 @@ def build_candidate_bundle(context: BundleContext, staging_dir: Path) -> BundleM
     _write_json(staging_dir / "search-index.json", search_index, context.privacy_gate)
 
     files = bundle_file_hashes(staging_dir)
-    project_hashes = {
-        project_id: canonical_hash(
-            {
-                path: digest
-                for path, digest in files.items()
-                if path.startswith(f"projects/{project_id}/")
-            }
-        )
-        for project_id in project_ids
-    }
-    version = canonical_hash(
-        {
-            "files": files,
-            "projects": project_hashes,
-            "sources": dict(sorted(context.source_hashes.items())),
-        }
+    project_hashes = project_hashes_from_files(project_ids, files)
+    changed_projects = _changed_hash_ids(
+        context.previous_manifest.project_hashes if context.previous_manifest is not None else {},
+        project_hashes,
     )
+    version = content_version(files, project_hashes)
     manifest = BundleManifest(
         version=version,
         projects=project_ids,
         files=files,
         project_hashes=project_hashes,
+        changed_projects=changed_projects,
     )
     manifest_payload = manifest.to_dict()
     validate_schema(manifest_payload, "public-manifest")
@@ -167,6 +166,8 @@ def promote_bundle(staging_dir: Path, public_dir: Path, gate: PrivacyGate) -> Pr
     """Validate a candidate completely, then promote it with rename rollback."""
     staging_dir = Path(staging_dir)
     public_dir = Path(public_dir)
+    require_no_symlink_path(staging_dir)
+    require_no_symlink_path(public_dir)
     candidate = _load_text_tree(staging_dir)
     gate.require_safe(_privacy_tree(candidate))
     candidate_manifest = _validate_bundle(staging_dir, candidate)
@@ -180,8 +181,13 @@ def promote_bundle(staging_dir: Path, public_dir: Path, gate: PrivacyGate) -> Pr
     _require_same_filesystem(staging_dir, public_dir.parent)
     changed_projects = _changed_project_ids(staging_dir, public_dir, candidate_manifest)
     backup = public_dir.parent / ".public-bundle.previous"
+    recovery = public_dir.parent / ".public-bundle.recovery"
+    require_no_symlink_path(backup)
+    require_no_symlink_path(recovery)
     if backup.exists() or backup.is_symlink():
         raise FileExistsError(f"stale backup requires recovery: {backup}")
+    if recovery.exists() or recovery.is_symlink():
+        raise FileExistsError(f"stale recovery tree requires cleanup: {recovery}")
 
     if not public_dir.exists():
         _rename(staging_dir, public_dir)
@@ -190,12 +196,12 @@ def promote_bundle(staging_dir: Path, public_dir: Path, gate: PrivacyGate) -> Pr
     _rename(public_dir, backup)
     try:
         _rename(staging_dir, public_dir)
-    except BaseException:
-        _restore_backup(backup, public_dir)
+    except (OSError, ValueError):
+        _restore_backup(backup, public_dir, recovery, gate, previous_hash)
         raise
     try:
-        shutil.rmtree(backup)
-    except OSError:
+        _cleanup_tree(backup)
+    except (OSError, ValueError):
         # The promoted public tree is already complete. A retained backup is
         # detected and refused deterministically on the next promotion.
         pass
@@ -204,6 +210,7 @@ def promote_bundle(staging_dir: Path, public_dir: Path, gate: PrivacyGate) -> Pr
 
 def _prepare_staging(staging_dir: Path) -> None:
     absolute = staging_dir.absolute()
+    require_no_symlink_path(absolute)
     resolved = staging_dir.resolve(strict=False)
     protected = {
         Path("/").resolve(),
@@ -213,7 +220,6 @@ def _prepare_staging(staging_dir: Path) -> None:
     }
     if resolved in protected:
         raise ValueError(f"unsafe staging root: {staging_dir}")
-    _reject_symlink_components(absolute.parent)
     if staging_dir.exists() or staging_dir.is_symlink():
         mode = staging_dir.lstat().st_mode
         if stat.S_ISLNK(mode):
@@ -248,6 +254,8 @@ def _validate_context(
     for key, digest in context.source_hashes.items():
         if not isinstance(key, str) or not key or not isinstance(digest, str) or _SHA256.fullmatch(digest) is None:
             raise ValueError("source_hashes must map non-empty strings to SHA-256 hashes")
+    if context.previous_manifest is not None:
+        _validate_previous_manifest(context.previous_manifest)
 
 
 def _render_markdown(title: str, entries: tuple[str, ...]) -> str | None:
@@ -420,13 +428,7 @@ def _validate_bundle(root: Path, tree: Mapping[str, str]) -> BundleManifest:
     for project_id in projects:
         _require_project_id(project_id)
 
-    allowed_files = set(_MANDATORY_FILES)
-    required_files = set(_MANDATORY_FILES)
-    for project_id in projects:
-        project_path = f"projects/{project_id}/project.json"
-        required_files.add(project_path)
-        allowed_files.add(project_path)
-        allowed_files.update(f"projects/{project_id}/{path}" for path in _OPTIONAL_PROJECT_FILES)
+    required_files, allowed_files = _public_file_sets(projects, include_manifest=True)
     actual_files = set(tree)
     missing = sorted(required_files - actual_files)
     if missing:
@@ -474,12 +476,76 @@ def _validate_bundle(root: Path, tree: Mapping[str, str]) -> BundleManifest:
     _validate_topics(_parse_json(tree, "topics.json"), project_set)
     _validate_changelog(_parse_json(tree, "changelog.json"), project_set)
     _validate_search_index(_parse_json(tree, "search-index.json"), project_set)
+    expected_version = content_version(actual_hashes, project_hashes)
+    if manifest_payload["version"] != expected_version:
+        raise ValueError("manifest version is not content-derived from staged public bytes")
     return BundleManifest(
         version=manifest_payload["version"],
         projects=projects,
         files=expected_hashes,
         project_hashes=project_hashes,
     )
+
+
+def _validate_previous_manifest(manifest: BundleManifest) -> None:
+    try:
+        validate_schema(manifest.to_dict(), "public-manifest")
+        if manifest.projects != tuple(sorted(manifest.projects)):
+            raise ValueError("projects are not sorted")
+        for project_id in manifest.projects:
+            _require_project_id(project_id)
+        if set(manifest.project_hashes) != set(manifest.projects):
+            raise ValueError("project hash keys do not match projects")
+        for path, digest in manifest.files.items():
+            if not _safe_relative_path(path) or path == "manifest.json":
+                raise ValueError("file path is not a safe bundle-relative path")
+            if _SHA256.fullmatch(digest) is None:
+                raise ValueError("file hash is not SHA-256")
+        if manifest.projects or manifest.files or manifest.project_hashes:
+            required_files, allowed_files = _public_file_sets(manifest.projects, include_manifest=False)
+            if not set(manifest.files).issubset(allowed_files):
+                raise ValueError("file hashes contain an unexpected public path")
+            if not required_files.issubset(manifest.files):
+                raise ValueError("file hashes omit a required public path")
+        expected_project_hashes = project_hashes_from_files(manifest.projects, manifest.files)
+        for project_id in manifest.projects:
+            if f"projects/{project_id}/project.json" not in manifest.files:
+                raise ValueError("project file hash is missing")
+            if manifest.project_hashes[project_id] != expected_project_hashes[project_id]:
+                raise ValueError("project hash does not match file hashes")
+        if manifest.version != content_version(manifest.files, manifest.project_hashes):
+            raise ValueError("version does not match manifest hashes")
+    except (TypeError, ValueError) as error:
+        raise ValueError("previous manifest is inconsistent or stale") from error
+
+
+def _changed_hash_ids(
+    previous: Mapping[str, str],
+    current: Mapping[str, str],
+) -> tuple[str, ...]:
+    return tuple(
+        project_id
+        for project_id in sorted(set(previous) | set(current))
+        if previous.get(project_id) != current.get(project_id)
+    )
+
+
+def _public_file_sets(
+    projects: tuple[str, ...],
+    *,
+    include_manifest: bool,
+) -> tuple[set[str], set[str]]:
+    required = set(_MANDATORY_FILES)
+    allowed = set(_MANDATORY_FILES)
+    if not include_manifest:
+        required.remove("manifest.json")
+        allowed.remove("manifest.json")
+    for project_id in projects:
+        project_path = f"projects/{project_id}/project.json"
+        required.add(project_path)
+        allowed.add(project_path)
+        allowed.update(f"projects/{project_id}/{path}" for path in _OPTIONAL_PROJECT_FILES)
+    return required, allowed
 
 
 def _validate_exact_directories(root: Path) -> None:
@@ -670,21 +736,12 @@ def _changed_project_ids(
 
 
 def _require_safe_destination(public_dir: Path) -> None:
-    _reject_symlink_components(public_dir.absolute().parent)
+    require_no_symlink_path(public_dir)
     if public_dir.is_symlink():
         raise ValueError(f"public bundle root is a symlink: {public_dir}")
     if public_dir.exists() and not public_dir.is_dir():
         raise ValueError(f"public bundle root is not a directory: {public_dir}")
     public_dir.parent.mkdir(parents=True, exist_ok=True)
-
-
-def _reject_symlink_components(path: Path) -> None:
-    current = Path(path.anchor) if path.is_absolute() else Path()
-    for part in path.parts[1:] if path.is_absolute() else path.parts:
-        current /= part
-        if current.exists() or current.is_symlink():
-            if stat.S_ISLNK(current.lstat().st_mode):
-                raise ValueError(f"unsafe symlink path component: {current}")
 
 
 def _require_same_filesystem(staging_dir: Path, destination_parent: Path) -> None:
@@ -693,18 +750,68 @@ def _require_same_filesystem(staging_dir: Path, destination_parent: Path) -> Non
         raise OSError("bundle promotion requires staging and public directory on the same filesystem")
 
 
-def _restore_backup(backup: Path, public_dir: Path) -> None:
+def _restore_backup(
+    backup: Path,
+    public_dir: Path,
+    recovery: Path,
+    gate: PrivacyGate,
+    last_good_hash: str | None,
+) -> None:
     try:
         _rename(backup, public_dir)
-    except BaseException as rename_error:
-        try:
-            if public_dir.exists():
-                shutil.rmtree(public_dir)
-            shutil.copytree(backup, public_dir)
-        except BaseException as copy_error:
-            raise RuntimeError("failed to restore prior public bundle") from copy_error
-        raise RuntimeError("restored prior public bundle after rename rollback failure") from rename_error
+        return
+    except (OSError, ValueError):
+        pass
+
+    try:
+        _copytree(backup, recovery)
+    except (OSError, ValueError) as copy_error:
+        _best_effort_cleanup(recovery)
+        raise RuntimeError("recovery copy failed; intact backup retained") from copy_error
+
+    try:
+        recovery_tree = _load_text_tree(recovery)
+        gate.require_safe(_privacy_tree(recovery_tree))
+        _validate_bundle(recovery, recovery_tree)
+        if last_good_hash is None or tree_hash(recovery) != last_good_hash:
+            raise ValueError("recovery tree does not match last-good bytes")
+    except (OSError, ValueError) as validation_error:
+        _best_effort_cleanup(recovery)
+        raise RuntimeError("recovery validation failed; intact backup retained") from validation_error
+
+    try:
+        _rename(recovery, public_dir)
+    except (OSError, ValueError) as rename_error:
+        _best_effort_cleanup(recovery)
+        raise RuntimeError("recovery rename failed; intact backup retained") from rename_error
+
+    try:
+        _cleanup_tree(backup)
+    except (OSError, ValueError):
+        pass
+
+
+def _copytree(source: Path, target: Path) -> None:
+    require_no_symlink_path(source)
+    require_no_symlink_path(target)
+    shutil.copytree(source, target, symlinks=True)
+
+
+def _cleanup_tree(path: Path) -> None:
+    require_no_symlink_path(path)
+    shutil.rmtree(path)
+
+
+def _best_effort_cleanup(path: Path) -> None:
+    if not path.exists() and not path.is_symlink():
+        return
+    try:
+        _cleanup_tree(path)
+    except (OSError, ValueError):
+        pass
 
 
 def _rename(source: Path, target: Path) -> None:
+    require_no_symlink_path(source)
+    require_no_symlink_path(target)
     os.replace(source, target)

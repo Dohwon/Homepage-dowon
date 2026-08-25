@@ -7,7 +7,7 @@ import json
 import os
 from pathlib import Path
 import stat
-from typing import Iterator
+from typing import Iterator, Mapping
 
 
 def canonical_json_bytes(value: object) -> bytes:
@@ -32,6 +32,35 @@ def canonical_hash(value: object) -> str:
         allow_nan=False,
     ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def project_hashes_from_files(
+    projects: tuple[str, ...],
+    files: Mapping[str, str],
+) -> dict[str, str]:
+    return {
+        project_id: canonical_hash(
+            {
+                path: digest
+                for path, digest in files.items()
+                if path.startswith(f"projects/{project_id}/")
+            }
+        )
+        for project_id in projects
+    }
+
+
+def content_version(
+    files: Mapping[str, str],
+    project_hashes: Mapping[str, str],
+) -> str:
+    """Derive a recomputable version only from staged public content hashes."""
+    return canonical_hash(
+        {
+            "files": dict(sorted(files.items())),
+            "projects": dict(sorted(project_hashes.items())),
+        }
+    )
 
 
 def bundle_file_hashes(root: Path) -> dict[str, str]:
@@ -59,8 +88,25 @@ def tree_hash(root: Path) -> str:
 
 def iter_tree_files(root: Path) -> Iterator[tuple[str, Path]]:
     root = Path(root)
+    require_no_symlink_path(root)
     _require_real_directory(root)
     yield from _walk(root, root)
+
+
+def require_no_symlink_path(path: Path) -> None:
+    """Reject symlinks in every existing component without resolving them."""
+    absolute = Path(os.path.abspath(os.fspath(path)))
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        current /= part
+        try:
+            mode = os.lstat(current).st_mode
+        except FileNotFoundError:
+            break
+        if stat.S_ISLNK(mode):
+            raise ValueError(f"unsafe symlink path component: {current}")
+        if current != absolute and not stat.S_ISDIR(mode):
+            raise ValueError(f"unsafe non-directory path component: {current}")
 
 
 def _walk(root: Path, directory: Path) -> Iterator[tuple[str, Path]]:

@@ -209,6 +209,7 @@ class BundleManifest:
     projects: tuple[str, ...]
     files: dict[str, str] = field(default_factory=dict)
     project_hashes: dict[str, str] = field(default_factory=dict)
+    changed_projects: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         """Serialize only the schema-defined public manifest fields."""

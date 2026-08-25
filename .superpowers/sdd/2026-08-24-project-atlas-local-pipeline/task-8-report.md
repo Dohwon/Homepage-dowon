@@ -35,3 +35,36 @@ Tests cover first publish, added/changed/removed project reporting, deterministi
 ## Commit
 
 `feat: build atomic public atlas bundles`
+
+## Fix Round 1
+
+### Status
+
+Resolved all three Critical and both Important review findings. The implementation and tests used only `tmp_path`; the real `public-bundle/` was not read or written.
+
+### TDD Evidence
+
+- Privacy RED: eight newly required POSIX/Windows/UNC forms passed through the narrow detector; builder and promotion coverage now blocks all listed families without leaking values in errors.
+- Ancestor-symlink RED: promotion followed a symlinked staging parent and the public no-op path hashed through a symlinked ancestor; both paths now fail before reads or hashes.
+- Rollback RED: injected recovery-copy, recovery-rename, and cleanup failures exposed incomplete recovery handling. Recovery now copies only to a same-parent temp, validates and hashes it, atomically renames it, and retains the original backup until success.
+- Incremental/version RED: `previous_manifest` had no effect and arbitrary manifest versions promoted. Local changed-project metadata and one recomputable public-content version function now cover both build and promotion.
+- Self-review RED: a rename precondition `ValueError` skipped rollback, and an internally rehashed prior manifest with an impossible public file was accepted. Both cases now have regression tests.
+- Focused GREEN: `.venv/bin/python -m pytest tests/worker/test_bundle.py tests/worker/test_privacy.py -q` passed `90` with `1` Linux platform-conditional skip.
+- Full suite, run once after code freeze: `.venv/bin/python -m pytest -v` passed `218` with `1` Linux platform-conditional skip.
+
+### Delivered Fixes
+
+- Absolute-path privacy detection covers root and arbitrary POSIX paths, delimiter-adjacent paths, all drive-rooted Windows paths, and UNC paths while excluding ordinary HTTP(S) URLs and exact public project routes. Findings expose only category and JSON pointer.
+- Existing components of staging, public, backup, and recovery paths are checked with `lstat` before tree reads, hashes, no-op decisions, copies, cleanup, and atomic renames. Tree walks reject every symlink without following it.
+- Promotion preserves either a complete live tree or the intact last-good backup at every injected rename/copy/cleanup failure. It never copies directly into the live name while backup is the only valid tree.
+- `BundleManifest.changed_projects` is local-only. A validated prior baseline produces deterministic added, modified, removed, or unchanged results; stale hashes, versions, IDs, missing files, and unexpected paths are rejected explicitly.
+- `content_version()` uses only validated public file hashes and derived project subtree hashes. Builder and promotion share the calculation; `manifest.json` remains excluded from `files`. This supersedes the earlier report statement that source hashes affect the version.
+
+### Self-Review
+
+Verified exact public serialization and layout, no-follow operation ordering, rollback state invariants, prior-manifest consistency checks, content-version recomputation, stable ordering/newlines, and absence of direct live recovery copies. `git diff --check` and Python bytecode compilation passed before the full suite.
+
+### Concerns
+
+- A stale `.public-bundle.previous` or `.public-bundle.recovery` remains an explicit operator recovery condition and blocks changed promotion deterministically.
+- Cross-filesystem promotion remains intentionally rejected before public state changes.

@@ -21,6 +21,56 @@ def test_public_bundle_rejects_local_paths_and_secrets():
     assert {finding.category for finding in report.findings} == {"absolute_path", "secret"}
 
 
+@pytest.mark.parametrize(
+    "local_path",
+    (
+        "/",
+        "/tmp/atlas-private",
+        "/root/atlas-private",
+        "/Users/private/atlas",
+        "root:/home/dowon/private",
+        r"D:\atlas\private",
+        "E:/atlas/private",
+        r"\\server\share\atlas",
+        "//server/share/atlas",
+    ),
+)
+def test_absolute_local_path_families_are_blocked_without_value_leak(local_path):
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    report = gate.scan({"summary": local_path})
+
+    assert [(finding.category, finding.json_pointer) for finding in report.findings] == [
+        ("absolute_path", "/summary")
+    ]
+    with pytest.raises(PrivacyViolation) as error:
+        gate.require_safe({"summary": local_path})
+    assert "absolute_path" in str(error.value)
+    assert local_path not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "url",
+    (
+        "https://example.com/private/path",
+        "http://localhost:8080/projects/alpha",
+        "See https://example.com/a/b?next=/projects/alpha for details",
+    ),
+)
+def test_http_urls_are_not_classified_as_local_paths(url):
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    assert "absolute_path" not in {finding.category for finding in gate.scan(url).findings}
+
+
+def test_http_url_does_not_mask_a_later_local_path():
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    report = gate.scan("See https://example.com/public then /tmp/private")
+
+    assert {finding.category for finding in report.findings} == {"absolute_path"}
+
+
 def test_alias_is_deterministic_and_does_not_embed_source():
     first = hmac_alias("Private Client", b"local-key", "CLIENT")
     second = hmac_alias("Private Client", b"local-key", "CLIENT")

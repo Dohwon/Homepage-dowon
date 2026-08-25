@@ -13,7 +13,11 @@ SECRET_PATTERNS = {
     "openai_key": re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b"),
     "private_key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
 }
-ABSOLUTE_PATH = re.compile(r"(?:/home/[^/\s]+|[A-Za-z]:\\Users\\[^\\\s]+)")
+HTTP_URL = re.compile(r"https?://[^\s<>\"']+", re.I)
+PUBLIC_PROJECT_ROUTE = re.compile(r"/projects/[A-Za-z0-9._~!$&'()*+,;=:@%-]+(?:[?#][^\s<>\"']*)?")
+POSIX_ABSOLUTE_PATH = re.compile(r"(?<![A-Za-z0-9_</\\])/(?![/>#])(?:[^\s<>\"']*)?")
+WINDOWS_DRIVE_PATH = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:[\\/]")
+UNC_PATH = re.compile(r"(?<![A-Za-z0-9])(?:\\\\|//)[^\\/\s]+[\\/][^\\/\s]+")
 EMAIL = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)
 PHONE = re.compile(r"(?<!\d)(?:\+?82[- ]?)?0?1[016789][- ]?\d{3,4}[- ]?\d{4}(?!\d)")
 PRIVATE_IP = re.compile(
@@ -140,7 +144,7 @@ def _matching_categories(value: str) -> tuple[str, ...]:
     categories: list[str] = []
     if any(pattern.search(value) for pattern in SECRET_PATTERNS.values()):
         categories.append("secret")
-    if ABSOLUTE_PATH.search(value):
+    if _contains_absolute_path(value):
         categories.append("absolute_path")
     if EMAIL.search(value):
         categories.append("email")
@@ -153,6 +157,16 @@ def _matching_categories(value: str) -> tuple[str, ...]:
     if SOURCE_MAP.search(value):
         categories.append("source_map")
     return tuple(categories)
+
+
+def _contains_absolute_path(value: str) -> bool:
+    if PUBLIC_PROJECT_ROUTE.fullmatch(value):
+        return False
+    without_urls = HTTP_URL.sub("", value)
+    return any(
+        pattern.search(without_urls)
+        for pattern in (WINDOWS_DRIVE_PATH, UNC_PATH, POSIX_ABSOLUTE_PATH)
+    )
 
 
 def _validate_alias_key(key: bytes) -> bytes:
