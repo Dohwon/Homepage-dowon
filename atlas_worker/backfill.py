@@ -256,12 +256,13 @@ def _claim_from_pending(
 def _claim_from_metadata(
     evidence: _PendingEvidence, claim_type: str, confidence: float, value: str
 ) -> EvidenceClaim:
+    evidence_id = _evidence_id(evidence, claim_type)
     return EvidenceClaim(
-        field="history",
+        field=f"history:{evidence_id}",
         value=value,
         source_class="session",
         confidence=confidence,
-        evidence_id=_evidence_id(evidence, claim_type),
+        evidence_id=evidence_id,
         claim_type=claim_type,
         event_date=evidence.timestamp,
         source_path=evidence.source_path,

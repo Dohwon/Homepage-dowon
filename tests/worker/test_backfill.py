@@ -64,6 +64,7 @@ def test_evidence_id_is_deterministic_metadata_hash_not_raw_text():
 
     assert first_claim.evidence_id == second_claim.evidence_id
     assert len(first_claim.evidence_id) == 64
+    assert first_claim.field == f"history:{first_claim.evidence_id}"
 
 
 def test_same_session_assistant_pass_and_committed_architecture_choice_reach_auto_merge_threshold():

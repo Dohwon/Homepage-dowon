@@ -20,13 +20,19 @@ _TARGETS = {
 _EVENT_ID = r"[A-Za-z0-9][A-Za-z0-9._-]*"
 _START_MARKER = re.compile(rf"<!-- atlas:event:({_EVENT_ID}) -->$")
 _END_MARKER = re.compile(rf"<!-- /atlas:event:({_EVENT_ID}) -->$")
-_SECTION_HEADING = re.compile(r"^## ([^\r\n]+)\s*$", re.MULTILINE)
+_HEADING = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*$")
+_FENCE_OPEN = re.compile(r"^\s*(`{3,}|~{3,}).*$")
 
 
 @dataclass(frozen=True)
 class _ManagedBlock:
     event_id: str
     start_line: int
+    end_line: int
+
+
+@dataclass(frozen=True)
+class _SectionBounds:
     end_line: int
 
 
@@ -74,7 +80,7 @@ def _selected_events(knowledge: ProjectKnowledge) -> tuple[_MemoryEvent, ...]:
     selected: list[_MemoryEvent] = []
     for claim in knowledge.winners.values():
         target = _TARGETS.get(claim.claim_type)
-        if target is None or claim.confidence < _MINIMUM_CONFIDENCE:
+        if target is None or (claim.confidence < _MINIMUM_CONFIDENCE and not claim.selected):
             continue
         selected.append(_event_from_claim(claim, *target))
 
@@ -111,6 +117,7 @@ def _updated_content(existing: str, events: list[_MemoryEvent]) -> str:
     by_id = {block.event_id: block for block in blocks}
     replacements = {event.event_id: managed_event_block(event) for event in events if event.event_id in by_id}
     updated = _replace_blocks(existing, blocks, replacements)
+    section_bounds = _target_section_bounds(updated, events[0].section)
 
     additions = [event for event in sorted(events, key=_event_sort_key) if event.event_id not in by_id]
     if not additions:
@@ -119,13 +126,10 @@ def _updated_content(existing: str, events: list[_MemoryEvent]) -> str:
     section = events[0].section
     if not updated:
         return f"## {section}\n\n" + "\n".join(managed_event_block(event) for event in additions)
-
-    suffix = ""
-    if not _has_section_heading(updated, section):
-        suffix += _separator(updated) + f"## {section}\n\n"
-    else:
-        suffix += _separator(updated)
-    return updated + suffix + "\n".join(managed_event_block(event) for event in additions)
+    rendered = "\n".join(managed_event_block(event) for event in additions)
+    if section_bounds is None:
+        return updated + _separator(updated) + f"## {section}\n\n" + rendered
+    return _insert_before_section_end(updated, section_bounds.end_line, rendered)
 
 
 def managed_event_block(event: _MemoryEvent) -> str:
@@ -184,8 +188,49 @@ def _replace_blocks(
     return "".join(output)
 
 
-def _has_section_heading(content: str, section: str) -> bool:
-    return any(match.group(1).strip().casefold() == section.casefold() for match in _SECTION_HEADING.finditer(content))
+def _target_section_bounds(content: str, section: str) -> _SectionBounds | None:
+    headings = _markdown_headings(content)
+    targets = [index for index, level, title in headings if level == 2 and title.casefold() == section.casefold()]
+    if len(targets) > 1:
+        raise ValueError("duplicate target headings")
+    if not targets:
+        return None
+    target = targets[0]
+    end_line = len(content.splitlines(keepends=True))
+    for index, level, _ in headings:
+        if index > target and level <= 2:
+            end_line = index
+            break
+    return _SectionBounds(end_line=end_line)
+
+
+def _markdown_headings(content: str) -> tuple[tuple[int, int, str], ...]:
+    headings: list[tuple[int, int, str]] = []
+    fence: str | None = None
+    for index, line in enumerate(content.splitlines(keepends=True)):
+        raw = line.rstrip("\r\n")
+        if fence is not None:
+            if re.match(rf"^\s*{re.escape(fence[0])}{{{len(fence)},}}\s*$", raw):
+                fence = None
+            continue
+        opened = _FENCE_OPEN.match(raw)
+        if opened:
+            fence = opened.group(1)
+            continue
+        heading = _HEADING.match(raw)
+        if heading:
+            headings.append((index, len(heading.group(1)), heading.group(2).strip()))
+    if fence is not None:
+        raise ValueError("unsafe Markdown structure")
+    return tuple(headings)
+
+
+def _insert_before_section_end(content: str, end_line: int, addition: str) -> str:
+    lines = content.splitlines(keepends=True)
+    before = "".join(lines[:end_line])
+    after = "".join(lines[end_line:])
+    after_separator = "" if not after or after.startswith(("\n", "\r")) else "\n"
+    return before + _separator(before) + addition + after_separator + after
 
 
 def _separator(content: str) -> str:

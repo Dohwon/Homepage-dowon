@@ -75,6 +75,7 @@ def make_decision_knowledge(
     value: str = "Use typed contracts for project memory",
     evidence_id: str = "decision-001",
     confidence: float = 0.90,
+    selected: bool = False,
 ) -> ProjectKnowledge:
     claim = EvidenceClaim(
         field="history",
@@ -84,6 +85,7 @@ def make_decision_knowledge(
         evidence_id=evidence_id,
         claim_type="decision",
         event_date="2026-08-24",
+        selected=selected,
     )
     return ProjectKnowledge(values={"history": value}, winners={"history": claim})
 

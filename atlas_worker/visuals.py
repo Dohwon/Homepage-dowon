@@ -16,9 +16,10 @@ _STAGE_LABELS = {
     "decision": "Decision",
     "result": "Result",
 }
-_POSIX_PATH = re.compile(r"(?<![\w:])/(?:[^\s<>\"']+)")
-_WINDOWS_PATH = re.compile(r"(?<![\w])[A-Za-z]:[\\/](?:[^\s<>\"']+)")
-_UNC_PATH = re.compile(r"\\\\[^\s<>\"']+")
+_LOCAL_OR_URL = re.compile(
+    r"https?://[^\s<>\"']+|[A-Za-z]:[\\/][^\s<>\"']*|\\\\[^\s<>\"']+|/[^\s<>\"']*",
+    re.I,
+)
 _ACTIVE_ATTRIBUTE = re.compile(r"\b(?:href|src|on[a-z]+)\s*=", re.I)
 _NODE_X = (24, 256, 488, 720, 952)
 
@@ -137,10 +138,13 @@ def _truncate_word(word: str, max_chars: int) -> str:
 
 
 def _safe_text(value: str) -> str:
-    text = _POSIX_PATH.sub("[local path]", str(value))
-    text = _WINDOWS_PATH.sub("[local path]", text)
-    text = _UNC_PATH.sub("[local path]", text)
+    text = _LOCAL_OR_URL.sub(_redact_local_path, str(value))
     return _ACTIVE_ATTRIBUTE.sub("attribute ", text)
+
+
+def _redact_local_path(match: re.Match[str]) -> str:
+    value = match.group(0)
+    return value if value.casefold().startswith(("http://", "https://")) else "[local path]"
 
 
 def _escape(value: str) -> str:
