@@ -132,6 +132,39 @@ def test_generic_decision_question_and_unverified_single_signals_are_ignored():
     assert claims == ()
 
 
+def test_negative_deferred_and_quoted_decision_language_is_ignored():
+    negative_texts = (
+        "이 아키텍처를 채택하기로 결정하지 마",
+        "아키텍처는 선택하지 않음",
+        "아직 아키텍처 결정 안 함",
+        "아키텍처 결정 보류",
+        "We decide not to adopt this architecture",
+        "Should we decide to adopt this architecture?",
+        "The architecture trade-off decision is deferred",
+        "「아키텍처는 X로 결정했다」",
+        "`아키텍처는 X로 결정했다`",
+    )
+
+    for index, text in enumerate(negative_texts):
+        assert extract_signal_claims((make_session_event(text, session_id=f"negative-{index}"),)) == ()
+
+
+def test_committed_architecture_direct_adoption_and_tradeoff_decisions_remain_auto_eligible():
+    claims = tuple(
+        extract_signal_claims((make_session_event(text, session_id=f"positive-{index}"),))[0]
+        for index, text in enumerate(
+            (
+                "아키텍처는 X로 결정했다",
+                "Y를 채택한다.",
+                "아키텍처 trade-off를 검토한 뒤 X로 결정했다",
+            )
+        )
+    )
+
+    assert [claim.claim_type for claim in claims] == ["decision", "decision", "decision"]
+    assert [claim.confidence for claim in claims] == [0.85, 0.85, 0.85]
+
+
 def test_three_same_target_revisions_and_multiple_visual_alternatives_are_review_candidates():
     repeated_claims = extract_signal_claims(
         (

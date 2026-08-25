@@ -28,15 +28,27 @@ SIGNAL_RULES = {
         re.I,
     ),
     "failure": re.compile(r"테스트 실패|회귀|오류|깨졌|실패 원인", re.I),
-    "decision": re.compile(r"결정|채택|선택|trade-?off|대안", re.I),
+    "decision": re.compile(r"결정|채택|선택|trade-?off|대안|\b(?:decide|decision|adopt|select)\b", re.I),
 }
 
 _PASS_RULE = re.compile(r"테스트 (?:통과|성공)|\btests? (?:pass|passed)|\bpassed\b", re.I)
 _CORRECTION_COMPLETE_RULE = re.compile(r"(?:수정|변경|적용).{0,20}(?:완료|반영)|\b(?:fixed|implemented)\b", re.I)
-_COMMITTED_DECISION_RULE = re.compile(r"채택(?:하기로|했다|함)|결정(?:하기로|했다|함)|선택(?:하기로|했다|함)|\b(?:adopted|decided)\b", re.I)
+_COMMITTED_DECISION_RULE = re.compile(
+    r"채택(?:하기로|했다|함|한다)|결정(?:하기로|했다|함|한다)|선택(?:하기로|했다|함|한다)|\b(?:adopt(?:ed|s)?|decide(?:d|s)?|select(?:ed|s)?)\b",
+    re.I,
+)
 _ARCHITECTURE_CONTEXT_RULE = re.compile(r"아키텍처|architecture|시스템\s*구조|system\s*design|설계\s*구조", re.I)
-_QUESTION_OR_NEGATION_RULE = re.compile(r"[?？]|할까|인가|않|아니|말(?:자|아|아야)|\b(?:not|don't|do not)\b", re.I)
-_QUOTED_TEXT_RULE = re.compile(r"[\"'“”‘’]")
+_DIRECT_ADOPTION_RULE = re.compile(r"(?:^|\s)\S+(?:을|를)\s+채택한다(?=\s|[.!]|$)")
+_NON_COMMITTED_DECISION_RULE = re.compile(
+    r"[?？]|할까|인가|(?:결정|선택|채택)\s*(?:하)?지\s*(?:마|말|않(?:음|는다|았다)?|못)"
+    r"|(?:결정|선택|채택)\s*(?:안|않|못)\s*(?:함|됨|있음)?|(?:결정|선택|채택)\s*보류"
+    r"|\b(?:do\s+not|don't|not|never)\b.*\b(?:decide|decision|select|adopt)\b"
+    r"|\b(?:decide|decision|select|adopt)\b.*\b(?:not|defer(?:red|ring)?|postpone(?:d|ment)?)\b"
+    r"|\b(?:defer(?:red|ring)?|postpone(?:d|ment)?)\b.*\b(?:decision|decide|select|adopt)\b"
+    r"|\b(?:should|can|could|would)\b.*\b(?:decide|decision|select|adopt)\b",
+    re.I,
+)
+_QUOTED_TEXT_RULE = re.compile(r"[\"'`“”‘’「」『』]")
 _MULTIPLE_VISUAL_RULE = re.compile(r"(?:두|세|2|3|여러|multiple)\s*(?:개\s*)?(?:시안|visual alternatives?|design alternatives?)", re.I)
 _TARGET_RULE = re.compile(
     r"(?<![\w/.-])((?:[\w.-]+/)*[\w.-]+\.(?:py|pyi|js|jsx|ts|tsx|css|html|json|yaml|yml|md))\b",
@@ -189,9 +201,9 @@ def _record_revision(claims: list[EvidenceClaim], state: _ContextState, event: S
 
 def _is_committed_architecture_decision(text: str) -> bool:
     return bool(
-        _ARCHITECTURE_CONTEXT_RULE.search(text)
-        and _COMMITTED_DECISION_RULE.search(text)
-        and not _QUESTION_OR_NEGATION_RULE.search(text)
+        _COMMITTED_DECISION_RULE.search(text)
+        and (_ARCHITECTURE_CONTEXT_RULE.search(text) or _DIRECT_ADOPTION_RULE.search(text))
+        and not _NON_COMMITTED_DECISION_RULE.search(text)
         and not _QUOTED_TEXT_RULE.search(text)
     )
 

@@ -48,3 +48,25 @@ Session text remains only inside transient `SessionEvent` values while extractio
 ### Self-Review
 
 - Confirmed no `tuple(events)` or raw-text field occurs in pending state, no filesystem path resolution is used by evidence normalization, and qualification is scoped by session plus normalized cwd before automatic confidence is emitted.
+
+## Fix Round 2
+
+### RED
+
+- The focused suite reproduced the unresolved polarity defect: `"이 아키텍처를 채택하기로 결정하지 마"` emitted an auto-eligible decision, while direct declarative adoption was not recognized.
+- A follow-up RED check established that direct adoption with terminal punctuation (`"Y를 채택한다."`) was excluded by the prior boundary regex.
+
+### GREEN
+
+- Decision candidate recognition now includes English decision/adoption/selection equivalents, but auto-eligibility requires commitment plus architecture context or a direct Korean adoption declaration.
+- A dedicated non-commitment guard rejects Korean imperative/negative/deferred forms (`결정하지 마`, `선택하지 않음`, `아직 결정 안 함`, `보류`), equivalent English negative/question/defer forms, and straight, curly, CJK, and backtick quotes.
+- Positive regressions retain exactly `0.85` for `아키텍처는 X로 결정했다`, punctuated `Y를 채택한다.`, and a committed architecture trade-off decision.
+
+### Verification
+
+- Focused suite: `.venv/bin/python -m pytest tests/worker/test_sessions.py tests/worker/test_backfill.py -v` passed `21/21`.
+- Full suite: `.venv/bin/python -m pytest -v` passed `70/70` with one existing Linux platform-conditional Windows case-semantics skip.
+
+### Self-Review
+
+- Reviewed commitment, direct-adoption, non-commitment, and quote guards together. Negative/deferred/question/quoted text is rejected before a decision claim is emitted; only declarative commitments remain eligible.
