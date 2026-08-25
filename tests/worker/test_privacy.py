@@ -5,7 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from atlas_worker.privacy import PrivacyGate, PrivacyViolation, hmac_alias
+from atlas_worker.privacy import (
+    PrivacyGate,
+    PrivacyViolation,
+    _contains_denied_source_part,
+    hmac_alias,
+)
 
 
 def test_public_bundle_rejects_local_paths_and_secrets():
@@ -70,6 +75,15 @@ def test_recursive_scan_checks_mapping_keys_values_and_sequences():
     assert {item.json_pointer for item in report.findings} == {"/metadata", "/items/0/contact", "/items/1/network"}
 
 
+def test_non_string_mapping_keys_still_scan_nested_values():
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+
+    report = gate.scan({7: {"token": "sk-test-secret-value"}})
+
+    assert {item.category for item in report.findings} == {"unsupported_value", "secret"}
+    assert {item.json_pointer for item in report.findings} == {"", "/<non-string-key>/token"}
+
+
 def test_reports_and_exceptions_do_not_leak_matching_content():
     gate = PrivacyGate(alias_key=b"unit-test-key")
     secret = "sk-test-secret-value"
@@ -114,6 +128,32 @@ def test_source_normalization_blocks_dot_segments_mixed_separators_and_symlinks(
         with pytest.raises(PrivacyViolation) as error:
             gate.require_allowed_source(path)
         assert str(path) not in str(error.value)
+
+
+@pytest.mark.parametrize("resolution_error", [OSError("filesystem failure"), RuntimeError("symlink loop")])
+def test_source_resolution_failures_block_without_leaking_path_or_error(tmp_path, monkeypatch, resolution_error):
+    gate = PrivacyGate(alias_key=b"unit-test-key")
+    source_path = tmp_path / "private-source"
+
+    def fail_resolve(self, strict=False):
+        raise resolution_error
+
+    monkeypatch.setattr(type(source_path), "resolve", fail_resolve)
+
+    with pytest.raises(PrivacyViolation) as error:
+        gate.require_allowed_source(source_path)
+
+    assert "source_resolution" in str(error.value)
+    assert str(source_path) not in str(error.value)
+    assert str(resolution_error) not in str(error.value)
+
+
+def test_source_normalization_supports_explicit_case_modes():
+    source = ".CODEX/SESSIONS/session.jsonl"
+
+    assert not _contains_denied_source_part(source, case_sensitive=True)
+    assert _contains_denied_source_part(source, case_sensitive=False)
+    assert _contains_denied_source_part("LOGS/raw.log", case_sensitive=False)
 
 
 @pytest.mark.skipif(os.name != "nt", reason="case-sensitive source paths are valid on this platform")

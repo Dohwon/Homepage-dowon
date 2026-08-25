@@ -25,6 +25,7 @@ SAFE_ALIAS_PREFIX = re.compile(r"[A-Z][A-Z0-9_]*")
 
 DENIED_SOURCE_NAMES = {".env", "credentials.json", "auth.json"}
 DENIED_SOURCE_PARTS = {".codex/sessions", "logs", "raw-logs", "private-data"}
+NON_STRING_KEY_POINTER = "<non-string-key>"
 
 
 @dataclass(frozen=True)
@@ -93,6 +94,12 @@ class PrivacyGate:
             for key, nested_value in value.items():
                 if not isinstance(key, str):
                     findings.append(PrivacyFinding("unsupported_value", pointer))
+                    self._scan_value(
+                        nested_value,
+                        _json_pointer_child(pointer, NON_STRING_KEY_POINTER),
+                        findings,
+                        allow_approved_value=True,
+                    )
                     continue
                 sensitive_key = self._scan_text(key, pointer, findings, allow_approved_value=False)
                 child_pointer = pointer if sensitive_key else _json_pointer_child(pointer, key)
@@ -160,14 +167,16 @@ def _is_denied_source(path: Path) -> bool:
     candidates = [str(path)]
     try:
         candidates.append(str(path.resolve(strict=False)))
-    except OSError:
-        pass
+    except (OSError, RuntimeError, ValueError):
+        raise PrivacyViolation("public bundle blocked: source_resolution") from None
     return any(_contains_denied_source_part(candidate) for candidate in candidates)
 
 
-def _contains_denied_source_part(path_text: str) -> bool:
+def _contains_denied_source_part(path_text: str, *, case_sensitive: bool | None = None) -> bool:
     parts = _normalize_source_parts(path_text)
-    if os.name == "nt":
+    if case_sensitive is None:
+        case_sensitive = os.name != "nt"
+    if not case_sensitive:
         parts = tuple(part.casefold() for part in parts)
         denied_names = {name.casefold() for name in DENIED_SOURCE_NAMES}
         denied_parts = tuple(
