@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "lifecycle", "publication", "summary", "tags"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "name": {"type": "string", "minLength": 1},
+    "lifecycle": {"enum": ["active", "finished"]},
+    "publication": {"enum": ["public", "private", "excluded"]},
+    "summary": {"type": "string", "minLength": 1},
+    "tags": {"$ref": "#/$defs/tags"},
+    "aliases": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "outcome": {"type": "string"},
+    "rejected_tags": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "source_files": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "repository_url": {"type": "string", "format": "uri"},
+    "live_url": {"type": "string", "format": "uri"}
+  },
+  "$defs": {
+    "tags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain", "problem", "pattern", "technology", "outcome"],
+      "properties": {
+        "domain": {"$ref": "#/$defs/domain"},
+        "problem": {"$ref": "#/$defs/problem"},
+        "pattern": {"$ref": "#/$defs/pattern"},
+        "technology": {"$ref": "#/$defs/technology"},
+        "outcome": {"$ref": "#/$defs/outcome"}
+      }
+    },
+    "domain": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "maxItems": 2},
+    "problem": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "maxItems": 3},
+    "pattern": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "maxItems": 3},
+    "technology": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 0, "maxItems": 12},
+    "outcome": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "maxItems": 2}
+  }
+}

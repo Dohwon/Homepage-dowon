@@ -9,3 +9,7 @@ manager_memory/
 PROJECT_ANALYSIS.md
 .DS_Store
 .worktrees/
+.venv/
+.atlas-staging/
+.public-bundle.previous/
+__pycache__/
