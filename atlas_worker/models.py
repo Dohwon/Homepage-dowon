@@ -165,11 +165,23 @@ class GraphData:
     edges: tuple[GraphEdge, ...]
 
     def project_neighbors(self, project_id: str) -> tuple[GraphEdge, ...]:
-        return tuple(
+        neighbors = (
             edge
             for edge in self.edges
             if edge.kind == "project-similarity"
             and project_id in (edge.source_id, edge.target_id)
+        )
+        return tuple(
+            sorted(
+                neighbors,
+                key=lambda edge: (
+                    -edge.weight,
+                    _neighbor_id(edge, project_id),
+                    edge.source_id,
+                    edge.target_id,
+                    edge.reasons,
+                ),
+            )[:5]
         )
 
 
@@ -210,15 +222,31 @@ def _schema_error_message(error: ValidationError, instance: object) -> str:
 
 
 def _schema_error_path(error: ValidationError, instance: object) -> str:
-    if error.absolute_path:
-        return ".".join(str(part) for part in error.absolute_path)
-    if error.validator == "additionalProperties" and isinstance(instance, dict):
+    path = [str(part) for part in error.absolute_path]
+    current = _instance_at_path(instance, error.absolute_path)
+    if error.validator == "additionalProperties" and isinstance(current, dict):
         properties = error.schema.get("properties", {})
-        unexpected = sorted(set(instance) - set(properties))
+        unexpected = sorted(set(current) - set(properties))
         if unexpected:
-            return unexpected[0]
+            path.append(unexpected[0])
     if error.validator == "required":
         missing = re.search(r"'([^']+)' is a required property", error.message)
         if missing:
-            return missing.group(1)
-    return "$"
+            path.append(missing.group(1))
+    return ".".join(path) or "$"
+
+
+def _instance_at_path(instance: object, path: object) -> object:
+    current = instance
+    for part in path:
+        if isinstance(current, dict):
+            current = current.get(part)
+        elif isinstance(current, list) and isinstance(part, int):
+            current = current[part]
+        else:
+            return None
+    return current
+
+
+def _neighbor_id(edge: GraphEdge, project_id: str) -> str:
+    return edge.target_id if edge.source_id == project_id else edge.source_id

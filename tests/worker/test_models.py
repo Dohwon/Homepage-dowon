@@ -2,7 +2,14 @@ from pathlib import Path
 
 import pytest
 
-from atlas_worker.models import ProjectRef, PublicProject, TagSet, validate_schema
+from atlas_worker.models import (
+    GraphData,
+    GraphEdge,
+    ProjectRef,
+    PublicProject,
+    TagSet,
+    validate_schema,
+)
 
 
 def test_finished_project_serializes_as_independent_project():
@@ -91,3 +98,68 @@ def test_public_project_serializes_tags_as_schema_arrays():
 
     validate_schema(payload, "public-project")
     assert payload["tags"]["domain"] == ["AI"]
+
+
+def test_schema_error_includes_nested_unexpected_field_path():
+    candidate = {
+        "id": "alpha",
+        "name": "Alpha",
+        "lifecycle": "active",
+        "publication": "public",
+        "summary": "Public project",
+        "tags": {
+            "domain": ["AI"],
+            "problem": ["Routing"],
+            "pattern": ["Evaluation"],
+            "technology": ["Python"],
+            "outcome": ["Tool"],
+            "leaked": ["local value"],
+        },
+    }
+
+    with pytest.raises(ValueError, match=r"tags\.leaked"):
+        validate_schema(candidate, "public-project")
+
+
+def test_schema_error_includes_nested_missing_required_field_path():
+    candidate = {
+        "id": "alpha",
+        "name": "Alpha",
+        "lifecycle": "active",
+        "publication": "public",
+        "summary": "Public project",
+        "tags": {
+            "domain": ["AI"],
+            "problem": ["Routing"],
+            "pattern": ["Evaluation"],
+            "technology": ["Python"],
+        },
+    }
+
+    with pytest.raises(ValueError, match=r"tags\.outcome"):
+        validate_schema(candidate, "public-project")
+
+
+def test_project_neighbors_are_ranked_and_limited_to_five():
+    graph = GraphData(
+        nodes=(),
+        edges=(
+            GraphEdge("alpha", "project-6", "project-similarity", 1),
+            GraphEdge("alpha", "project-5", "project-similarity", 2),
+            GraphEdge("alpha", "project-4", "project-similarity", 3),
+            GraphEdge("alpha", "project-3", "project-similarity", 4),
+            GraphEdge("alpha", "project-2", "project-similarity", 5),
+            GraphEdge("alpha", "project-1", "project-similarity", 6),
+            GraphEdge("alpha", "topic-ai", "tag-membership", 100),
+        ),
+    )
+
+    neighbors = graph.project_neighbors("alpha")
+
+    assert [edge.target_id for edge in neighbors] == [
+        "project-1",
+        "project-2",
+        "project-3",
+        "project-4",
+        "project-5",
+    ]
