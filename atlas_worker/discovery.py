@@ -105,7 +105,7 @@ def _classify_candidate(
     profile = profile or {}
     root = root.resolve()
     project_id = _project_id(profile.get("id"), root)
-    profile_lifecycle = profile.get("lifecycle", lifecycle)
+    profile_lifecycle = lifecycle if lifecycle == "finished" else profile.get("lifecycle", lifecycle)
     publication = profile.get("publication", "private")
     if profile_lifecycle not in {"active", "finished"}:
         raise ValueError(f"Invalid lifecycle for {root}: {profile_lifecycle}")
@@ -155,7 +155,13 @@ def _normalized_aliases(value: object) -> tuple[str, ...]:
 
 def _normalize_alias(alias: str) -> str:
     normalized = posixpath.normpath(alias.strip().replace("\\", "/"))
-    if not normalized or normalized == "." or normalized.startswith("../"):
+    if (
+        not normalized
+        or normalized == "."
+        or normalized.startswith("/")
+        or normalized.startswith("../")
+        or re.match(r"^[a-zA-Z]:", normalized)
+    ):
         raise ValueError(f"Invalid project alias: {alias}")
     return normalized
 

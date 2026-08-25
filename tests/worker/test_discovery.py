@@ -4,6 +4,7 @@ import types
 from pathlib import Path
 
 import pytest
+import yaml
 
 from atlas_worker.config import DiscoveryConfig
 from atlas_worker.discovery import discover_projects
@@ -27,10 +28,7 @@ def write_profile(root: Path, **overrides: object) -> None:
     profile.update(overrides)
     profile_path = root / "project_memory" / "project-profile.yaml"
     profile_path.parent.mkdir(parents=True, exist_ok=True)
-    profile_path.write_text(
-        "\n".join(f"{key}: {value}" for key, value in profile.items()) + "\n",
-        encoding="utf-8",
-    )
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
 
 
 def test_finish_children_are_projects_but_finish_is_not(tmp_path):
@@ -48,6 +46,17 @@ def test_finish_children_are_projects_but_finish_is_not(tmp_path):
     assert "finish" not in [item.project_id for item in report.projects]
     assert "scripts" not in [item.project_id for item in report.projects]
     assert all(item.publication == "private" for item in report.ambiguous)
+
+
+def test_finish_child_profile_cannot_override_container_lifecycle(tmp_path):
+    beta = tmp_path / "projects" / "finish" / "beta"
+    beta.mkdir(parents=True)
+    write_profile(beta, id="beta", lifecycle="active", publication="public")
+
+    report = discover_projects(DiscoveryConfig.for_workspace(tmp_path))
+
+    assert report.projects[0].lifecycle == "finished"
+    assert report.projects[0].publication == "public"
 
 
 def test_nested_repository_is_part_of_parent_until_profile_declares_distinct_id(tmp_path):
@@ -103,6 +112,19 @@ def test_profile_overrides_are_normalized_and_collisions_fail_deterministically(
     write_profile(beta, id="alpha-beta", name="Other")
 
     with pytest.raises(ValueError, match="Project ID collision: alpha-beta"):
+        discover_projects(DiscoveryConfig.for_workspace(tmp_path))
+
+
+@pytest.mark.parametrize(
+    "absolute_alias",
+    ["/absolute/local/alias", r"C:\\absolute\\local\\alias", r"\\server\\share\\alias"],
+)
+def test_profile_rejects_platform_absolute_aliases(tmp_path, absolute_alias):
+    alpha = tmp_path / "projects" / "alpha"
+    alpha.mkdir(parents=True)
+    write_profile(alpha, aliases=[absolute_alias])
+
+    with pytest.raises(ValueError, match="Invalid project alias"):
         discover_projects(DiscoveryConfig.for_workspace(tmp_path))
 
 
