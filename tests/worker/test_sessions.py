@@ -1,5 +1,6 @@
 import json
 from collections.abc import Iterator
+from dataclasses import replace
 
 from atlas_worker.models import SessionEvent
 from atlas_worker.sessions import iter_session_events, map_session
@@ -115,6 +116,22 @@ def test_session_mapping_uses_longest_component_aware_path(tmp_path):
     )
 
     assert map_session(event, projects, {}) == "atlas"
+
+
+def test_session_mapping_uses_project_ref_alias_with_mixed_separators_and_nested_cwd(tmp_path):
+    project = replace(
+        make_project_ref(tmp_path / "current", project_id="atlas"),
+        aliases=(r"C:\\Archive\\Atlas",),
+    )
+    event = SessionEvent(
+        session_id="s1",
+        timestamp="2026-04-01T10:00:00Z",
+        cwd="c:/archive/atlas/atlas_worker",
+        role="user",
+        text="결정",
+    )
+
+    assert map_session(event, (project,), {}) == "atlas"
 
 
 def test_session_mapping_does_not_match_path_substrings(tmp_path):

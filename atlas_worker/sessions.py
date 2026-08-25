@@ -96,21 +96,21 @@ def map_session(
     aliases: Mapping[str, str],
 ) -> str | None:
     """Map a session cwd to the nearest project root or explicit historical alias."""
-    cwd = _normalized_path(event.cwd)
+    cwd = normalize_local_path(event.cwd)
     if not cwd:
         return None
 
     project_ids = {project.project_id for project in projects}
     candidates: list[tuple[str, str]] = []
     for project in projects:
-        candidates.append((_normalized_path(str(project.root)), project.project_id))
+        candidates.append((normalize_local_path(str(project.root)), project.project_id))
         for alias in project.aliases:
-            normalized = _normalized_path(alias)
+            normalized = normalize_local_path(alias)
             if normalized.startswith("/") or _WINDOWS_DRIVE.match(normalized):
                 candidates.append((normalized, project.project_id))
     for alias, project_id in aliases.items():
         if project_id in project_ids:
-            candidates.append((_normalized_path(alias), project_id))
+            candidates.append((normalize_local_path(alias), project_id))
 
     matches = [
         (candidate, project_id)
@@ -161,7 +161,8 @@ def _string_value(value: object) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
-def _normalized_path(value: str) -> str:
+def normalize_local_path(value: str) -> str:
+    """Normalize local paths lexically without resolving against the filesystem."""
     candidate = value.strip().replace("\\", "/")
     if not candidate:
         return ""

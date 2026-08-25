@@ -26,15 +26,18 @@ def make_session_event(
     text: str,
     cwd: str = "/workspace/projects/alpha",
     session_id: str = "s1",
+    role: str = "user",
+    source_path: str = "/local/sessions/s1.jsonl",
+    line_number: int = 1,
 ) -> SessionEvent:
     return SessionEvent(
         session_id=session_id,
         timestamp="2026-04-01T10:00:00Z",
         cwd=cwd,
-        role="user",
+        role=role,
         text=text,
-        source_path="/local/sessions/s1.jsonl",
-        line_number=1,
+        source_path=source_path,
+        line_number=line_number,
     )
 
 
