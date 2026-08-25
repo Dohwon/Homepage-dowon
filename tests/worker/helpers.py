@@ -2,7 +2,15 @@ from pathlib import Path
 
 import yaml
 
-from atlas_worker.models import EvidenceClaim, ProjectEvent, ProjectKnowledge, ProjectRef, SessionEvent
+from atlas_worker.models import (
+    EvidenceClaim,
+    ProjectEvent,
+    ProjectKnowledge,
+    ProjectRef,
+    PublicProject,
+    SessionEvent,
+    TagSet,
+)
 
 
 def make_project_ref(
@@ -19,6 +27,22 @@ def make_project_ref(
         lifecycle=lifecycle,
         publication=publication,
         aliases=(),
+    )
+
+
+def make_public_project(project_id: str) -> PublicProject:
+    return PublicProject(
+        project_id=project_id,
+        display_name=project_id.replace("-", " ").title(),
+        lifecycle="active",
+        summary=f"{project_id} public project",
+        tags=TagSet(
+            domain=("AI",),
+            problem=("Routing",),
+            pattern=("Evaluation",),
+            technology=("Python",),
+            outcome=("Tool",),
+        ),
     )
 
 

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import re
 from typing import Literal
+from urllib.parse import quote
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
@@ -110,6 +111,7 @@ class TagCandidate:
     source_class: str
     evidence_id: str
     confidence: float
+    decision: Literal["infer", "approve", "reject"] = "infer"
 
 
 @dataclass(frozen=True)
@@ -167,18 +169,19 @@ class GraphData:
     edges: tuple[GraphEdge, ...]
 
     def project_neighbors(self, project_id: str) -> tuple[GraphEdge, ...]:
+        canonical_id = _graph_project_id(project_id, self.edges)
         neighbors = (
             edge
             for edge in self.edges
             if edge.kind == "project-similarity"
-            and project_id in (edge.source_id, edge.target_id)
+            and canonical_id in (edge.source_id, edge.target_id)
         )
         return tuple(
             sorted(
                 neighbors,
                 key=lambda edge: (
                     -edge.weight,
-                    _neighbor_id(edge, project_id),
+                    _neighbor_id(edge, canonical_id),
                     edge.source_id,
                     edge.target_id,
                     edge.reasons,
@@ -252,3 +255,9 @@ def _instance_at_path(instance: object, path: object) -> object:
 
 def _neighbor_id(edge: GraphEdge, project_id: str) -> str:
     return edge.target_id if edge.source_id == project_id else edge.source_id
+
+
+def _graph_project_id(project_id: str, edges: tuple[GraphEdge, ...]) -> str:
+    if any(project_id in (edge.source_id, edge.target_id) for edge in edges):
+        return project_id
+    return f"project:{quote(project_id, safe='')}"
