@@ -219,7 +219,13 @@ def test_scan_projects_import_defers_future_cli_import(tmp_path):
         sys.modules["atlas_worker.cli"] = cli
 
         assert module.main() == 7
-        expected_workspace = script.parents[4]
+        assert module._workspace_root(
+            Path("/workspace/codex/portfolio-homepage")
+        ) == Path("/workspace/codex")
+        assert module._workspace_root(
+            Path("/workspace/codex/portfolio-homepage/.worktrees/project-atlas")
+        ) == Path("/workspace/codex")
+        expected_workspace = module._workspace_root(script.parents[1])
         assert calls == [["discover", "--workspace", str(expected_workspace)]]
     finally:
         sys.modules.pop(module_name, None)
