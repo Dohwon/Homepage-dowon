@@ -1,0 +1,4 @@
+[
+  {"id": "alpha-overview", "project_id": "alpha", "title": "Alpha Project", "body": "routing local-first project explorer", "url": "/projects/alpha"},
+  {"id": "beta-overview", "project_id": "beta", "title": "Beta Project", "body": "data quality reproducible evaluation", "url": "/projects/beta"}
+]

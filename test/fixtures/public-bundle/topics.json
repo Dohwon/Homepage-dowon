@@ -1,0 +1,4 @@
+[
+  {"kind": "domain", "label": "Data Quality", "project_ids": ["beta"]},
+  {"kind": "domain", "label": "Knowledge Systems", "project_ids": ["alpha"]}
+]

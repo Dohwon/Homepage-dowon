@@ -1,0 +1,16 @@
+{
+  "id": "alpha",
+  "name": "Alpha Project",
+  "lifecycle": "active",
+  "publication": "public",
+  "summary": "Generated alpha summary",
+  "tags": {
+    "domain": ["Knowledge Systems"],
+    "problem": ["Fragmented context"],
+    "pattern": ["Local-first publishing"],
+    "technology": ["Node.js"],
+    "outcome": ["Project explorer"]
+  },
+  "outcome": "A searchable project explorer",
+  "aliases": ["atlas-alpha"]
+}

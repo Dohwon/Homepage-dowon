@@ -1,0 +1,4 @@
+[
+  {"project_id": "alpha", "event_id": "alpha-launch", "title": "Published Atlas boundary", "stage": "result", "context": "Public bundle", "decision": "Serve sanitized artifacts", "outcome": "Safe API input", "date": "2026-08-24"},
+  {"project_id": "beta", "event_id": "beta-close", "title": "Completed evaluation", "stage": "result", "context": "Quality report", "decision": "Freeze evidence", "outcome": "Reproducible report", "date": "2026-08-23"}
+]

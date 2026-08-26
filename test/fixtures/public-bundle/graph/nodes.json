@@ -1,0 +1,5 @@
+[
+  {"id": "project:alpha", "label": "Alpha Project", "kind": "project"},
+  {"id": "project:beta", "label": "Beta Project", "kind": "project"},
+  {"id": "domain:knowledge-systems", "label": "Knowledge Systems", "kind": "domain"}
+]

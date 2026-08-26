@@ -1,0 +1,8 @@
+{
+  "version": "test-v1",
+  "projects": ["alpha", "beta"],
+  "files": {
+    "projects/alpha/project.json": "fixture-alpha",
+    "projects/beta/project.json": "fixture-beta"
+  }
+}

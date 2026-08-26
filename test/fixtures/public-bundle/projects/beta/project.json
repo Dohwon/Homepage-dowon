@@ -1,0 +1,16 @@
+{
+  "id": "beta",
+  "name": "Beta Project",
+  "lifecycle": "finished",
+  "publication": "public",
+  "summary": "Generated beta summary",
+  "tags": {
+    "domain": ["Data Quality"],
+    "problem": ["Unclear evidence"],
+    "pattern": ["Reproducible evaluation"],
+    "technology": ["Python"],
+    "outcome": ["Verified report"]
+  },
+  "outcome": "A reproducible quality report",
+  "aliases": []
+}
