@@ -1,7 +1,7 @@
 # Project Atlas 콘텐츠 및 Graph 재설계 명세
 
 - 작성일: 2026-08-27
-- 상태: 설계 승인, 명세 검토 대기
+- 상태: 설계 승인, 구현 계획 작성 완료
 - 대상 저장소: `/home/dowon/securedir/git/codex/portfolio-homepage`
 - 기준 작업 브랜치: `feature/project-atlas-public-experience`
 - 선행 명세: `docs/superpowers/specs/2026-08-24-project-atlas-design.md`
