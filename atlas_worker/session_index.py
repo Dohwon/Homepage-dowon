@@ -305,26 +305,111 @@ def _parse_custom_wrappers(source: str) -> tuple[Mapping[str, object], ...]:
     if tokens is None:
         return ()
     values: list[Mapping[str, object]] = []
-    for index in range(len(tokens) - 4):
-        if not _is_allowed_wrapper_call(tokens, index):
-            continue
-        parsed = _parse_object_literal(tokens, index + 4)
-        if parsed is not None:
-            values.append(parsed[0])
+    for statement in _top_level_statements(tokens):
+        values.extend(_parse_top_level_statement(statement))
     return tuple(values)
 
 
-def _is_allowed_wrapper_call(tokens: Sequence[tuple[str, str]], index: int) -> bool:
-    if index and tokens[index - 1][1] not in {"await", ";", "{", "}", "("}:
-        return False
-    return (
-        tokens[index : index + 5]
-        and tokens[index][1] == "tools"
-        and tokens[index + 1][1] == "."
-        and tokens[index + 2][0] == "identifier"
-        and tokens[index + 2][1] in _CUSTOM_WRAPPER_NAMES
-        and tokens[index + 3][1] == "("
-        and tokens[index + 4][1] == "{"
+def _top_level_statements(
+    tokens: Sequence[tuple[str, str]],
+) -> tuple[tuple[tuple[str, str], ...], ...]:
+    statements: list[tuple[tuple[str, str], ...]] = []
+    openings = {"(": ")", "[": "]", "{": "}"}
+    closings = set(openings.values())
+    stack: list[str] = []
+    start = 0
+    for index, (_, value) in enumerate(tokens):
+        if value in openings:
+            stack.append(openings[value])
+        elif value in closings:
+            if not stack or value != stack[-1]:
+                return tuple(statements)
+            stack.pop()
+        elif value == ";" and not stack:
+            if index > start:
+                statements.append(tuple(tokens[start:index]))
+            start = index + 1
+    if not stack and start < len(tokens):
+        statements.append(tuple(tokens[start:]))
+    return tuple(statements)
+
+
+def _parse_top_level_statement(
+    tokens: Sequence[tuple[str, str]],
+) -> tuple[Mapping[str, object], ...]:
+    index = _assignment_end(tokens)
+    if index is None:
+        return ()
+    if index < len(tokens) and tokens[index][1] == "await":
+        index += 1
+    direct = _parse_allowlisted_call(tokens, index)
+    if direct is not None and direct[1] == len(tokens):
+        return (direct[0],)
+    promise = _parse_promise_all(tokens, index)
+    if promise is not None and promise[1] == len(tokens):
+        return promise[0]
+    return ()
+
+
+def _assignment_end(tokens: Sequence[tuple[str, str]]) -> int | None:
+    if not tokens:
+        return None
+    if tokens[0][1] in {"const", "let", "var"}:
+        if len(tokens) < 3 or tokens[1][0] != "identifier" or tokens[2][1] != "=":
+            return None
+        return 3
+    if len(tokens) >= 2 and tokens[0][0] == "identifier" and tokens[1][1] == "=":
+        return 2
+    return 0
+
+
+def _parse_promise_all(
+    tokens: Sequence[tuple[str, str]], start: int
+) -> tuple[tuple[Mapping[str, object], ...], int] | None:
+    if not _matches(tokens, start, ("Promise", ".", "all", "(", "[")):
+        return None
+    values: list[Mapping[str, object]] = []
+    index = start + 5
+    while index < len(tokens):
+        call = _parse_allowlisted_call(tokens, index)
+        if call is None:
+            return None
+        values.append(call[0])
+        index = call[1]
+        if index < len(tokens) and tokens[index][1] == ",":
+            index += 1
+            continue
+        if index + 1 < len(tokens) and tokens[index][1] == "]" and tokens[index + 1][1] == ")":
+            return tuple(values), index + 2
+        return None
+    return None
+
+
+def _parse_allowlisted_call(
+    tokens: Sequence[tuple[str, str]], start: int
+) -> tuple[Mapping[str, object], int] | None:
+    if not _matches(tokens, start, ("tools", ".")):
+        return None
+    name_index = start + 2
+    if (
+        name_index + 2 >= len(tokens)
+        or tokens[name_index][0] != "identifier"
+        or tokens[name_index][1] not in _CUSTOM_WRAPPER_NAMES
+        or tokens[name_index + 1][1] != "("
+        or tokens[name_index + 2][1] != "{"
+    ):
+        return None
+    parsed = _parse_object_literal(tokens, name_index + 2)
+    if parsed is None or parsed[1] >= len(tokens) or tokens[parsed[1]][1] != ")":
+        return None
+    return parsed[0], parsed[1] + 1
+
+
+def _matches(
+    tokens: Sequence[tuple[str, str]], start: int, values: Sequence[str]
+) -> bool:
+    return len(tokens) >= start + len(values) and all(
+        tokens[start + offset][1] == value for offset, value in enumerate(values)
     )
 
 

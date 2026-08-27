@@ -324,6 +324,77 @@ def test_custom_tool_call_skips_dynamic_or_non_wrapper_input(tmp_path):
     assert trace.changed_paths == ()
 
 
+def test_custom_tool_call_collects_ordered_promise_all_calls_from_const_assignment(tmp_path):
+    session_path = tmp_path / "custom-promise-all.jsonl"
+    source = "".join(
+        (
+            "const results = await Promise.all([",
+            'tools.exec_command({ workdir: "/workspace/projects/beta", path: "src/first.py", cmd: "/private/cmd-first.py" }),',
+            'tools.exec_command({ workdir: "/workspace/projects/gamma", path: "src/second.py", cmd: "/private/cmd-second.py" })',
+            "]);",
+        )
+    )
+    records = (
+        {"type": "session_meta", "payload": {"id": "promise", "cwd": "/workspace/projects/alpha"}},
+        {"type": "response_item", "payload": {"item": {"type": "custom_tool_call", "input": source}}},
+    )
+    session_path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+
+    trace = index_session(session_path)
+
+    assert trace.cwd == "/workspace/projects/gamma"
+    assert trace.changed_paths == (
+        "/workspace/projects/beta/src/first.py",
+        "/workspace/projects/gamma/src/second.py",
+    )
+    assert "/private/cmd-first.py" not in trace.changed_paths
+    assert "/private/cmd-second.py" not in trace.changed_paths
+
+
+def test_custom_tool_call_rejects_incomplete_prose_and_deferred_calls(tmp_path):
+    session_path = tmp_path / "custom-rejected.jsonl"
+    sources = (
+        'await tools.exec_command({ path: "/private/missing-paren.py" };',
+        'please await tools.exec_command({ path: "/private/prose.py" });',
+        'const quoted = "await tools.exec_command({ path: /private/quoted.py })";',
+        '// await tools.exec_command({ path: "/private/comment.py" });',
+        'function deferred() { await tools.exec_command({ path: "/private/function.py" }); }',
+        'const callback = () => { await tools.exec_command({ path: "/private/callback.py" }); };',
+    )
+    records = [{"type": "session_meta", "payload": {"id": "rejected", "cwd": "/workspace/projects/alpha"}}]
+    records.extend(
+        {"type": "response_item", "payload": {"item": {"type": "custom_tool_call", "input": source}}}
+        for source in sources
+    )
+    session_path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+
+    trace = index_session(session_path)
+
+    assert trace.cwd == "/workspace/projects/alpha"
+    assert trace.changed_paths == ()
+
+
+def test_custom_tool_call_keeps_completed_assignment_when_other_statement_is_invalid(tmp_path):
+    session_path = tmp_path / "custom-statement-boundaries.jsonl"
+    source = "".join(
+        (
+            'await tools.exec_command({ workdir: dynamicRoot, path: "/private/dynamic.py", cmd: "/private/cmd.py" });',
+            'const result = await tools.exec_command({ workdir: "/workspace/projects/beta", path: "src/kept.py", cmd: "/private/cmd-kept.py" });',
+            "text(result.output);",
+        )
+    )
+    records = (
+        {"type": "session_meta", "payload": {"id": "boundaries", "cwd": "/workspace/projects/alpha"}},
+        {"type": "response_item", "payload": {"item": {"type": "custom_tool_call", "input": source}}},
+    )
+    session_path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+
+    trace = index_session(session_path)
+
+    assert trace.cwd == "/workspace/projects/beta"
+    assert trace.changed_paths == ("/workspace/projects/beta/src/kept.py",)
+
+
 def test_apply_patch_extracts_add_update_delete_and_move_targets_only(tmp_path):
     session_path = tmp_path / "move.jsonl"
     patch = "\n".join(
