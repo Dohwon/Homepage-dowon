@@ -123,6 +123,15 @@ def extract_signal_claims(events: Iterable[SessionEvent]) -> tuple[EvidenceClaim
     return extractor.claims
 
 
+def legacy_memory_migration_claims(events: Iterable[SessionEvent]) -> tuple[EvidenceClaim, ...]:
+    """Return generic compatibility inputs for legacy memory migration only.
+
+    These claims are not article prose and must never be used to fill a public
+    Project Atlas article.
+    """
+    return extract_signal_claims(events)
+
+
 class SignalClaimExtractor:
     """Retain only bounded extraction state while events are streamed once."""
 

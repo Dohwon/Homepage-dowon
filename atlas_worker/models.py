@@ -20,7 +20,7 @@ ArticleSectionType = Literal["planning", "decision", "implementation", "validati
 DecisionStatus = Literal["adopted", "revised", "rolled-back", "unresolved"]
 EvidenceSourceType = Literal["session", "spec", "code", "test", "git", "project_memory"]
 EvidencePrivacy = Literal["public-safe", "private", "secret"]
-EvidenceClaimRole = Literal["supports", "contradicts", "supersedes"]
+EvidenceClaimRole = Literal["supports", "contradicts", "context", "supersedes"]
 Readiness = Literal["ready", "insufficient-evidence", "review-required"]
 SessionMappingReason = Literal[
     "changed-path",

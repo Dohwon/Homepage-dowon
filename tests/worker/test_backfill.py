@@ -6,6 +6,7 @@ from atlas_worker.backfill import (
     automatic_merge_claims,
     content_checksum,
     extract_signal_claims,
+    legacy_memory_migration_claims,
     review_claims,
     should_skip_session,
     updated_cursors,
@@ -53,6 +54,13 @@ def test_routine_turn_is_ignored_but_rollback_is_selected_without_raw_text_reten
     assert [claim.claim_type for claim in claims] == ["rollback"]
     assert claims[0].value == "rollback requested"
     assert raw_text not in repr(claims[0])
+
+
+def test_generic_claims_remain_legacy_memory_migration_inputs_not_article_prose():
+    claims = legacy_memory_migration_claims((make_session_event("이전 시안으로 롤백해"),))
+
+    assert [claim.value for claim in claims] == ["rollback requested"]
+    assert not any("article" in name or "prose" in name for name in dir(__import__("atlas_worker.backfill", fromlist=["*"])))
 
 
 def test_evidence_id_is_deterministic_metadata_hash_not_raw_text():
