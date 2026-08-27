@@ -210,6 +210,32 @@ def test_ambiguous_double_negation_does_not_start_a_supported_episode():
     assert extract_decision_episodes(trace, "atlas") == ()
 
 
+@pytest.mark.parametrize(
+    "mixed_open",
+    (
+        "문제는 없습니다. 하지만 이전 버전으로 롤백해",
+        "문제는 없지만 경로가 안 돼",
+        "결정 안 함. 다시 수정해",
+    ),
+)
+def test_cue_local_negation_preserves_another_unnegated_open_cue(mixed_open):
+    episode = extract_decision_episodes(
+        _trace(_event(mixed_open, line=1), _event("확인했습니다.", role="assistant", line=2)),
+        "atlas",
+    )[0]
+
+    assert episode.status == "supported"
+
+
+def test_only_locally_negated_cues_do_not_create_an_episode():
+    trace = _trace(
+        _event("롤백 안 함. 문제도 없습니다", line=1),
+        _event("확인했습니다.", role="assistant", line=2),
+    )
+
+    assert extract_decision_episodes(trace, "atlas") == ()
+
+
 def test_max_boundary_rollover_restarts_on_the_same_user_open_cue():
     trace = _trace(
         _event("첫 문제를 수정해", line=1),

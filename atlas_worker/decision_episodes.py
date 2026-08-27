@@ -18,21 +18,25 @@ OPEN_CUES = re.compile(
     r"문제|제약|왜|대안|바꿔|수정|롤백|결정|선택|채택|실패|겹쳐|따라오지|안\s*돼",
     re.I,
 )
-_NEGATABLE_OPEN_CUES = r"(?:문제|제약|실패|수정|롤백|결정|선택|채택)"
-_NEGATED_OPEN_CUES = re.compile(
-    rf"(?:"
-    rf"(?:문제|제약)(?:가|는)?\s*없(?:음|습니다)?"
-    rf"|{_NEGATABLE_OPEN_CUES}[^\n]{{0,24}}?(?:"
-    rf"한\s*적\s*(?:이\s*)?없(?:음|습니다)?"
-    rf"|할\s*필요(?:가|는)?\s*없(?:음|습니다)?"
-    rf"|필요(?:가|는)\s*없(?:음|습니다)?"
-    rf"|하지\s*않(?:았(?:습니다|음)?|습니다|음)?"
-    rf"|안\s*(?:함|했(?:음|습니다)?)"
-    rf"|불필요"
-    rf")"
-    # Ambiguous double negatives are not reliable openings for a public decision.
-    rf"|{_NEGATABLE_OPEN_CUES}[^\n]{{0,24}}?하지\s*않[^\n]{{0,16}}?(?:필요|없|불필요)"
-    rf")",
+_NEGATABLE_OPEN_CUES = frozenset(("문제", "제약", "실패", "수정", "롤백", "결정", "선택", "채택"))
+_LOCAL_SENTENCE_BOUNDARY = re.compile(r"[.!?\n;]")
+_DIRECT_ABSENCE_SUFFIX = re.compile(
+    r"^(?:가|는|도)?\s*없(?:음|습니다)?(?=\s|$|[,.!?;]|지만)",
+    re.I,
+)
+_NEGATED_OPEN_SUFFIX = re.compile(
+    r"^[^\n.!?]{0,24}?(?:"
+    r"한\s*적\s*(?:이\s*)?없(?:음|습니다)?"
+    r"|할\s*필요(?:가|는)?\s*없(?:음|습니다)?"
+    r"|필요(?:가|는)\s*없(?:음|습니다)?"
+    r"|하지\s*않(?:았(?:습니다|음)?|습니다|음)?"
+    r"|안\s*(?:함|했(?:음|습니다)?)"
+    r"|불필요"
+    r")",
+    re.I,
+)
+_AMBIGUOUS_NEGATED_OPEN_SUFFIX = re.compile(
+    r"^[^\n.!?]{0,24}?하지\s*않[^\n.!?]{0,16}?(?:필요|없|불필요)",
     re.I,
 )
 _SENTENCE_END = r"(?=\s*$|[.!?])"
@@ -212,11 +216,35 @@ def _episode(
 
 
 def _is_open_event(event: SessionEvent) -> bool:
+    return event.role == "user" and _has_open_cue(event.text)
+
+
+def _has_open_cue(text: str) -> bool:
+    for cue_match in OPEN_CUES.finditer(text):
+        if not _is_negated_open_cue(text, cue_match):
+            return True
+    return False
+
+
+def _is_negated_open_cue(text: str, cue_match: re.Match[str]) -> bool:
+    cue = cue_match.group()
+    if cue not in _NEGATABLE_OPEN_CUES:
+        return False
+
+    suffix = _cue_local_suffix(text, cue_match.end())
+    if cue in {"문제", "제약"} and _DIRECT_ABSENCE_SUFFIX.match(suffix):
+        return True
     return bool(
-        event.role == "user"
-        and OPEN_CUES.search(event.text)
-        and not _NEGATED_OPEN_CUES.search(event.text)
+        _NEGATED_OPEN_SUFFIX.match(suffix)
+        # Ambiguous double negatives are not reliable openings for a public decision.
+        or _AMBIGUOUS_NEGATED_OPEN_SUFFIX.match(suffix)
     )
+
+
+def _cue_local_suffix(text: str, start: int) -> str:
+    boundary = _LOCAL_SENTENCE_BOUNDARY.search(text, start)
+    end = boundary.start() if boundary else len(text)
+    return text[start : min(end, start + 24)]
 
 
 def _private_event(project_id: str, ordinal: int, event: SessionEvent) -> PrivateEpisodeEvent:
