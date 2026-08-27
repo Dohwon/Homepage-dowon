@@ -167,7 +167,20 @@ def test_completion_questions_and_deferred_grammar_remain_candidates(not_complet
 
 @pytest.mark.parametrize(
     "negative_open",
-    ("문제가 없습니다", "제약 없음", "실패하지 않았습니다", "수정 불필요", "롤백하지 않음", "결정하지 않음"),
+    (
+        "문제가 없습니다",
+        "제약 없음",
+        "실패하지 않았습니다",
+        "수정 불필요",
+        "롤백하지 않음",
+        "결정하지 않음",
+        "실패한 적 없습니다",
+        "수정할 필요 없습니다",
+        "롤백 안 함",
+        "결정 안 함",
+        "선택할 필요가 없음",
+        "채택하지 않았습니다",
+    ),
 )
 def test_negated_open_cues_do_not_create_supported_episodes(negative_open):
     trace = _trace(_event(negative_open, line=1), _event("확인했습니다", role="assistant", line=2))
@@ -175,7 +188,10 @@ def test_negated_open_cues_do_not_create_supported_episodes(negative_open):
     assert extract_decision_episodes(trace, "atlas") == ()
 
 
-@pytest.mark.parametrize("positive_open", ("문제가 있습니다", "이 동작이 안 돼", "다시 수정해", "롤백해"))
+@pytest.mark.parametrize(
+    "positive_open",
+    ("문제가 있습니다", "이 동작이 안 돼", "실패 원인 해결", "다시 수정해", "롤백해", "결정해"),
+)
 def test_positive_open_cues_still_create_supported_episodes(positive_open):
     episode = extract_decision_episodes(
         _trace(_event(positive_open, line=1), _event("확인했습니다", role="assistant", line=2)),
@@ -183,6 +199,15 @@ def test_positive_open_cues_still_create_supported_episodes(positive_open):
     )[0]
 
     assert episode.status == "supported"
+
+
+def test_ambiguous_double_negation_does_not_start_a_supported_episode():
+    trace = _trace(
+        _event("실패하지 않을 필요는 없습니다", line=1),
+        _event("확인했습니다", role="assistant", line=2),
+    )
+
+    assert extract_decision_episodes(trace, "atlas") == ()
 
 
 def test_max_boundary_rollover_restarts_on_the_same_user_open_cue():

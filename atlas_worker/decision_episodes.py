@@ -18,8 +18,21 @@ OPEN_CUES = re.compile(
     r"문제|제약|왜|대안|바꿔|수정|롤백|결정|선택|채택|실패|겹쳐|따라오지|안\s*돼",
     re.I,
 )
+_NEGATABLE_OPEN_CUES = r"(?:문제|제약|실패|수정|롤백|결정|선택|채택)"
 _NEGATED_OPEN_CUES = re.compile(
-    r"문제(?:가|는)?\s*(?:없|없음)|제약\s*(?:없|없음)|실패\s*하지\s*않|수정\s*불필요|롤백\s*하지\s*않|결정\s*하지\s*않",
+    rf"(?:"
+    rf"(?:문제|제약)(?:가|는)?\s*없(?:음|습니다)?"
+    rf"|{_NEGATABLE_OPEN_CUES}[^\n]{{0,24}}?(?:"
+    rf"한\s*적\s*(?:이\s*)?없(?:음|습니다)?"
+    rf"|할\s*필요(?:가|는)?\s*없(?:음|습니다)?"
+    rf"|필요(?:가|는)\s*없(?:음|습니다)?"
+    rf"|하지\s*않(?:았(?:습니다|음)?|습니다|음)?"
+    rf"|안\s*(?:함|했(?:음|습니다)?)"
+    rf"|불필요"
+    rf")"
+    # Ambiguous double negatives are not reliable openings for a public decision.
+    rf"|{_NEGATABLE_OPEN_CUES}[^\n]{{0,24}}?하지\s*않[^\n]{{0,16}}?(?:필요|없|불필요)"
+    rf")",
     re.I,
 )
 _SENTENCE_END = r"(?=\s*$|[.!?])"
