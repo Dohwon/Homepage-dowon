@@ -33,6 +33,21 @@ class ArticleValidationFinding:
         return f"{self.kind}:{self.code}"
 
 
+@dataclass(frozen=True)
+class ArticleValidationReport:
+    """Explicit Task 5 title/SVG validation evidence required for readiness."""
+
+    title_checked: bool
+    diagrams_checked: bool
+    findings: tuple[ArticleValidationFinding, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.title_checked, bool) or not isinstance(self.diagrams_checked, bool):
+            raise TypeError("validation checks must be booleans")
+        if any(not isinstance(finding, ArticleValidationFinding) for finding in self.findings):
+            raise TypeError("validation findings must be typed")
+
+
 def audit_project_content(
     project: ProjectRef,
     manifest: SourceManifest,
@@ -40,16 +55,17 @@ def audit_project_content(
     evidence: Iterable[EvidenceRecord],
     mappings: Sequence[SessionMapping],
     *,
-    validation_findings: Iterable[ArticleValidationFinding] = (),
+    validation_report: ArticleValidationReport | None = None,
 ) -> ContentAudit:
     """Return private readiness without manufacturing article content or public data."""
+    all_evidence = tuple(evidence)
     project_evidence = tuple(
         sorted(
-            (record for record in evidence if record.project_id == project.project_id),
+            (record for record in all_evidence if record.project_id == project.project_id),
             key=lambda record: (record.evidence_id, record.claim_role, record.content_hash),
         )
     )
-    findings = {finding.audit_code() for finding in validation_findings}
+    findings = _validation_findings(validation_report)
     if manifest.project_id != project.project_id:
         findings.add("manifest-project-mismatch")
 
@@ -57,41 +73,38 @@ def audit_project_content(
     if ambiguous:
         findings.add("ambiguous-session-mapping")
 
+    referenced_ids: tuple[str, ...] = ()
     if article is None:
         findings.add("missing-curated-article")
-        return _audit(
-            project.project_id,
-            "insufficient-evidence",
-            project_evidence,
-            session_stats,
-            (),
-            unmapped_session_ids,
-            findings,
-        )
+    else:
+        if article.project_id != project.project_id:
+            findings.add("article-project-mismatch")
+        referenced_ids = _referenced_evidence_ids(article)
+        if not referenced_ids:
+            findings.add("no-curated-evidence")
+        if len(referenced_ids) != len(set(referenced_ids)):
+            findings.add("duplicate-evidence-reference")
 
-    if article.project_id != project.project_id:
-        findings.add("article-project-mismatch")
-    referenced_ids = _referenced_evidence_ids(article)
-    if not referenced_ids:
-        findings.add("no-curated-evidence")
+    evidence_by_id = _evidence_by_id(project_evidence)
+    if any(len(records) > 1 for records in evidence_by_id.values()):
+        findings.add("duplicate-evidence-id")
+    if any(record.claim_role == "contradicts" for record in project_evidence):
+        findings.add("contradictory-evidence")
+    referenced_set = set(referenced_ids)
+    if any(
+        record.evidence_id in referenced_set and record.project_id != project.project_id
+        for record in all_evidence
+    ):
+        findings.add("evidence-project-mismatch")
 
-    evidence_by_id: dict[str, list[EvidenceRecord]] = {}
-    for record in project_evidence:
-        evidence_by_id.setdefault(record.evidence_id, []).append(record)
     missing_ids = tuple(
-        evidence_id for evidence_id in referenced_ids if not evidence_by_id.get(evidence_id)
+        sorted({evidence_id for evidence_id in referenced_ids if evidence_id not in evidence_by_id})
     )
     if missing_ids:
         findings.add("missing-evidence")
     resolved = tuple(
-        record
-        for evidence_id in referenced_ids
-        for record in evidence_by_id.get(evidence_id, ())
+        record for evidence_id in referenced_ids for record in evidence_by_id.get(evidence_id, ())
     )
-    if any(len(evidence_by_id[evidence_id]) != 1 for evidence_id in referenced_ids if evidence_id in evidence_by_id):
-        findings.add("ambiguous-evidence-id")
-    if any(record.claim_role == "contradicts" for record in resolved):
-        findings.add("contradictory-evidence")
     if (
         referenced_ids
         and not any(record.claim_role == "supports" for record in resolved)
@@ -99,15 +112,9 @@ def audit_project_content(
     ):
         findings.add("no-supporting-evidence")
 
-    readiness = "ready"
-    review_findings = findings - {"missing-curated-article", "no-curated-evidence", "no-supporting-evidence"}
-    if review_findings:
-        readiness = "review-required"
-    elif not referenced_ids or "no-supporting-evidence" in findings:
-        readiness = "insufficient-evidence"
     return _audit(
         project.project_id,
-        readiness,
+        _readiness(findings, article),
         project_evidence,
         session_stats,
         missing_ids,
@@ -116,28 +123,51 @@ def audit_project_content(
     )
 
 
+def _validation_findings(report: ArticleValidationReport | None) -> set[str]:
+    if report is None:
+        return {"validation-report-missing"}
+    findings = {finding.audit_code() for finding in report.findings}
+    if not report.title_checked:
+        findings.add("title-validation-unchecked")
+    if not report.diagrams_checked:
+        findings.add("diagram-validation-unchecked")
+    return findings
+
+
 def _referenced_evidence_ids(article: ProjectArticle) -> tuple[str, ...]:
-    ids = {
+    return tuple(
         evidence_id
         for section in article.sections
         for evidence_id in section.evidence_ids
-    }
-    ids.update(
+    ) + tuple(
         evidence_id
         for decision in article.decision_index
         for evidence_id in decision.evidence_ids
     )
-    return tuple(sorted(ids))
+
+
+def _evidence_by_id(evidence: Sequence[EvidenceRecord]) -> dict[str, tuple[EvidenceRecord, ...]]:
+    values: dict[str, list[EvidenceRecord]] = {}
+    for record in evidence:
+        values.setdefault(record.evidence_id, []).append(record)
+    return {key: tuple(records) for key, records in values.items()}
+
+
+def _readiness(
+    findings: set[str], article: ProjectArticle | None
+) -> Literal["ready", "insufficient-evidence", "review-required"]:
+    insufficient = {"missing-curated-article", "no-curated-evidence", "no-supporting-evidence"}
+    if findings - insufficient:
+        return "review-required"
+    if article is None or findings & insufficient:
+        return "insufficient-evidence"
+    return "ready"
 
 
 def _session_audit(
     project_id: str, mappings: Sequence[SessionMapping]
 ) -> tuple[dict[str, int], tuple[str, ...], bool]:
-    relevant = tuple(
-        mapping
-        for mapping in mappings
-        if mapping.project_id in {project_id, None}
-    )
+    relevant = tuple(mapping for mapping in mappings if mapping.project_id in {project_id, None})
     unmapped = tuple(
         sorted(
             mapping.session_id

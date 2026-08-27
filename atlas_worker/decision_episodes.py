@@ -1,13 +1,15 @@
-"""Private, bounded decision-episode extraction for Atlas review workflows."""
+"""Private, bounded decision-episode extraction and review-queue writes."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
 import json
+from pathlib import Path
 import re
 from typing import Literal
 
+from .fs_safety import FileWrite, commit_file_transaction, require_write_destination
 from .models import SessionEvent, SessionTrace
 from .sessions import normalize_local_path
 
@@ -16,9 +18,22 @@ OPEN_CUES = re.compile(
     r"문제|제약|왜|대안|바꿔|수정|롤백|결정|선택|채택|실패|겹쳐|따라오지|안\s*돼",
     re.I,
 )
-_SUPPORTED_CLOSE_CUES = re.compile(r"검증|통과|완료|반영|확인", re.I)
-_CANDIDATE_CLOSE_CUES = re.compile(r"보류|미해결", re.I)
+_COMPLETED = r"(?:했(?:습니다|음|다)?|됨|됐다|되었습니다|되었다)?(?=$|[\s.!])"
+_SUPPORTED_CLOSE_CUES = re.compile(
+    rf"(?:테스트(?:\s|까지)*(?:통과|성공){_COMPLETED}"
+    rf"|검증\s*(?:완료|성공){_COMPLETED}"
+    rf"|반영\s*완료{_COMPLETED}"
+    rf"|확인{_COMPLETED})",
+    re.I,
+)
+_CANDIDATE_CLOSE_CUES = re.compile(
+    r"보류|미해결|(?:확인|검증|반영|실행).{0,16}(?:보겠|하겠|예정)|(?:시작|실행)\s*예정",
+    re.I,
+)
+_PROJECT_ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+_EPISODE_ID = re.compile(r"^[a-f0-9]{64}$")
 _RESULT_ROLES = frozenset({"assistant", "tool"})
+_QUEUE_RELATIVE = Path(".knowledge-worker") / "review-queue"
 
 MAX_EPISODE_EVENTS = 24
 MAX_EXCERPT_CHARS = 280
@@ -30,6 +45,7 @@ class PrivateEpisodeEvent:
     """Bounded local review evidence. All fields are private provenance."""
 
     evidence_id: str
+    event_ordinal: int
     session_id: str
     timestamp: str
     role: str
@@ -71,6 +87,7 @@ class PrivateReviewQueueRecord:
             "events": [
                 {
                     "evidence_id": event.evidence_id,
+                    "event_ordinal": event.event_ordinal,
                     "timestamp": event.timestamp,
                     "role": event.role,
                     "source_path": event.source_path,
@@ -85,16 +102,26 @@ class PrivateReviewQueueRecord:
 def extract_decision_episodes(
     trace: SessionTrace, project_id: str
 ) -> tuple[DecisionEpisode, ...]:
-    """Extract bounded private episodes; only validated assistant/tool closes support one."""
+    """Extract bounded private episodes; only completed assistant/tool results support one."""
+    _require_project_id(project_id)
     episodes: list[DecisionEpisode] = []
-    window: list[SessionEvent] = []
-    for event in trace.events:
+    window: list[tuple[int, SessionEvent]] = []
+    for ordinal, event in enumerate(trace.events, 1):
         if not window:
             if event.role == "user" and OPEN_CUES.search(event.text):
-                window.append(event)
+                window.append((ordinal, event))
             continue
 
-        window.append(event)
+        if (
+            len(window) == MAX_EPISODE_EVENTS - 1
+            and event.role == "user"
+            and OPEN_CUES.search(event.text)
+        ):
+            episodes.append(_episode(project_id, window, "candidate"))
+            window = [(ordinal, event)]
+            continue
+
+        window.append((ordinal, event))
         if _CANDIDATE_CLOSE_CUES.search(event.text):
             episodes.append(_episode(project_id, window, "candidate"))
             window = []
@@ -111,9 +138,10 @@ def extract_decision_episodes(
 
 
 def private_review_queue_record(episode: DecisionEpisode) -> PrivateReviewQueueRecord:
-    """Prepare, but do not publish or write, a review-queue-only record."""
+    """Prepare a private-only review record and reject malformed provenance."""
+    _validate_episode(episode)
     return PrivateReviewQueueRecord(
-        relative_path=f".knowledge-worker/review-queue/{episode.project_id}-{episode.episode_id}.json",
+        relative_path=f"{_QUEUE_RELATIVE.as_posix()}/{episode.project_id}-{episode.episode_id}.json",
         project_id=episode.project_id,
         episode_id=episode.episode_id,
         status=episode.status,
@@ -123,11 +151,39 @@ def private_review_queue_record(episode: DecisionEpisode) -> PrivateReviewQueueR
     )
 
 
+def plan_private_review_queue_write(workspace_root: Path, episode: DecisionEpisode) -> FileWrite:
+    """Plan one private queue write at the fixed workspace-local destination."""
+    record = private_review_queue_record(episode)
+    workspace_root = Path(workspace_root)
+    queue_root = workspace_root / _QUEUE_RELATIVE
+    destination = require_write_destination(
+        queue_root / f"{record.project_id}-{record.episode_id}.json", workspace_root
+    )
+    payload = json.dumps(
+        record.to_private_dict(), ensure_ascii=True, sort_keys=True, separators=(",", ":")
+    ) + "\n"
+    return FileWrite(path=destination, content=payload.encode("utf-8"), root=workspace_root)
+
+
+def write_private_review_queue(
+    workspace_root: Path, episode: DecisionEpisode, *, dry_run: bool = False
+) -> tuple[Path, ...]:
+    """Atomically persist one private record, or only validate it in dry-run mode."""
+    planned = plan_private_review_queue_write(workspace_root, episode)
+    return () if dry_run else commit_file_transaction((planned,))
+
+
 def _episode(
-    project_id: str, events: list[SessionEvent], status: DecisionEpisodeStatus
+    project_id: str,
+    events: list[tuple[int, SessionEvent]],
+    status: DecisionEpisodeStatus,
 ) -> DecisionEpisode:
-    private_events = tuple(_private_event(project_id, event) for event in events)
+    private_events = tuple(
+        _private_event(project_id, ordinal, event) for ordinal, event in events
+    )
     evidence_ids = tuple(event.evidence_id for event in private_events)
+    if len(evidence_ids) != len(set(evidence_ids)):
+        raise ValueError("duplicate evidence IDs in private episode")
     return DecisionEpisode(
         episode_id=_episode_id(project_id, status, evidence_ids),
         project_id=project_id,
@@ -137,18 +193,21 @@ def _episode(
     )
 
 
-def _private_event(project_id: str, event: SessionEvent) -> PrivateEpisodeEvent:
+def _private_event(project_id: str, ordinal: int, event: SessionEvent) -> PrivateEpisodeEvent:
     metadata = {
         "project_id": project_id,
+        "event_ordinal": ordinal,
         "session_id": event.session_id,
         "timestamp": event.timestamp,
         "role": event.role,
         "source_path": normalize_local_path(event.source_path),
         "line_number": event.line_number,
+        "text_digest": hashlib.sha256(event.text.encode("utf-8")).hexdigest(),
     }
     encoded = json.dumps(metadata, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
     return PrivateEpisodeEvent(
         evidence_id=hashlib.sha256(encoded.encode("utf-8")).hexdigest(),
+        event_ordinal=ordinal,
         session_id=event.session_id,
         timestamp=event.timestamp,
         role=event.role,
@@ -168,3 +227,18 @@ def _episode_id(
         separators=(",", ":"),
     )
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _require_project_id(project_id: str) -> None:
+    if not isinstance(project_id, str) or not _PROJECT_ID.fullmatch(project_id):
+        raise ValueError("project_id must be a stable slug")
+
+
+def _validate_episode(episode: DecisionEpisode) -> None:
+    _require_project_id(episode.project_id)
+    if not _EPISODE_ID.fullmatch(episode.episode_id):
+        raise ValueError("episode id must be a SHA-256 digest")
+    if not episode.evidence_ids or len(episode.evidence_ids) != len(set(episode.evidence_ids)):
+        raise ValueError("duplicate evidence IDs in private episode")
+    if episode.evidence_ids != tuple(event.evidence_id for event in episode.events):
+        raise ValueError("private episode evidence does not match its events")
