@@ -4,6 +4,7 @@ import pytest
 
 from atlas_worker.models import (
     ArticleSection,
+    DecisionIndexEntry,
     DiagramRef,
     EvidenceRecord,
     GraphData,
@@ -296,4 +297,208 @@ def test_public_evidence_schema_rejects_invalid_url():
     ]
 
     with pytest.raises(ValueError, match="url"):
+        validate_schema(payload, "public-evidence")
+
+
+def test_project_article_projects_decision_evidence_ids_as_public_lists():
+    article = ProjectArticle(
+        project_id="alpha",
+        title="라우팅 개선",
+        summary="검증된 요약",
+        sections=(
+            ArticleSection(
+                section_id="routing",
+                title="라우팅 개선",
+                section_type="decision",
+                body="본문",
+                evidence_ids=("ev-spec",),
+            ),
+        ),
+        readiness="ready",
+        decision_index=(
+            DecisionIndexEntry(
+                decision_id="routing-choice",
+                section_id="routing",
+                status="adopted",
+                evidence_ids=("ev-spec",),
+            ),
+        ),
+    )
+
+    payload = article.to_public_dict()
+
+    assert payload["decision_index"] == [
+        {
+            "decision_id": "routing-choice",
+            "section_id": "routing",
+            "status": "adopted",
+            "evidence_ids": ["ev-spec"],
+        }
+    ]
+    validate_schema(payload, "public-article")
+
+
+@pytest.mark.parametrize(
+    ("schema_name", "payload", "field_name"),
+    (
+        (
+            "project-article",
+            {
+                "project_id": "Alpha_1",
+                "title": "라우팅 개선",
+                "summary": "검증된 요약",
+                "readiness": "ready",
+                "sections": [],
+            },
+            "project_id",
+        ),
+        (
+            "public-article",
+            {
+                "project_id": "alpha",
+                "title": "라우팅 개선",
+                "summary": "검증된 요약",
+                "readiness": "ready",
+                "sections": [
+                    {
+                        "id": "routing_section",
+                        "title": "라우팅 개선",
+                        "section_type": "decision",
+                        "body": "본문",
+                        "evidence_ids": ["ev-spec"],
+                    }
+                ],
+            },
+            "sections.0.id",
+        ),
+    ),
+)
+def test_article_schemas_reject_malformed_stable_ids(schema_name, payload, field_name):
+    with pytest.raises(ValueError, match=field_name):
+        validate_schema(payload, schema_name)
+
+
+def test_project_article_schema_accepts_curated_article_shape():
+    payload = {
+        "project_id": "alpha",
+        "title": "라우팅 개선",
+        "summary": "검증된 요약",
+        "readiness": "ready",
+        "prior_context": "이전 검토에서 남은 제약을 해결했다.",
+        "sections": [
+            {
+                "id": "routing",
+                "title": "라우팅 개선",
+                "section_type": "decision",
+                "body": "본문",
+                "evidence_ids": ["ev-spec"],
+                "diagrams": [{"id": "routing-flow", "caption": "흐름", "alt": "라우팅 흐름"}],
+            }
+        ],
+        "decision_index": [
+            {
+                "decision_id": "routing-choice",
+                "section_id": "routing",
+                "status": "adopted",
+                "evidence_ids": ["ev-spec"],
+            }
+        ],
+    }
+
+    validate_schema(payload, "project-article")
+
+
+@pytest.mark.parametrize(
+    ("schema_name", "payload", "field_name"),
+    (
+        (
+            "public-timeline",
+            [
+                {
+                    "event_id": "routing-1",
+                    "date": "2026-02-30",
+                    "title": "라우팅 변경",
+                    "context": "운영 로그",
+                    "decision": "규칙 분리",
+                    "outcome": "검증 완료",
+                    "stage": "validation",
+                }
+            ],
+            "0.date",
+        ),
+        (
+            "public-timeline",
+            [
+                {
+                    "event_id": "routing-1",
+                    "date": "20260827",
+                    "title": "라우팅 변경",
+                    "context": "운영 로그",
+                    "decision": "규칙 분리",
+                    "outcome": "검증 완료",
+                    "stage": "validation",
+                }
+            ],
+            "0.date",
+        ),
+        (
+            "public-evidence",
+            [
+                {
+                    "id": "ev-spec",
+                    "label": "라우팅 사양",
+                    "source_type": "spec",
+                    "observed_at": "2026-02-30T25:61:00+09:00",
+                }
+            ],
+            "0.observed_at",
+        ),
+        (
+            "public-evidence",
+            [
+                {
+                    "id": "ev-spec",
+                    "label": "라우팅 사양",
+                    "source_type": "spec",
+                    "observed_at": "2026-08-27T09:00:00",
+                }
+            ],
+            "0.observed_at",
+        ),
+    ),
+)
+def test_public_schemas_reject_invalid_dates(schema_name, payload, field_name):
+    with pytest.raises(ValueError, match=field_name):
+        validate_schema(payload, schema_name)
+
+
+def test_public_timeline_schema_accepts_project_event_projection():
+    payload = [
+        {
+            "event_id": "routing-1",
+            "date": "2026-08-27",
+            "title": "라우팅 변경",
+            "context": "운영 로그",
+            "decision": "규칙 분리",
+            "outcome": "검증 완료",
+            "stage": "validation",
+        }
+    ]
+
+    validate_schema(payload, "public-timeline")
+
+
+@pytest.mark.parametrize("private_field", ("source_locator", "content_hash", "privacy_class"))
+def test_public_evidence_schema_rejects_private_provenance_fields(private_field):
+    payload = [
+        {
+            "id": "ev-spec",
+            "label": "라우팅 사양",
+            "source_type": "spec",
+            "observed_at": "2026-08-27T09:00:00+09:00",
+            private_field: "private-value",
+        }
+    ]
+
+    with pytest.raises(ValueError, match=private_field):
         validate_schema(payload, "public-evidence")

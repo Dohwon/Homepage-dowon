@@ -1,13 +1,14 @@
 """Shared immutable records and JSON Schema validation for Project Atlas."""
 
 from dataclasses import asdict, dataclass, field
+from datetime import date, datetime
 import json
 from pathlib import Path
 import re
 from typing import Literal
 from urllib.parse import quote
 
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import ValidationError
 
 Lifecycle = Literal["active", "finished"]
@@ -32,6 +33,34 @@ TAG_LIMITS = {
     "technology": (0, 12),
     "outcome": (1, 2),
 }
+
+_SCHEMA_FORMAT_CHECKER = FormatChecker()
+_DATE_VALUE = re.compile(r"\d{4}-\d{2}-\d{2}")
+_DATE_TIME_VALUE = re.compile(
+    r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})"
+)
+
+
+@_SCHEMA_FORMAT_CHECKER.checks("date")
+def _is_valid_date(value: object) -> bool:
+    if not isinstance(value, str) or _DATE_VALUE.fullmatch(value) is None:
+        return False
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
+
+
+@_SCHEMA_FORMAT_CHECKER.checks("date-time")
+def _is_valid_date_time(value: object) -> bool:
+    if not isinstance(value, str) or _DATE_TIME_VALUE.fullmatch(value) is None:
+        return False
+    try:
+        datetime.fromisoformat(value.removesuffix("Z") + "+00:00" if value.endswith("Z") else value)
+    except ValueError:
+        return False
+    return True
 
 
 @dataclass(frozen=True)
@@ -182,7 +211,7 @@ class ProjectArticle:
         if self.prior_context:
             payload["prior_context"] = self.prior_context
         if self.decision_index:
-            payload["decision_index"] = [asdict(item) for item in self.decision_index]
+            payload["decision_index"] = [_public_decision(item) for item in self.decision_index]
         return payload
 
 
@@ -338,7 +367,7 @@ def validate_schema(instance: object, schema_name: str) -> None:
         raise ValueError(f"Unknown schema: {schema_name}")
 
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    validator = Draft202012Validator(schema, format_checker=Draft202012Validator.FORMAT_CHECKER)
+    validator = Draft202012Validator(schema, format_checker=_SCHEMA_FORMAT_CHECKER)
     error = next(iter(validator.iter_errors(instance)), None)
     if error is not None:
         raise ValueError(_schema_error_message(error, instance)) from error
@@ -398,3 +427,12 @@ def _public_section(section: ArticleSection) -> dict[str, object]:
             for item in section.diagrams
         ]
     return payload
+
+
+def _public_decision(item: DecisionIndexEntry) -> dict[str, object]:
+    return {
+        "decision_id": item.decision_id,
+        "section_id": item.section_id,
+        "status": item.status,
+        "evidence_ids": list(item.evidence_ids),
+    }
