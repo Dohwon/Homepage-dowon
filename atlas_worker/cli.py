@@ -55,6 +55,7 @@ from .models import (
 )
 from .privacy import MIN_ALIAS_KEY_BYTES, PrivacyGate, PrivacyViolation
 from .sessions import iter_session_events, map_session
+from .source_manifest import SubprocessGitRunner, build_source_manifest
 
 
 EXIT_OK = 0
@@ -142,6 +143,11 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--sessions-root", type=Path)
     run.add_argument("--apply-reviewed-report", type=Path)
     run.add_argument("--dry-run", action="store_true")
+
+    audit = commands.add_parser("audit-content")
+    _add_workspace(audit)
+    _add_format(audit)
+    audit.add_argument("--project", required=True)
     return parser
 
 
@@ -178,6 +184,8 @@ def dispatch(args: argparse.Namespace) -> dict[str, object]:
         return _command_validate(args)
     if args.command == "run":
         return _command_run(args)
+    if args.command == "audit-content":
+        return _command_audit_content(args)
     raise ConfigError("/command")
 
 
@@ -298,6 +306,16 @@ def _command_run(args: argparse.Namespace) -> dict[str, object]:
             "version": build["version"],
         },
     }
+
+
+def _command_audit_content(args: argparse.Namespace) -> dict[str, object]:
+    workspace = _workspace(args.workspace)
+    config = _load_runtime_config(workspace)
+    report = _discover(workspace, config)
+    project = next((item for item in report.projects if item.project_id == args.project), None)
+    if project is None:
+        raise ConfigError("/project")
+    return build_source_manifest(project, SubprocessGitRunner()).audit_payload()
 
 
 def _workspace(value: Path) -> Path:

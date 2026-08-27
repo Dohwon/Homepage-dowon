@@ -1,3 +1,4 @@
+import importlib
 import json
 import os
 from pathlib import Path
@@ -139,6 +140,26 @@ def test_parser_exposes_all_worker_commands_and_required_options(tmp_path):
     assert parser.parse_args(["build", "--workspace", workspace, "--dry-run"]).dry_run
     assert parser.parse_args(["validate", "--fixture", workspace]).fixture == Path(workspace)
     assert parser.parse_args(["run", "--workspace", workspace, "--dry-run"]).dry_run
+    assert parser.parse_args(
+        ["audit-content", "--workspace", workspace, "--project", "alpha", "--format", "json"]
+    ).project == "alpha"
+
+
+def test_audit_content_emits_relative_manifest_summary_without_private_paths(tmp_path):
+    workspace = make_workspace_fixture(tmp_path)
+    project = workspace / "projects" / "alpha"
+    (project / "src").mkdir()
+    (project / "src/main.py").write_text("print('audit')\n", encoding="utf-8")
+
+    output = invoke_cli_json(
+        ["audit-content", "--workspace", str(workspace), "--project", "alpha", "--format", "json"]
+    )
+
+    assert output["project_id"] == "alpha"
+    assert output["files"]["count"] >= 2
+    assert len(output["content_hash"]) == 64
+    assert str(workspace) not in json.dumps(output)
+    assert "/git/" not in json.dumps(output)
 
 
 def test_operator_readme_documents_atlas_setup_key_and_recovery_contracts():
@@ -592,7 +613,8 @@ def test_backfill_scans_each_session_once_for_all_projects(tmp_path, monkeypatch
                 text=content,
             )
 
-    monkeypatch.setattr(cli_module, "iter_session_events", one_pass_events)
+    current_cli_module = importlib.import_module("atlas_worker.cli")
+    monkeypatch.setattr(current_cli_module, "iter_session_events", one_pass_events)
 
     output = invoke_cli_json(
         [
