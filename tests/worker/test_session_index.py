@@ -74,9 +74,8 @@ def test_index_session_retains_messages_and_structured_patch_targets_only(tmp_pa
 
     assert trace.session_id == "child"
     assert trace.parent_session_id == "parent"
-    assert trace.cwd == "/workspace/projects/alpha"
+    assert trace.cwd == "/workspace/projects/beta"
     assert trace.changed_paths == (
-        "/workspace/projects/beta",
         "/workspace/projects/beta/src/app.py",
         "/workspace/projects/beta/config.yaml",
     )
@@ -186,3 +185,178 @@ def test_ambiguous_direct_child_evidence_is_not_resolved_from_parent():
 
     assert mappings[1].project_id is None
     assert mappings[1].reason == "ambiguous"
+
+
+def test_duplicate_session_ids_fail_closed_independently_of_input_order():
+    traces = (
+        _trace("duplicate"),
+        _trace("duplicate"),
+        _trace("child", parent="duplicate"),
+    )
+    mappings = (
+        _mapping("duplicate", "alpha", "cwd"),
+        _mapping("duplicate", "beta", "changed-path"),
+        _mapping("child", None, "unmapped"),
+    )
+
+    first = merge_child_evidence(traces, mappings)
+    second = merge_child_evidence(tuple(reversed(traces)), tuple(reversed(mappings)))
+
+    assert [(item.project_id, item.reason, item.child_session_ids) for item in first] == [
+        (None, "ambiguous", ()),
+        (None, "ambiguous", ()),
+        (None, "unmapped", ()),
+    ]
+    assert sorted((item.session_id, item.project_id, item.reason) for item in first) == sorted(
+        (item.session_id, item.project_id, item.reason) for item in second
+    )
+
+
+def test_parent_cycle_preserves_direct_evidence_and_fails_unmapped_members_closed():
+    traces = (_trace("a", parent="b"), _trace("b", parent="a"))
+    mappings = (_mapping("a", "alpha", "cwd"), _mapping("b", None, "unmapped"))
+
+    first = merge_child_evidence(traces, mappings)
+    second = merge_child_evidence(tuple(reversed(traces)), tuple(reversed(mappings)))
+
+    assert [(item.project_id, item.reason, item.child_session_ids) for item in first] == [
+        ("alpha", "cwd", ()),
+        (None, "ambiguous", ()),
+    ]
+    assert sorted((item.session_id, item.project_id, item.reason) for item in first) == sorted(
+        (item.session_id, item.project_id, item.reason) for item in second
+    )
+
+
+def test_self_parent_cycle_is_ambiguous_without_a_child_link():
+    mapping = merge_child_evidence(
+        traces=(_trace("self", parent="self"),),
+        mappings=(_mapping("self", None, "unmapped"),),
+    )[0]
+
+    assert (mapping.project_id, mapping.reason, mapping.child_session_ids) == (
+        None,
+        "ambiguous",
+        (),
+    )
+
+
+def test_missing_parent_remains_unmapped_without_a_child_link():
+    mapping = merge_child_evidence(
+        traces=(_trace("child", parent="missing"),),
+        mappings=(_mapping("child", None, "unmapped"),),
+    )[0]
+
+    assert (mapping.project_id, mapping.reason, mapping.child_session_ids) == (
+        None,
+        "unmapped",
+        (),
+    )
+
+
+def test_custom_tool_call_extracts_only_allowlisted_wrapper_object_paths(tmp_path):
+    session_path = tmp_path / "custom.jsonl"
+    records = (
+        {
+            "type": "session_meta",
+            "payload": {"id": "custom", "cwd": "/workspace/projects/alpha"},
+        },
+        {
+            "type": "response_item",
+            "payload": {
+                "type": "message",
+                "role": "user",
+                "content": [{"type": "input_text", "text": "ignore /private/prose.py"}],
+            },
+        },
+        {
+            "type": "response_item",
+            "payload": {
+                "item": {
+                    "type": "custom_tool_call",
+                    "input": (
+                        'await tools.exec_command({ workdir: "/workspace/projects/beta\\u002dwork", '
+                        'path: "/workspace/projects/beta-work/src/app.py", '
+                        'cmd: "printf \\\"/private/cmd.py\\\"" });'
+                    ),
+                }
+            },
+        },
+    )
+    session_path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+
+    trace = index_session(session_path)
+
+    assert trace.cwd == "/workspace/projects/beta-work"
+    assert trace.changed_paths == ("/workspace/projects/beta-work/src/app.py",)
+    assert "/private/prose.py" not in trace.changed_paths
+    assert "/private/cmd.py" not in trace.changed_paths
+
+
+def test_custom_tool_call_skips_dynamic_or_non_wrapper_input(tmp_path):
+    session_path = tmp_path / "custom-invalid.jsonl"
+    records = (
+        {"type": "session_meta", "payload": {"id": "custom", "cwd": "/workspace/projects/alpha"}},
+        {
+            "type": "response_item",
+            "payload": {
+                "item": {
+                    "type": "custom_tool_call",
+                    "input": 'await tools.exec_command({ workdir: root + "/beta", path: dynamicPath, cmd: "/private/cmd.py" });',
+                }
+            },
+        },
+        {
+            "type": "response_item",
+            "payload": {
+                "item": {
+                    "type": "custom_tool_call",
+                    "input": 'ordinary prose mentioning tools.exec_command({path: "/private/prose.py"})',
+                }
+            },
+        },
+    )
+    session_path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+
+    trace = index_session(session_path)
+
+    assert trace.cwd == "/workspace/projects/alpha"
+    assert trace.changed_paths == ()
+
+
+def test_apply_patch_extracts_add_update_delete_and_move_targets_only(tmp_path):
+    session_path = tmp_path / "move.jsonl"
+    patch = "\n".join(
+        (
+            "*** Update File: src/old.py",
+            "*** Move to: src/new.py",
+            "*** Add File: src/added.py",
+            "*** Delete File: src/deleted.py",
+            "+*** Update File: /private/patch-prose.py",
+        )
+    )
+    records = (
+        {"type": "session_meta", "payload": {"id": "move", "cwd": "/workspace/projects/alpha"}},
+        {
+            "type": "response_item",
+            "payload": {
+                "item": {
+                    "type": "function_call",
+                    "name": "apply_patch",
+                    "workdir": "/workspace/projects/beta",
+                    "arguments": patch,
+                }
+            },
+        },
+    )
+    session_path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+
+    trace = index_session(session_path)
+
+    assert trace.cwd == "/workspace/projects/beta"
+    assert trace.changed_paths == (
+        "/workspace/projects/beta/src/old.py",
+        "/workspace/projects/beta/src/new.py",
+        "/workspace/projects/beta/src/added.py",
+        "/workspace/projects/beta/src/deleted.py",
+    )

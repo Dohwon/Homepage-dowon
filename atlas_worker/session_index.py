@@ -9,14 +9,18 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Protocol
 
-from .models import ProjectRef, SessionMapping, SessionTrace
+from .models import ProjectRef, SessionEvent, SessionMapping, SessionTrace
 from .sessions import map_project_path, normalize_codex_record, normalize_local_path
 
 
-_PATCH_TARGET = re.compile(r"^\*\*\* (?:Add|Update|Delete) File: (.+?)\s*$", re.MULTILINE)
+_PATCH_TARGET = re.compile(
+    r"^\*\*\* (?:(?:Add|Update|Delete) File:|Move to:) (.+?)\s*$", re.MULTILINE
+)
 _TOOL_TYPES = frozenset({"function_call", "function_call_output", "tool_call", "custom_tool_call"})
 _PATH_KEYS = ("cwd", "workdir", "path")
 _GIT_COMMON_DIR_KEYS = ("git_common_dir", "git_common_dirs")
+_LOCATION_KEYS = ("cwd", "workdir")
+_CUSTOM_WRAPPER_NAMES = frozenset({"exec_command"})
 
 
 class GitOwner(Protocol):
@@ -37,8 +41,6 @@ def index_session(path: Path) -> SessionTrace:
             try:
                 raw = json.loads(line)
             except json.JSONDecodeError:
-                from .models import SessionEvent
-
                 events.append(
                     SessionEvent(
                         session_id=session_id,
@@ -60,9 +62,11 @@ def index_session(path: Path) -> SessionTrace:
             tool_record = _tool_record(raw)
             if tool_record is None:
                 continue
-            tool_paths = _structured_paths(tool_record)
-            changed_paths.extend(tool_paths)
-            changed_paths.extend(_patch_targets(tool_record, tool_paths, cwd))
+            locations, explicit_paths = _tool_path_evidence(tool_record, cwd)
+            if locations:
+                cwd = locations[-1]
+            changed_paths.extend(explicit_paths)
+            changed_paths.extend(_patch_targets(tool_record, cwd))
             git_common_dirs.extend(_structured_values(tool_record, _GIT_COMMON_DIR_KEYS))
 
     return SessionTrace(
@@ -106,28 +110,58 @@ def merge_child_evidence(
     traces: Sequence[SessionTrace], mappings: Sequence[SessionMapping]
 ) -> tuple[SessionMapping, ...]:
     """Inherit only unambiguous mapped parents and record children deterministically."""
-    trace_by_id = {trace.session_id: trace for trace in traces if trace.session_id}
-    mapping_by_id = {mapping.session_id: mapping for mapping in mappings}
+    rows = tuple(zip(traces, mappings))
+    session_id_counts: dict[str, int] = {}
+    for trace, _ in rows:
+        if trace.session_id:
+            session_id_counts[trace.session_id] = session_id_counts.get(trace.session_id, 0) + 1
+    duplicate_ids = {
+        session_id for session_id, count in session_id_counts.items() if count > 1
+    }
+    by_id = {
+        trace.session_id: (index, trace)
+        for index, (trace, _) in enumerate(rows)
+        if trace.session_id and trace.session_id not in duplicate_ids
+    }
+    cycle_ids = _parent_cycle_ids({session_id: trace for session_id, (_, trace) in by_id.items()})
+    resolved = list(mappings)
+
+    for index, (trace, mapping) in enumerate(rows):
+        if trace.session_id in duplicate_ids or (
+            trace.session_id in cycle_ids and mapping.reason == "unmapped"
+        ):
+            resolved[index] = SessionMapping(
+                session_id=mapping.session_id,
+                project_id=None,
+                reason="ambiguous",
+                child_session_ids=(),
+            )
+
     children: dict[str, list[str]] = {}
-    for trace in traces:
-        if trace.session_id and trace.parent_session_id in trace_by_id:
+    for trace, _ in rows:
+        if (
+            trace.session_id in by_id
+            and trace.session_id not in cycle_ids
+            and trace.parent_session_id in by_id
+        ):
             children.setdefault(trace.parent_session_id, []).append(trace.session_id)
 
     changed = True
     while changed:
         changed = False
-        for trace in traces:
-            current = mapping_by_id.get(trace.session_id)
-            parent = mapping_by_id.get(trace.parent_session_id)
+        for session_id in sorted(by_id):
+            index, trace = by_id[session_id]
+            current = resolved[index]
+            parent_row = by_id.get(trace.parent_session_id)
+            parent = resolved[parent_row[0]] if parent_row is not None else None
             if (
-                current is None
-                or current.reason != "unmapped"
+                current.reason != "unmapped"
                 or parent is None
                 or parent.project_id is None
-                or parent.reason == "ambiguous"
+                or session_id in cycle_ids
             ):
                 continue
-            mapping_by_id[trace.session_id] = SessionMapping(
+            resolved[index] = SessionMapping(
                 session_id=current.session_id,
                 project_id=parent.project_id,
                 reason="parent-session",
@@ -136,17 +170,34 @@ def merge_child_evidence(
             changed = True
 
     result = []
-    for mapping in mappings:
-        resolved = mapping_by_id[mapping.session_id]
+    for index, (_, mapping) in enumerate(rows):
+        current = resolved[index]
         result.append(
             SessionMapping(
-                session_id=resolved.session_id,
-                project_id=resolved.project_id,
-                reason=resolved.reason,
-                child_session_ids=tuple(sorted(set(children.get(resolved.session_id, ())))),
+                session_id=current.session_id,
+                project_id=current.project_id,
+                reason=current.reason,
+                child_session_ids=tuple(
+                    sorted(set(children.get(current.session_id, ())))
+                ),
             )
         )
     return tuple(result)
+
+
+def _parent_cycle_ids(traces: Mapping[str, SessionTrace]) -> set[str]:
+    cycles: set[str] = set()
+    for session_id in sorted(traces):
+        positions: dict[str, int] = {}
+        path: list[str] = []
+        cursor = session_id
+        while cursor in traces and cursor not in positions:
+            positions[cursor] = len(path)
+            path.append(cursor)
+            cursor = traces[cursor].parent_session_id
+        if cursor in positions:
+            cycles.update(path[positions[cursor] :])
+    return cycles
 
 
 def _parent_session_id(raw: object) -> str:
@@ -177,18 +228,58 @@ def _tool_record(raw: object) -> dict[str, object] | None:
     return None
 
 
-def _structured_paths(record: Mapping[str, object]) -> tuple[str, ...]:
-    values = _structured_values(record, _PATH_KEYS)
-    workdirs = _structured_values(record, ("workdir", "cwd"))
-    base = next((value for value in workdirs if value), "")
-    return _unique_paths(_resolve_path(value, base) for value in values)
+def _tool_path_evidence(
+    record: Mapping[str, object], current_cwd: str
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    values = (
+        _custom_wrapper_values(record)
+        if record.get("type") == "custom_tool_call"
+        else _record_structured_values(record)
+    )
+    locations: list[str] = []
+    explicit_paths: list[str] = []
+    base = current_cwd
+    for value in values:
+        for key in _LOCATION_KEYS:
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate:
+                base = _resolve_path(candidate, base)
+                if base:
+                    locations.append(base)
+        candidate = value.get("path")
+        if isinstance(candidate, str) and candidate:
+            resolved = _resolve_path(candidate, base)
+            if resolved:
+                explicit_paths.append(resolved)
+    return _unique_paths(locations), _unique_paths(explicit_paths)
+
+
+def _record_structured_values(record: Mapping[str, object]) -> tuple[Mapping[str, object], ...]:
+    containers: list[object] = [record]
+    for key in ("arguments", "input"):
+        value = record.get(key)
+        if isinstance(value, (dict, list)):
+            containers.append(value)
+        elif isinstance(value, str):
+            try:
+                decoded = json.loads(value)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(decoded, (dict, list)):
+                containers.append(decoded)
+    return tuple(_walk_structured_mappings(containers))
+
+
+def _custom_wrapper_values(record: Mapping[str, object]) -> tuple[Mapping[str, object], ...]:
+    value = record.get("input")
+    if not isinstance(value, str):
+        return ()
+    return _parse_custom_wrappers(value)
 
 
 def _structured_values(record: Mapping[str, object], keys: Sequence[str]) -> tuple[str, ...]:
     values: list[str] = []
-    for value in _walk_structured_values(record):
-        if not isinstance(value, dict):
-            continue
+    for value in _record_structured_values(record):
         for key in keys:
             candidate = value.get(key)
             if isinstance(candidate, str) and candidate.strip():
@@ -198,8 +289,8 @@ def _structured_values(record: Mapping[str, object], keys: Sequence[str]) -> tup
     return tuple(values)
 
 
-def _walk_structured_values(record: Mapping[str, object]):
-    pending: list[object] = [record]
+def _walk_structured_mappings(values: Sequence[object]):
+    pending = list(reversed(values))
     while pending:
         value = pending.pop()
         if isinstance(value, dict):
@@ -207,24 +298,162 @@ def _walk_structured_values(record: Mapping[str, object]):
             pending.extend(reversed(tuple(value.values())))
         elif isinstance(value, list):
             pending.extend(reversed(value))
-        elif isinstance(value, str):
-            try:
-                decoded = json.loads(value)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(decoded, (dict, list)):
-                pending.append(decoded)
 
 
-def _patch_targets(record: Mapping[str, object], tool_paths: tuple[str, ...], cwd: str) -> tuple[str, ...]:
+def _parse_custom_wrappers(source: str) -> tuple[Mapping[str, object], ...]:
+    tokens = _tokenize_javascript(source)
+    if tokens is None:
+        return ()
+    values: list[Mapping[str, object]] = []
+    for index in range(len(tokens) - 4):
+        if not _is_allowed_wrapper_call(tokens, index):
+            continue
+        parsed = _parse_object_literal(tokens, index + 4)
+        if parsed is not None:
+            values.append(parsed[0])
+    return tuple(values)
+
+
+def _is_allowed_wrapper_call(tokens: Sequence[tuple[str, str]], index: int) -> bool:
+    if index and tokens[index - 1][1] not in {"await", ";", "{", "}", "("}:
+        return False
+    return (
+        tokens[index : index + 5]
+        and tokens[index][1] == "tools"
+        and tokens[index + 1][1] == "."
+        and tokens[index + 2][0] == "identifier"
+        and tokens[index + 2][1] in _CUSTOM_WRAPPER_NAMES
+        and tokens[index + 3][1] == "("
+        and tokens[index + 4][1] == "{"
+    )
+
+
+def _parse_object_literal(
+    tokens: Sequence[tuple[str, str]], start: int
+) -> tuple[dict[str, object], int] | None:
+    values: dict[str, object] = {}
+    index = start + 1
+    while index < len(tokens):
+        if tokens[index][1] == "}":
+            return values, index + 1
+        kind, key = tokens[index]
+        if kind not in {"identifier", "string"}:
+            return None
+        if index + 2 >= len(tokens) or tokens[index + 1][1] != ":":
+            return None
+        value_kind, value = tokens[index + 2]
+        if value_kind == "string":
+            values[key] = value
+        elif value_kind == "identifier" and value in {"true", "false", "null"}:
+            values[key] = value
+        elif value_kind == "number":
+            values[key] = value
+        else:
+            return None
+        index += 3
+        if index >= len(tokens):
+            return None
+        if tokens[index][1] == "}":
+            return values, index + 1
+        if tokens[index][1] != ",":
+            return None
+        index += 1
+    return None
+
+
+def _tokenize_javascript(source: str) -> tuple[tuple[str, str], ...] | None:
+    tokens: list[tuple[str, str]] = []
+    index = 0
+    while index < len(source):
+        character = source[index]
+        if character.isspace():
+            index += 1
+            continue
+        if source.startswith("//", index):
+            end = source.find("\n", index + 2)
+            index = len(source) if end < 0 else end + 1
+            continue
+        if source.startswith("/*", index):
+            end = source.find("*/", index + 2)
+            if end < 0:
+                return None
+            index = end + 2
+            continue
+        if character in {"'", '"'}:
+            parsed = _read_js_string(source, index)
+            if parsed is None:
+                return None
+            value, index = parsed
+            tokens.append(("string", value))
+            continue
+        if character == "`":
+            return None
+        if character.isalpha() or character in {"_", "$"}:
+            end = index + 1
+            while end < len(source) and (source[end].isalnum() or source[end] in {"_", "$"}):
+                end += 1
+            tokens.append(("identifier", source[index:end]))
+            index = end
+            continue
+        if character.isdigit():
+            end = index + 1
+            while end < len(source) and (source[end].isdigit() or source[end] == "."):
+                end += 1
+            tokens.append(("number", source[index:end]))
+            index = end
+            continue
+        tokens.append(("punctuation", character))
+        index += 1
+    return tuple(tokens)
+
+
+def _read_js_string(source: str, start: int) -> tuple[str, int] | None:
+    quote = source[start]
+    parts: list[str] = []
+    index = start + 1
+    while index < len(source):
+        character = source[index]
+        if character == quote:
+            return "".join(parts), index + 1
+        if character != "\\":
+            parts.append(character)
+            index += 1
+            continue
+        if index + 1 >= len(source):
+            return None
+        escaped = source[index + 1]
+        escapes = {"b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v"}
+        if escaped == "u":
+            digits = source[index + 2 : index + 6]
+            if len(digits) != 4 or any(digit not in "0123456789abcdefABCDEF" for digit in digits):
+                return None
+            parts.append(chr(int(digits, 16)))
+            index += 6
+        elif escaped == "x":
+            digits = source[index + 2 : index + 4]
+            if len(digits) != 2 or any(digit not in "0123456789abcdefABCDEF" for digit in digits):
+                return None
+            parts.append(chr(int(digits, 16)))
+            index += 4
+        elif escaped in escapes:
+            parts.append(escapes[escaped])
+            index += 2
+        elif escaped in {"\\", "'", '"', "/"}:
+            parts.append(escaped)
+            index += 2
+        else:
+            return None
+    return None
+
+
+def _patch_targets(record: Mapping[str, object], cwd: str) -> tuple[str, ...]:
     name = record.get("name")
     if not isinstance(name, str) or name.rsplit(".", 1)[-1] != "apply_patch":
         return ()
     patch = _patch_text(record)
     if not patch:
         return ()
-    base = next((path for path in tool_paths if path), cwd)
-    return _unique_paths(_resolve_path(target, base) for target in _PATCH_TARGET.findall(patch))
+    return _unique_paths(_resolve_path(target, cwd) for target in _PATCH_TARGET.findall(patch))
 
 
 def _patch_text(record: Mapping[str, object]) -> str:
