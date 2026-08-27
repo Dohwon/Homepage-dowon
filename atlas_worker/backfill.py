@@ -117,26 +117,40 @@ def updated_cursors(paths: Iterable[Path], cursors: Mapping[str, str]) -> dict[s
 
 def extract_signal_claims(events: Iterable[SessionEvent]) -> tuple[EvidenceClaim, ...]:
     """Incrementally extract high-signal claims without retaining raw event text."""
-    claims: list[EvidenceClaim] = []
-    states: OrderedDict[tuple[str, str], _ContextState] = OrderedDict()
+    extractor = SignalClaimExtractor()
     for event in events:
-        state = _state_for_event(states, event)
+        extractor.consume(event)
+    return extractor.claims
+
+
+class SignalClaimExtractor:
+    """Retain only bounded extraction state while events are streamed once."""
+
+    def __init__(self) -> None:
+        self._claims: list[EvidenceClaim] = []
+        self._states: OrderedDict[tuple[str, str], _ContextState] = OrderedDict()
+
+    @property
+    def claims(self) -> tuple[EvidenceClaim, ...]:
+        return tuple(self._claims)
+
+    def consume(self, event: SessionEvent) -> None:
+        state = _state_for_event(self._states, event)
         if state is not None and event.role in _RESULT_ROLES:
-            _apply_result_confirmation(claims, state, event)
+            _apply_result_confirmation(self._claims, state, event)
 
         claim_type = _signal_type(event.text)
         if claim_type is None:
-            continue
+            return
 
         if claim_type == "rollback":
-            claims.append(_claim_from_event(event, "rollback", 0.95, "rollback requested"))
+            self._claims.append(_claim_from_event(event, "rollback", 0.95, "rollback requested"))
         elif claim_type == "decision" and _is_committed_architecture_decision(event.text):
-            claims.append(_claim_from_event(event, "decision", 0.85, "architecture decision recorded"))
+            self._claims.append(_claim_from_event(event, "decision", 0.85, "architecture decision recorded"))
         elif claim_type == "failure" and state is not None:
             state.pending_failure = _pending_evidence(event)
         elif claim_type == "revision" and state is not None:
-            _record_revision(claims, state, event)
-    return tuple(claims)
+            _record_revision(self._claims, state, event)
 
 
 def automatic_merge_claims(claims: Iterable[EvidenceClaim]) -> tuple[EvidenceClaim, ...]:

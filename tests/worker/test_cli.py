@@ -18,6 +18,7 @@ from atlas_worker.cli import (
     build_parser,
     main,
 )
+from atlas_worker.models import SessionEvent
 from tests.worker.helpers import (
     invoke_cli_json,
     make_workspace_fixture,
@@ -561,6 +562,55 @@ def test_backfill_streams_explicit_sessions_and_reports_only_sanitized_claims(tm
     assert str(sessions) not in rendered
     assert "TOP_SECRET" not in capsys.readouterr().err
     assert _snapshot(workspace) == before
+
+
+def test_backfill_scans_each_session_once_for_all_projects(tmp_path, monkeypatch):
+    workspace = make_workspace_fixture(tmp_path)
+    sessions = tmp_path / "sessions"
+    session_path = sessions / "one.jsonl"
+    session_path.parent.mkdir()
+    session_path.write_text("placeholder\n", encoding="utf-8")
+    iterations = 0
+
+    def one_pass_events(path):
+        nonlocal iterations
+        assert path == session_path
+        iterations += 1
+        if iterations > 1:
+            raise AssertionError("session source was scanned more than once")
+        events = (
+            ("alpha", workspace / "projects" / "alpha", "user", "테스트 실패"),
+            ("beta", workspace / "projects" / "finish" / "beta", "user", "rollback requested"),
+            ("alpha", workspace / "projects" / "alpha", "assistant", "테스트 통과"),
+        )
+        for project_id, project_path, role, content in events:
+            yield SessionEvent(
+                session_id=f"session-{project_id}",
+                timestamp="2026-08-24T10:00:00Z",
+                cwd=str(project_path),
+                role=role,
+                text=content,
+            )
+
+    monkeypatch.setattr(cli_module, "iter_session_events", one_pass_events)
+
+    output = invoke_cli_json(
+        [
+            "backfill",
+            "--workspace",
+            str(workspace),
+            "--sessions-root",
+            str(sessions),
+            "--dry-run",
+        ]
+    )
+
+    assert iterations == 1
+    assert output["sessions"]["mapped_events"] == 3
+    assert [
+        (claim["project_id"], claim["claim_type"])
+        for claim in output["claims"]
+    ] == [("alpha", "failure"), ("beta", "rollback")]
 
 
 def test_backfill_reads_sessions_root_from_runtime_config_without_state_writes(tmp_path):

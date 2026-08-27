@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+<title id="title">에이전트 전문가 라우팅 테스트 체계 problem-solving map</title>
+<desc id="desc">Revision to Decision.</desc>
+<style>
+:root { --atlas-bg: #f6f8fb; --atlas-node: #ffffff; --atlas-ink: #172033; --atlas-line: #52657f; --atlas-accent: #0b7285; --atlas-muted: #52657f; }
+@media (prefers-color-scheme: dark) { :root { --atlas-bg: #121820; --atlas-node: #1d2632; --atlas-ink: #f4f7fb; --atlas-line: #9ab1c8; --atlas-accent: #5fd0d8; --atlas-muted: #c2d0df; } }
+svg { background: var(--atlas-bg); font-family: Arial, sans-serif; }
+.node { fill: var(--atlas-node); stroke: var(--atlas-line); stroke-width: 2; }
+.stage { fill: var(--atlas-accent); font-size: 18px; font-weight: bold; }
+.body { fill: var(--atlas-ink); font-size: 13px; }
+.muted { fill: var(--atlas-muted); font-size: 12px; }
+.arrow { fill: none; stroke: var(--atlas-line); stroke-width: 2; }
+</style>
+<defs><marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8 z" fill="var(--atlas-line)" /></marker></defs>
+<path class="arrow" d="M 588 320 H 600" marker-end="url(#arrowhead)" />
+<g id="node-revision">
+<rect class="node" x="380" y="142" width="208" height="356" rx="6" />
+<text class="stage" x="394" y="180">Revision</text>
+<text class="body" x="394" y="216">Title: Revision</text>
+<text class="muted" x="394" y="288">Context: 과거 결과와 최신 기준셋이 같은 위치에 섞여</text>
+<text class="muted" x="394" y="305">어떤 결과가 현재 상태인지 불명확했습니다.</text>
+<text class="muted" x="394" y="360">Decision: canonical benchmark,</text>
+<text class="muted" x="394" y="377">latest result와 archive ...</text>
+<text class="muted" x="394" y="432">Result: 재실행 결과의 최신성과 비교 기준을 명확히</text>
+<text class="muted" x="394" y="449">확인할 수 있게 됐습니다.</text>
+</g>
+<g id="node-decision">
+<rect class="node" x="612" y="142" width="208" height="356" rx="6" />
+<text class="stage" x="626" y="180">Decision</text>
+<text class="body" x="626" y="216">Title: Decision</text>
+<text class="muted" x="626" y="288">Context: 프롬프트와 runtime 정책이 따로 바뀌면</text>
+<text class="muted" x="626" y="305">테스트 통과가 실제 동작을 보장하지 못했습...</text>
+<text class="muted" x="626" y="360">Decision: 전문가 프롬프트, 응답 스키마와 runtime</text>
+<text class="muted" x="626" y="377">동기화를 품질 계약에 포함했습니다.</text>
+<text class="muted" x="626" y="432">Result: 설계 자산과 실행 경로의 차이를 회귀 검증할 수</text>
+<text class="muted" x="626" y="449">있게 됐습니다.</text>
+</g>
+</svg>

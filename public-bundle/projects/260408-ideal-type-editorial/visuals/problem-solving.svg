@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+<title id="title">Preference Editorial Studio problem-solving map</title>
+<desc id="desc">Revision to Decision.</desc>
+<style>
+:root { --atlas-bg: #f6f8fb; --atlas-node: #ffffff; --atlas-ink: #172033; --atlas-line: #52657f; --atlas-accent: #0b7285; --atlas-muted: #52657f; }
+@media (prefers-color-scheme: dark) { :root { --atlas-bg: #121820; --atlas-node: #1d2632; --atlas-ink: #f4f7fb; --atlas-line: #9ab1c8; --atlas-accent: #5fd0d8; --atlas-muted: #c2d0df; } }
+svg { background: var(--atlas-bg); font-family: Arial, sans-serif; }
+.node { fill: var(--atlas-node); stroke: var(--atlas-line); stroke-width: 2; }
+.stage { fill: var(--atlas-accent); font-size: 18px; font-weight: bold; }
+.body { fill: var(--atlas-ink); font-size: 13px; }
+.muted { fill: var(--atlas-muted); font-size: 12px; }
+.arrow { fill: none; stroke: var(--atlas-line); stroke-width: 2; }
+</style>
+<defs><marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8 z" fill="var(--atlas-line)" /></marker></defs>
+<path class="arrow" d="M 588 320 H 600" marker-end="url(#arrowhead)" />
+<g id="node-revision">
+<rect class="node" x="380" y="142" width="208" height="356" rx="6" />
+<text class="stage" x="394" y="180">Revision</text>
+<text class="body" x="394" y="216">Title: Revision</text>
+<text class="muted" x="394" y="288">Context: 검색 결과와 이미 선택한 항목이 한 화면</text>
+<text class="muted" x="394" y="305">상태에서 섞여 선택 흐름이 복잡해졌습니다.</text>
+<text class="muted" x="394" y="360">Decision: 검색과 Selection Studio 및 분석</text>
+<text class="muted" x="394" y="377">단계를 독립된 상태로 재구성했습니다.</text>
+<text class="muted" x="394" y="432">Result: 사용자가 현재 선택과 다음 행동을 명확히 구분할</text>
+<text class="muted" x="394" y="449">수 있게 됐습니다.</text>
+</g>
+<g id="node-decision">
+<rect class="node" x="612" y="142" width="208" height="356" rx="6" />
+<text class="stage" x="626" y="180">Decision</text>
+<text class="body" x="626" y="216">Title: Decision</text>
+<text class="muted" x="626" y="288">Context: 자동 매칭은 동의와 운영 책임을 충분히 설명하지</text>
+<text class="muted" x="626" y="305">못했습니다.</text>
+<text class="muted" x="626" y="360">Decision: 분석 결과를 운영자가 검토하는 큐레이션 입력으로</text>
+<text class="muted" x="626" y="377">사용했습니다.</text>
+<text class="muted" x="626" y="432">Result: 재미 요소와 실제 운영 판단의 경계를</text>
+<text class="muted" x="626" y="449">유지했습니다.</text>
+</g>
+</svg>

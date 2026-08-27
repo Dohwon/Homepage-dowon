@@ -60,14 +60,15 @@ function projectCard(project, index) {
 }
 
 function pageHeading(kicker, title, description = "", action = "") {
+  const heading = title || kicker;
   return `
     <div class="page-heading">
       <div class="page-heading-copy">
         <p class="eyebrow">${escapeHtml(kicker)}</p>
-        <h1>${escapeHtml(title)}</h1>
+        <h1${title ? "" : ' class="sr-only"'}>${escapeHtml(heading)}</h1>
         ${description ? `<p>${escapeHtml(description)}</p>` : ""}
       </div>
-      ${action}
+      ${action ? `<div class="page-heading-actions">${action}</div>` : ""}
     </div>`;
 }
 
@@ -89,7 +90,7 @@ function renderHome(state) {
   const latestChanges = [...(bootstrap.changelog || [])].sort((left, right) => String(right.date || "").localeCompare(String(left.date || ""))).slice(0, 4);
   return `
     <div class="content-shell">
-      ${pageHeading("Project knowledge base", "프로젝트와 해결 과정을 한곳에서", "완성된 결과와 그 과정에서 바뀐 판단을 프로젝트 단위로 정리합니다.")}
+      ${pageHeading("Project knowledge base", "", "완성된 결과와 그 과정에서 바뀐 판단을 프로젝트 단위로 정리합니다.")}
       <div class="summary-strip" aria-label="Atlas 요약">
         <div class="summary-stat"><span>Projects</span><strong>${counts.all}</strong></div>
         <div class="summary-stat"><span>Active</span><strong>${counts.active}</strong></div>
@@ -109,7 +110,7 @@ function renderProjects(state) {
   const domains = [...new Set(projects.flatMap((project) => project.tags?.domain || []))].sort((a, b) => a.localeCompare(b));
   return `
     <div class="content-shell">
-      ${pageHeading("Projects", `${projects.length}개의 프로젝트`, "각 폴더를 독립 프로젝트로 보고 결과, 결정, 롤백과 작업 지도를 연결했습니다.", '<button class="icon-button" type="button" data-search-trigger-inline aria-label="프로젝트 검색" title="검색"><i data-lucide="search" aria-hidden="true"></i></button>')}
+      ${pageHeading("Projects", "", "프로젝트 별 결과/결정, 작업 지도", `<span class="project-count-badge" data-project-count aria-label="전체 프로젝트 ${projects.length}개">전체 ${projects.length}</span><button class="icon-button" type="button" data-search-trigger-inline aria-label="프로젝트 검색" title="검색"><i data-lucide="search" aria-hidden="true"></i></button>`)}
       <div class="filter-toolbar" aria-label="프로젝트 필터">
         <button class="filter-button" type="button" data-project-filter="all" aria-pressed="true">All</button>
         <button class="filter-button" type="button" data-project-filter="active" aria-pressed="false">Active</button>
@@ -173,7 +174,7 @@ function renderTopics(state) {
         }).join("")}
       </div>
     </section>`).join("");
-  return `<div class="content-shell">${pageHeading("Topics", "프로젝트를 가로지르는 주제", "도메인, 문제, 작업 패턴, 기술과 결과를 공통 태그로 묶었습니다.")}<div class="topic-groups">${content || '<p class="empty-state">등록된 주제가 없습니다.</p>'}</div></div>`;
+  return `<div class="content-shell">${pageHeading("Topics", "", "도메인, 문제, 작업 패턴, 기술 결과 별 태그 모음")}<div class="topic-groups">${content || '<p class="empty-state">등록된 주제가 없습니다.</p>'}</div></div>`;
 }
 
 function changelogRows(changes, projects) {
@@ -188,14 +189,14 @@ function changelogRows(changes, projects) {
 
 function renderChangelog(state) {
   const changes = [...(state.bootstrap.changelog || [])].sort((left, right) => String(right.date || "").localeCompare(String(left.date || "")));
-  return `<div class="content-shell">${pageHeading("Changelog", "변경과 결정의 기록", "프로젝트 진행 중 결과에 영향을 준 변경만 시간순으로 남깁니다.")}${changes.length ? changelogRows(changes, state.bootstrap.projects || []) : '<p class="empty-state">공개된 변경 기록이 없습니다.</p>'}</div>`;
+  return `<div class="content-shell">${pageHeading("Changelog", "", "프로젝트 변경점 기록")}${changes.length ? changelogRows(changes, state.bootstrap.projects || []) : '<p class="empty-state">공개된 변경 기록이 없습니다.</p>'}</div>`;
 }
 
 function renderGraph(state) {
   const kinds = [...new Set((state.graph?.nodes || []).map((node) => node.kind))];
   return `
     <div class="content-shell wide">
-      ${pageHeading("Knowledge graph", "프로젝트 연결 지도", "프로젝트와 공통 주제를 연결해 반복되는 문제와 작업 패턴을 보여줍니다.")}
+      ${pageHeading("Knowledge graph", "", "프로젝트와 공통 주제를 연결해 반복되는 문제와 작업 패턴을 보여줍니다.")}
       <div class="graph-shell">
         <div class="graph-stage">
           <svg id="knowledge-graph" role="group" aria-label="프로젝트 지식 그래프"></svg>

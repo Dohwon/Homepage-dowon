@@ -8,6 +8,17 @@ test("graph renders, filters, zooms and fits", async ({ page }) => {
   await expect(graph.locator('[data-node-type="Project"]')).toHaveCount(2);
   await expect(graph.locator('[data-node-type="Project"]').first()).toHaveAttribute("role", "button");
 
+  const projectLabel = graph.locator('[data-node-type="Project"] text').first();
+  const topicNode = graph.locator('[data-node-type="Domain"]').first();
+  const topicLabel = topicNode.locator("text");
+  await expect(projectLabel).toHaveCSS("opacity", "1");
+  await expect(topicLabel).toHaveCSS("opacity", "0");
+  const topicBox = await topicNode.locator("circle").boundingBox();
+  await page.mouse.move(topicBox.x + topicBox.width / 2, topicBox.y + topicBox.height / 2);
+  await expect(topicLabel).toHaveCSS("opacity", "1");
+  await topicNode.focus();
+  await expect(topicLabel).toHaveCSS("opacity", "1");
+
   const before = await graph.locator("#graph-viewport").getAttribute("transform");
   const box = await graph.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

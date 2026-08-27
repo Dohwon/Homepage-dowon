@@ -20,8 +20,8 @@ import yaml
 from yaml.error import YAMLError
 
 from .backfill import (
+    SignalClaimExtractor,
     classify_backfill_claims,
-    extract_signal_claims,
     should_skip_session,
     updated_cursors,
 )
@@ -571,25 +571,30 @@ def _scan_sessions(
     mapped_events = 0
     parse_errors = 0
     unmapped_events = 0
+    extractors = {
+        project.project_id: SignalClaimExtractor()
+        for project in projects
+    }
     for path in paths:
         for event in iter_session_events(path):
             if event.parse_error:
                 parse_errors += 1
                 continue
-            if map_session(event, projects, aliases) is None:
+            project_id = map_session(event, projects, aliases)
+            if project_id is None:
                 unmapped_events += 1
             else:
                 mapped_events += 1
+                extractor = extractors.get(project_id)
+                if extractor is not None:
+                    extractor.consume(event)
 
     claims: list[tuple[str, EvidenceClaim]] = []
     for project in projects:
-        def project_events():
-            for session_path in paths:
-                for event in iter_session_events(session_path):
-                    if not event.parse_error and map_session(event, projects, aliases) == project.project_id:
-                        yield event
-
-        claims.extend((project.project_id, claim) for claim in extract_signal_claims(project_events()))
+        claims.extend(
+            (project.project_id, claim)
+            for claim in extractors[project.project_id].claims
+        )
     return {
         "claims": tuple(claims),
         "mapped_events": mapped_events,

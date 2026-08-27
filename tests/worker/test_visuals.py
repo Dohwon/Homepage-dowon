@@ -231,6 +231,24 @@ def test_svg_contains_accessible_metadata_and_ordered_stable_nodes():
     assert ET.fromstring(svg).tag == "{http://www.w3.org/2000/svg}svg"
 
 
+def test_svg_omits_stages_without_selected_evidence():
+    ref = make_project_ref(Path("/workspace/atlas"), project_id="atlas")
+    events = tuple(
+        event
+        for event in make_challenge_events()
+        if event.stage in {"revision", "decision"}
+    )
+
+    svg = render_problem_solving_svg(ref, events)
+
+    assert 'id="node-revision"' in svg
+    assert 'id="node-decision"' in svg
+    assert 'id="node-constraint"' not in svg
+    assert 'id="node-attempt"' not in svg
+    assert 'id="node-result"' not in svg
+    assert "No selected evidence" not in svg
+
+
 def test_svg_escapes_dynamic_content_and_excludes_active_or_external_markup():
     ref = make_project_ref(Path("/private/project"), project_id="atlas<script>")
     event = ProjectEvent(

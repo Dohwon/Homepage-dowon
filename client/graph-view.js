@@ -23,7 +23,47 @@ function dimensions(svg) {
   return { width: Math.max(640, Math.round(box.width || 960)), height: Math.max(480, Math.round(box.height || 620)) };
 }
 
-function layoutNodes(nodes, width, height) {
+export function visibleNodeLabel(label, limit = 34) {
+  const value = String(label || "");
+  return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
+}
+
+function placeProjectGrid(items, width, height) {
+  const columns = 2;
+  const rows = Math.ceil(items.length / columns);
+  const startX = width * 0.3;
+  const endX = width * 0.7;
+  const startY = height * 0.19;
+  const endY = height * 0.81;
+  items.forEach((node, index) => {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    node.x = columns === 1 ? width / 2 : startX + ((endX - startX) * column) / (columns - 1);
+    node.y = rows === 1 ? height / 2 : startY + ((endY - startY) * row) / (rows - 1);
+    node.labelSide = column === columns - 1 ? "right" : "left";
+    node.labelLimit = 24;
+  });
+}
+
+function placeTopicBands(items, width, height) {
+  const spacing = 18;
+  const margin = 14;
+  const columns = Math.max(1, Math.floor((width - margin * 2) / spacing) + 1);
+  const rows = Math.ceil(items.length / columns);
+  const topRows = Math.ceil(rows / 2);
+  items.forEach((node, index) => {
+    const row = Math.floor(index / columns);
+    const column = index % columns;
+    node.x = margin + column * spacing;
+    node.y = row < topRows
+      ? margin + row * spacing
+      : height - margin - (row - topRows) * spacing;
+    node.labelSide = node.x > width * 0.72 ? "left" : "right";
+    node.labelLimit = 28;
+  });
+}
+
+export function layoutNodes(nodes, width, height) {
   const center = { x: width / 2, y: height / 2 };
   const projects = nodes.filter((node) => node.kind === "project");
   const topics = nodes.filter((node) => node.kind !== "project");
@@ -32,8 +72,12 @@ function layoutNodes(nodes, width, height) {
     node.x = center.x + Math.cos(angle) * radiusX;
     node.y = center.y + Math.sin(angle) * radiusY;
   });
-  placeRing(projects, Math.min(230, width * 0.24), Math.min(150, height * 0.24), -Math.PI / 2);
-  placeRing(topics, Math.min(410, width * 0.4), Math.min(255, height * 0.4), -Math.PI / 2 + 0.18);
+  if (projects.length > 12) {
+    placeProjectGrid(projects, width, height);
+  } else {
+    placeRing(projects, Math.min(230, width * 0.24), Math.min(150, height * 0.24), -Math.PI / 2);
+  }
+  placeTopicBands(topics, width, height);
   if (nodes.length === 1) Object.assign(nodes[0], center);
   return nodes;
 }
@@ -63,9 +107,16 @@ function render(viewport, nodes, edges, onSelect) {
       "data-node-id": node.id,
       "data-node-type": displayKind(node.kind)
     });
+    const title = element("title");
+    title.textContent = node.label;
+    group.append(title);
     group.append(element("circle", { r: node.kind === "project" ? 10 : 7, fill: KIND_COLORS[node.kind] || "var(--muted)" }));
-    const label = element("text", { x: 13, y: 4 });
-    label.textContent = node.label;
+    const label = element("text", {
+      x: node.labelSide === "left" ? -13 : 13,
+      y: 4,
+      "text-anchor": node.labelSide === "left" ? "end" : "start"
+    });
+    label.textContent = visibleNodeLabel(node.label, node.labelLimit);
     group.append(label);
     const select = () => onSelect(node);
     group.addEventListener("click", select);

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+<title id="title">Todack problem-solving map</title>
+<desc id="desc">Revision to Decision.</desc>
+<style>
+:root { --atlas-bg: #f6f8fb; --atlas-node: #ffffff; --atlas-ink: #172033; --atlas-line: #52657f; --atlas-accent: #0b7285; --atlas-muted: #52657f; }
+@media (prefers-color-scheme: dark) { :root { --atlas-bg: #121820; --atlas-node: #1d2632; --atlas-ink: #f4f7fb; --atlas-line: #9ab1c8; --atlas-accent: #5fd0d8; --atlas-muted: #c2d0df; } }
+svg { background: var(--atlas-bg); font-family: Arial, sans-serif; }
+.node { fill: var(--atlas-node); stroke: var(--atlas-line); stroke-width: 2; }
+.stage { fill: var(--atlas-accent); font-size: 18px; font-weight: bold; }
+.body { fill: var(--atlas-ink); font-size: 13px; }
+.muted { fill: var(--atlas-muted); font-size: 12px; }
+.arrow { fill: none; stroke: var(--atlas-line); stroke-width: 2; }
+</style>
+<defs><marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8 z" fill="var(--atlas-line)" /></marker></defs>
+<path class="arrow" d="M 588 320 H 600" marker-end="url(#arrowhead)" />
+<g id="node-revision">
+<rect class="node" x="380" y="142" width="208" height="356" rx="6" />
+<text class="stage" x="394" y="180">Revision</text>
+<text class="body" x="394" y="216">Title: Revision</text>
+<text class="muted" x="394" y="288">Context: 실시간 음성 루프와 대기 표시 및 예약 시각이</text>
+<text class="muted" x="394" y="305">클라이언트별로 다르게 동작했습니다.</text>
+<text class="muted" x="394" y="360">Decision: echo 방지, 대기 상태 축소와 시간대</text>
+<text class="muted" x="394" y="377">정규화를 공용 계약에 반영했습니다.</text>
+<text class="muted" x="394" y="432">Result: 즉시성은 유지하면서 반복 응답과 알림 시각</text>
+<text class="muted" x="394" y="449">오류를 줄였습니다.</text>
+</g>
+<g id="node-decision">
+<rect class="node" x="612" y="142" width="208" height="356" rx="6" />
+<text class="stage" x="626" y="180">Decision</text>
+<text class="body" x="626" y="216">Title: Decision</text>
+<text class="muted" x="626" y="288">Context: 웹과 모바일이 서로 다른 데이터 규칙을 가지면</text>
+<text class="muted" x="626" y="305">기록 이력이 끊겼습니다.</text>
+<text class="muted" x="626" y="360">Decision: 모든 클라이언트가 같은 API와 시간대 규칙을</text>
+<text class="muted" x="626" y="377">사용하도록 했습니다.</text>
+<text class="muted" x="626" y="432">Result: 입력 화면이 달라도 같은 기록과 알림 상태를</text>
+<text class="muted" x="626" y="449">유지할 수 있게 됐습니다.</text>
+</g>
+</svg>

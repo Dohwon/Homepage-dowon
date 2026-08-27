@@ -21,7 +21,9 @@ _LOCAL_OR_URL = re.compile(
     re.I,
 )
 _ACTIVE_ATTRIBUTE = re.compile(r"\b(?:href|src|on[a-z]+)\s*=", re.I)
-_NODE_X = (24, 256, 488, 720, 952)
+_CANVAS_WIDTH = 1200
+_NODE_WIDTH = 208
+_NODE_GAP = 24
 
 
 def has_problem_solving_evidence(events: tuple[ProjectEvent, ...]) -> bool:
@@ -33,15 +35,17 @@ def has_problem_solving_evidence(events: tuple[ProjectEvent, ...]) -> bool:
 def render_problem_solving_svg(project: ProjectRef, events: tuple[ProjectEvent, ...]) -> str:
     """Render selected events into a fixed, non-executable SVG flow."""
     event_by_stage = _events_by_stage(events)
+    stages = tuple(stage for stage in _STAGES if stage in event_by_stage)
+    positions = _node_positions(len(stages))
     title = _escape(f"{project.display_name} problem-solving map")
-    desc = _escape("Constraint to Attempt to Revision to Decision to Result.")
+    desc = _escape(" to ".join(_STAGE_LABELS[stage] for stage in stages) + ".")
     nodes = "\n".join(
-        _node(stage, _STAGE_LABELS[stage], event_by_stage.get(stage), x)
-        for stage, x in zip(_STAGES, _NODE_X)
+        _node(stage, _STAGE_LABELS[stage], event_by_stage[stage], x)
+        for stage, x in zip(stages, positions)
     )
     arrows = "\n".join(
-        f'<path class="arrow" d="M {x + 208} 320 H {next_x - 12}" marker-end="url(#arrowhead)" />'
-        for x, next_x in zip(_NODE_X, _NODE_X[1:])
+        f'<path class="arrow" d="M {x + _NODE_WIDTH} 320 H {next_x - 12}" marker-end="url(#arrowhead)" />'
+        for x, next_x in zip(positions, positions[1:])
     )
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" '
@@ -76,16 +80,21 @@ def _events_by_stage(events: tuple[ProjectEvent, ...]) -> dict[str, ProjectEvent
     return selected
 
 
-def _node(stage: str, label: str, event: ProjectEvent | None, x: int) -> str:
-    if event is None:
-        fields = (("Title", label), ("Context", "No selected evidence"), ("Decision", ""), ("Result", ""))
-    else:
-        fields = (
-            ("Title", event.title),
-            ("Context", event.context),
-            ("Decision", event.decision),
-            ("Result", event.outcome),
-        )
+def _node_positions(count: int) -> tuple[int, ...]:
+    if count <= 0:
+        return ()
+    content_width = count * _NODE_WIDTH + max(0, count - 1) * _NODE_GAP
+    start = (_CANVAS_WIDTH - content_width) // 2
+    return tuple(start + index * (_NODE_WIDTH + _NODE_GAP) for index in range(count))
+
+
+def _node(stage: str, label: str, event: ProjectEvent, x: int) -> str:
+    fields = (
+        ("Title", event.title),
+        ("Context", event.context),
+        ("Decision", event.decision),
+        ("Result", event.outcome),
+    )
     text = [f'<text class="stage" x="{x + 14}" y="180">{_escape(label)}</text>']
     for index, (field, value) in enumerate(fields):
         y = 216 + index * 72
