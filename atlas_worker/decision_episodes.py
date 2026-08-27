@@ -5,11 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
+import stat
 from typing import Literal
 
 from .fs_safety import FileWrite, commit_file_transaction, require_write_destination
+from .manifest import require_no_symlink_path
 from .models import SessionEvent, SessionTrace
 from .sessions import normalize_local_path
 
@@ -57,6 +60,7 @@ _PROJECT_ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _EPISODE_ID = re.compile(r"^[a-f0-9]{64}$")
 _RESULT_ROLES = frozenset({"assistant", "tool"})
 _QUEUE_RELATIVE = Path(".knowledge-worker") / "review-queue"
+_PRIVATE_RUNTIME_CAPABILITY_TOKEN = object()
 
 MAX_EPISODE_EVENTS = 24
 MAX_EXCERPT_CHARS = 280
@@ -122,6 +126,18 @@ class PrivateReviewQueueRecord:
         }
 
 
+@dataclass(frozen=True, init=False)
+class PrivateRuntimeContext:
+    """Validated private-write capability; construct it only through the factory."""
+
+    _workspace_root: Path
+    _queue_root: Path
+    _capability_token: object
+
+    def __init__(self) -> None:
+        raise TypeError("use create_private_runtime_context")
+
+
 def extract_decision_episodes(
     trace: SessionTrace, project_id: str
 ) -> tuple[DecisionEpisode, ...]:
@@ -173,26 +189,93 @@ def private_review_queue_record(episode: DecisionEpisode) -> PrivateReviewQueueR
     )
 
 
-def plan_private_review_queue_write(workspace_root: Path, episode: DecisionEpisode) -> FileWrite:
+def create_private_runtime_context(
+    workspace_root: Path,
+    *,
+    public_output_roots: tuple[Path, ...],
+) -> PrivateRuntimeContext:
+    """Create the private writer capability after proving it cannot overlap public output."""
+    if not public_output_roots:
+        raise ValueError("at least one public output root is required")
+
+    private_workspace = _normalize_runtime_directory(workspace_root, "workspace root")
+    public_roots = tuple(
+        _normalize_runtime_directory(public_root, "public output root")
+        for public_root in public_output_roots
+    )
+    queue_root = private_workspace / _QUEUE_RELATIVE
+    require_no_symlink_path(queue_root)
+
+    for public_root in public_roots:
+        if _paths_overlap(queue_root, public_root):
+            raise ValueError("private review queue overlaps a public output root")
+        if _is_within(private_workspace, public_root):
+            raise ValueError("private workspace overlaps a public output root")
+
+    return _new_private_runtime_context(private_workspace, queue_root)
+
+
+def plan_private_review_queue_write(context: PrivateRuntimeContext, episode: DecisionEpisode) -> FileWrite:
     """Plan one private queue write at the fixed workspace-local destination."""
+    context = _require_private_runtime_context(context)
     record = private_review_queue_record(episode)
-    workspace_root = Path(workspace_root)
-    queue_root = workspace_root / _QUEUE_RELATIVE
     destination = require_write_destination(
-        queue_root / f"{record.project_id}-{record.episode_id}.json", workspace_root
+        context._queue_root / f"{record.project_id}-{record.episode_id}.json",
+        context._workspace_root,
     )
     payload = json.dumps(
         record.to_private_dict(), ensure_ascii=True, sort_keys=True, separators=(",", ":")
     ) + "\n"
-    return FileWrite(path=destination, content=payload.encode("utf-8"), root=workspace_root)
+    return FileWrite(path=destination, content=payload.encode("utf-8"), root=context._workspace_root)
 
 
 def write_private_review_queue(
-    workspace_root: Path, episode: DecisionEpisode, *, dry_run: bool = False
+    context: PrivateRuntimeContext, episode: DecisionEpisode, *, dry_run: bool = False
 ) -> tuple[Path, ...]:
     """Atomically persist one private record, or only validate it in dry-run mode."""
-    planned = plan_private_review_queue_write(workspace_root, episode)
+    planned = plan_private_review_queue_write(context, episode)
     return () if dry_run else commit_file_transaction((planned,))
+
+
+def _require_private_runtime_context(context: PrivateRuntimeContext) -> PrivateRuntimeContext:
+    if (
+        type(context) is not PrivateRuntimeContext
+        or context._capability_token is not _PRIVATE_RUNTIME_CAPABILITY_TOKEN
+    ):
+        raise TypeError("private queue writer requires PrivateRuntimeContext")
+    return context
+
+
+def _new_private_runtime_context(workspace_root: Path, queue_root: Path) -> PrivateRuntimeContext:
+    context = object.__new__(PrivateRuntimeContext)
+    object.__setattr__(context, "_workspace_root", workspace_root)
+    object.__setattr__(context, "_queue_root", queue_root)
+    object.__setattr__(context, "_capability_token", _PRIVATE_RUNTIME_CAPABILITY_TOKEN)
+    return context
+
+
+def _normalize_runtime_directory(path: Path, label: str) -> Path:
+    absolute = Path(os.path.abspath(os.fspath(path)))
+    require_no_symlink_path(absolute)
+    try:
+        mode = absolute.lstat().st_mode
+    except FileNotFoundError:
+        raise ValueError(f"{label} must exist") from None
+    if not stat.S_ISDIR(mode):
+        raise ValueError(f"{label} must be a directory")
+    return absolute.resolve(strict=True)
+
+
+def _paths_overlap(first: Path, second: Path) -> bool:
+    return _is_within(first, second) or _is_within(second, first)
+
+
+def _is_within(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
 
 
 def _episode(

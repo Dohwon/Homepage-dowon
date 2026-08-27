@@ -1,6 +1,7 @@
 from atlas_worker.decision_episodes import (
     MAX_EPISODE_EVENTS,
     MAX_EXCERPT_CHARS,
+    create_private_runtime_context,
     extract_decision_episodes,
     plan_private_review_queue_write,
     private_review_queue_record,
@@ -32,6 +33,16 @@ def _trace(*events: SessionEvent) -> SessionTrace:
         changed_paths=(),
         git_common_dirs=(),
         events=events,
+    )
+
+
+def _private_runtime_context(workspace_root, *public_output_roots):
+    workspace_root.mkdir(parents=True, exist_ok=True)
+    for public_output_root in public_output_roots:
+        public_output_root.mkdir(parents=True, exist_ok=True)
+    return create_private_runtime_context(
+        workspace_root,
+        public_output_roots=public_output_roots,
     )
 
 
@@ -280,11 +291,12 @@ def test_private_queue_writer_confines_destination_and_dry_run_is_durable_noop(t
         "atlas",
     )[0]
 
-    planned = plan_private_review_queue_write(tmp_path, episode)
-    dry_run = write_private_review_queue(tmp_path, episode, dry_run=True)
+    context = _private_runtime_context(tmp_path, tmp_path / "public-output")
+    planned = plan_private_review_queue_write(context, episode)
+    dry_run = write_private_review_queue(context, episode, dry_run=True)
     assert not planned.path.exists()
     assert not planned.path.parent.exists()
-    changed = write_private_review_queue(tmp_path, episode)
+    changed = write_private_review_queue(context, episode)
 
     assert planned.path.parent == tmp_path / ".knowledge-worker" / "review-queue"
     assert dry_run == ()
@@ -298,13 +310,104 @@ def test_private_queue_writer_rejects_project_traversal_symlink_and_destination_
         _trace(_event("문제가 생겼어", line=1), _event("검증 완료", role="assistant", line=2)),
         "atlas",
     )[0]
+    context = _private_runtime_context(tmp_path, tmp_path / "public-output")
     outside = tmp_path / "outside"
     outside.mkdir()
     (tmp_path / ".knowledge-worker").symlink_to(outside, target_is_directory=True)
 
     with pytest.raises(ValueError, match="symlink"):
-        plan_private_review_queue_write(tmp_path, base)
+        plan_private_review_queue_write(context, base)
     with pytest.raises(ValueError, match="stable slug"):
         extract_decision_episodes(_trace(_event("문제가 생겼어", line=1)), "../../public")
     with pytest.raises(ValueError, match="episode id"):
-        plan_private_review_queue_write(tmp_path / "clean", replace(base, episode_id="../../public"))
+        plan_private_review_queue_write(
+            _private_runtime_context(tmp_path / "clean", tmp_path / "clean-public"),
+            replace(base, episode_id="../../public"),
+        )
+
+
+def test_private_queue_writer_rejects_raw_path_and_requires_public_roots(tmp_path):
+    episode = extract_decision_episodes(
+        _trace(_event("문제가 생겼어", line=1), _event("검증 완료", role="assistant", line=2)),
+        "atlas",
+    )[0]
+
+    with pytest.raises(TypeError, match="PrivateRuntimeContext"):
+        plan_private_review_queue_write(tmp_path, episode)
+    with pytest.raises(TypeError, match="PrivateRuntimeContext"):
+        write_private_review_queue(tmp_path, episode)
+    with pytest.raises(ValueError, match="public output root"):
+        create_private_runtime_context(tmp_path, public_output_roots=())
+
+
+@pytest.mark.parametrize("public_kind", ("same", "queue-descendant"))
+def test_private_runtime_context_rejects_public_queue_overlap(tmp_path, public_kind):
+    workspace_root = tmp_path / "workspace"
+    workspace_root.mkdir()
+    public_root = (
+        workspace_root
+        if public_kind == "same"
+        else workspace_root / ".knowledge-worker" / "review-queue" / "public-output"
+    )
+    public_root.mkdir(parents=True, exist_ok=True)
+
+    with pytest.raises(ValueError, match="overlap"):
+        create_private_runtime_context(workspace_root, public_output_roots=(public_root,))
+
+
+def test_private_runtime_context_rejects_workspace_nested_under_public_root(tmp_path):
+    public_root = tmp_path / "service-output"
+    workspace_root = public_root / "runtime"
+    workspace_root.mkdir(parents=True)
+
+    with pytest.raises(ValueError, match="overlap"):
+        create_private_runtime_context(workspace_root, public_output_roots=(public_root,))
+
+
+@pytest.mark.parametrize("service_inside_workspace", (True, False))
+def test_private_runtime_context_allows_disjoint_service_output_and_private_write(
+    tmp_path, service_inside_workspace
+):
+    workspace_root = tmp_path / "codex"
+    service_root = workspace_root / "portfolio-homepage" if service_inside_workspace else tmp_path / "service"
+    context = _private_runtime_context(workspace_root, service_root)
+    episode = extract_decision_episodes(
+        _trace(_event("문제가 생겼어", line=1), _event("검증 완료", role="assistant", line=2)),
+        "atlas",
+    )[0]
+
+    planned = plan_private_review_queue_write(context, episode)
+    assert write_private_review_queue(context, episode, dry_run=True) == ()
+    assert not planned.path.exists()
+    assert not planned.path.is_relative_to(service_root)
+    assert write_private_review_queue(context, episode) == (planned.path,)
+
+
+def test_public_bundle_reproduction_rejects_context_and_writes_nothing(tmp_path):
+    public_service_root = tmp_path / "service-output"
+    public_bundle_workspace = public_service_root / "public-bundle"
+    public_bundle_workspace.mkdir(parents=True)
+
+    with pytest.raises(ValueError, match="overlap"):
+        create_private_runtime_context(
+            public_bundle_workspace,
+            public_output_roots=(public_service_root,),
+        )
+
+    assert not (public_bundle_workspace / ".knowledge-worker").exists()
+
+
+def test_private_runtime_context_rejects_symlink_workspace_or_public_root(tmp_path):
+    target = tmp_path / "target"
+    target.mkdir()
+    workspace_link = tmp_path / "workspace-link"
+    public_link = tmp_path / "public-link"
+    workspace_link.symlink_to(target, target_is_directory=True)
+    public_link.symlink_to(target, target_is_directory=True)
+    workspace_root = tmp_path / "workspace"
+    workspace_root.mkdir()
+
+    with pytest.raises(ValueError, match="symlink"):
+        create_private_runtime_context(workspace_link, public_output_roots=(target,))
+    with pytest.raises(ValueError, match="symlink"):
+        create_private_runtime_context(workspace_root, public_output_roots=(public_link,))
