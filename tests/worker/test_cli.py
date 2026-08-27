@@ -162,6 +162,47 @@ def test_audit_content_emits_relative_manifest_summary_without_private_paths(tmp
     assert "/git/" not in json.dumps(output)
 
 
+def test_audit_content_rejects_unknown_project_as_validation_error(tmp_path, capsys):
+    workspace = make_workspace_fixture(tmp_path)
+
+    code = main(
+        ["audit-content", "--workspace", str(workspace), "--project", "missing", "--format", "json"]
+    )
+
+    assert code == EXIT_VALIDATION
+    assert json.loads(capsys.readouterr().err) == {
+        "error": {"category": "config", "pointer": "/project"}
+    }
+
+
+def test_audit_content_allows_ambiguous_private_project_without_path_or_git_leak(tmp_path):
+    workspace = make_workspace_fixture(tmp_path)
+    private = workspace / "projects" / "unreviewed"
+    private.mkdir()
+    (private / ".git").write_text("gitdir: /private/audit-source\n", encoding="utf-8")
+    (private / "notes.md").write_text("local evidence\n", encoding="utf-8")
+
+    output = invoke_cli_json(
+        [
+            "audit-content",
+            "--workspace",
+            str(workspace),
+            "--project",
+            "unreviewed",
+            "--format",
+            "json",
+        ]
+    )
+
+    rendered = json.dumps(output)
+    assert output["project_id"] == "unreviewed"
+    assert output["files"] == {"count": 1, "by_class": {"source": 1}}
+    assert len(output["content_hash"]) == 64
+    assert str(workspace) not in rendered
+    assert "gitdir" not in rendered
+    assert "/private/audit-source" not in rendered
+
+
 def test_operator_readme_documents_atlas_setup_key_and_recovery_contracts():
     readme = (Path(__file__).parents[2] / "README.md").read_text(encoding="utf-8")
 

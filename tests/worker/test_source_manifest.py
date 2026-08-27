@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
 
+import atlas_worker.fs_safety as fs_safety_module
 from atlas_worker.models import ProjectRef
 from atlas_worker.source_manifest import build_source_manifest, resolve_git_owner
 
@@ -112,3 +114,48 @@ def test_manifest_rejects_symlinked_source_file(tmp_path):
 
     with pytest.raises(ValueError, match="symlink"):
         build_source_manifest(project_ref(root, "alpha"), FakeGitRunner())
+
+
+def test_linked_worktree_git_files_are_excluded_from_manifest_and_aggregate_hash(tmp_path):
+    root = tmp_path / "projects/linked-worktree"
+    nested = root / "nested"
+    nested.mkdir(parents=True)
+    (root / ".git").write_text("gitdir: /private/first-worktree\n", encoding="utf-8")
+    (nested / ".git").write_text("gitdir: /private/nested-worktree\n", encoding="utf-8")
+    (root / ".gitignore").write_text(".cache/\n", encoding="utf-8")
+    (nested / "keep.txt").write_text("kept\n", encoding="utf-8")
+
+    first = build_source_manifest(project_ref(root, "linked-worktree"), FakeGitRunner())
+    (root / ".git").write_text("gitdir: /private/changed-worktree\n", encoding="utf-8")
+    (nested / ".git").write_text("gitdir: /private/changed-nested\n", encoding="utf-8")
+    second = build_source_manifest(project_ref(root, "linked-worktree"), FakeGitRunner())
+
+    assert [item.relative_path for item in first.files] == [".gitignore", "nested/keep.txt"]
+    assert first.audit_payload()["content_hash"] == second.audit_payload()["content_hash"]
+
+
+def test_predecessor_reader_fails_closed_when_article_is_replaced_after_open(tmp_path, monkeypatch):
+    root = tmp_path / "projects/current"
+    article = root / "project_memory/project-atlas/article.yaml"
+    article.parent.mkdir(parents=True)
+    article.write_text("prior_context:\n  project_id: original\n", encoding="utf-8")
+    replacement = root / "replacement.yaml"
+    replacement.write_text("prior_context:\n  project_id: replacement\n", encoding="utf-8")
+    original_open = os.open
+    article_opens = 0
+
+    def replace_on_confined_read(path, flags, *args):
+        nonlocal article_opens
+        descriptor = original_open(path, flags, *args)
+        if Path(path) == article:
+            article_opens += 1
+            if article_opens == 2:
+                replacement.replace(article)
+        return descriptor
+
+    monkeypatch.setattr(fs_safety_module.os, "open", replace_on_confined_read)
+
+    with pytest.raises(ValueError, match="changed during read"):
+        build_source_manifest(project_ref(root, "current"), FakeGitRunner())
+
+    assert article.read_text(encoding="utf-8") == "prior_context:\n  project_id: replacement\n"

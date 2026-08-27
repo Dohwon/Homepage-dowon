@@ -14,7 +14,7 @@ from typing import Protocol
 
 import yaml
 
-from .fs_safety import require_confined_directory
+from .fs_safety import read_confined_text, require_confined_directory
 from .manifest import canonical_hash, require_no_symlink_path
 from .models import ProjectRef
 
@@ -143,6 +143,8 @@ def _project_files(root: Path, standalone_asset: bool) -> Iterator[tuple[str, Pa
 def _walk_project_files(root: Path, directory: Path) -> Iterator[tuple[str, Path]]:
     for entry in sorted(os.scandir(directory), key=lambda item: item.name):
         path = Path(entry.path)
+        if entry.name == ".git":
+            continue
         mode = entry.stat(follow_symlinks=False).st_mode
         if stat.S_ISLNK(mode):
             raise ValueError("source manifest contains symlink")
@@ -223,7 +225,7 @@ def _reviewed_predecessors(root: Path, standalone_asset: bool) -> tuple[str, ...
 
 def _read_yaml_mapping(path: Path, root: Path) -> dict[str, object]:
     try:
-        content = _read_regular_bytes(path).decode("utf-8")
+        content = read_confined_text(path, root)
     except FileNotFoundError:
         return {}
     value = yaml.safe_load(content)
@@ -232,33 +234,6 @@ def _read_yaml_mapping(path: Path, root: Path) -> dict[str, object]:
     if not isinstance(value, dict) or any(not isinstance(key, str) for key in value):
         raise ValueError("reviewed project relation must be a mapping")
     return dict(value)
-
-
-def _read_regular_bytes(path: Path) -> bytes:
-    require_no_symlink_path(path)
-    before = path.lstat()
-    if not stat.S_ISREG(before.st_mode):
-        raise ValueError("curated source is not a regular file")
-    flags = os.O_RDONLY
-    if hasattr(os, "O_CLOEXEC"):
-        flags |= os.O_CLOEXEC
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    descriptor = os.open(path, flags)
-    try:
-        opened = os.fstat(descriptor)
-        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (
-            before.st_dev,
-            before.st_ino,
-        ):
-            raise ValueError("curated source changed during no-follow open")
-        with os.fdopen(descriptor, "rb") as handle:
-            descriptor = -1
-            content = handle.read()
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
-    return content
 
 
 def _add_predecessor(values: set[str], value: object) -> None:
