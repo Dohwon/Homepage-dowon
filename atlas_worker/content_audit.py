@@ -41,12 +41,6 @@ class ArticleValidationReport:
     diagrams_checked: bool
     findings: tuple[ArticleValidationFinding, ...]
 
-    def __post_init__(self) -> None:
-        if not isinstance(self.title_checked, bool) or not isinstance(self.diagrams_checked, bool):
-            raise TypeError("validation checks must be booleans")
-        if any(not isinstance(finding, ArticleValidationFinding) for finding in self.findings):
-            raise TypeError("validation findings must be typed")
-
 
 class ArticleValidator(Protocol):
     """Task 5 seam that validates a loaded article before readiness is granted."""
@@ -144,7 +138,7 @@ def _validator_findings(
         report = validator(article)
     except Exception:
         return {"article-validation-failed"}
-    if not isinstance(report, ArticleValidationReport):
+    if not _is_well_formed_report(report):
         return {"article-validation-malformed"}
     findings = {finding.audit_code() for finding in report.findings}
     if not report.title_checked:
@@ -152,6 +146,16 @@ def _validator_findings(
     if not report.diagrams_checked:
         findings.add("diagram-validation-unchecked")
     return findings
+
+
+def _is_well_formed_report(report: object) -> bool:
+    return bool(
+        type(report) is ArticleValidationReport
+        and type(report.title_checked) is bool
+        and type(report.diagrams_checked) is bool
+        and type(report.findings) is tuple
+        and all(type(finding) is ArticleValidationFinding for finding in report.findings)
+    )
 
 
 def _referenced_evidence_ids(article: ProjectArticle) -> tuple[str, ...]:

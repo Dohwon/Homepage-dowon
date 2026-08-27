@@ -18,16 +18,22 @@ OPEN_CUES = re.compile(
     r"문제|제약|왜|대안|바꿔|수정|롤백|결정|선택|채택|실패|겹쳐|따라오지|안\s*돼",
     re.I,
 )
-_COMPLETED = r"(?:했(?:습니다|음|다)?|됨|됐다|되었습니다|되었다)?(?=$|[\s.!])"
+_NEGATED_OPEN_CUES = re.compile(
+    r"문제(?:가|는)?\s*(?:없|없음)|제약\s*(?:없|없음)|실패\s*하지\s*않|수정\s*불필요|롤백\s*하지\s*않|결정\s*하지\s*않",
+    re.I,
+)
+_SENTENCE_END = r"(?=\s*$|[.!?])"
+_FINISHED_SUFFIX = r"(?:했(?:습니다|음|다)?|됨|됐다|되었습니다|되었다)"
+_RESULT_END = rf"(?:{_FINISHED_SUFFIX}{_SENTENCE_END}|{_SENTENCE_END})"
 _SUPPORTED_CLOSE_CUES = re.compile(
-    rf"(?:테스트(?:\s|까지)*(?:통과|성공){_COMPLETED}"
-    rf"|검증\s*(?:완료|성공|통과){_COMPLETED}"
-    rf"|반영\s*완료{_COMPLETED}"
-    rf"|확인(?:\s*완료{_COMPLETED}|했(?:습니다|음|다)?(?=$|[\s.!])|됨(?=$|[\s.!])|됐다(?=$|[\s.!])|되었습니다(?=$|[\s.!])|되었다(?=$|[\s.!])))",
+    rf"(?:테스트(?:\s|까지)*(?:통과|성공){_RESULT_END}"
+    rf"|검증\s*(?:완료|성공|통과){_RESULT_END}"
+    rf"|반영\s*완료{_RESULT_END}"
+    rf"|확인(?:\s*완료{_RESULT_END}|{_FINISHED_SUFFIX}{_SENTENCE_END}))",
     re.I,
 )
 _CANDIDATE_CLOSE_CUES = re.compile(
-    r"보류|미해결|unresolved|deferred|(?:확인|검증|반영|실행).{0,16}(?:보겠|하겠|예정)|(?:시작|실행)\s*예정",
+    r"보류|미해결|unresolved|deferred|(?:확인|검증|테스트|반영|실행).{0,32}(?:보겠|하겠|예정|필요|요청|여부)|(?:시작|실행)\s*예정",
     re.I,
 )
 _PROJECT_ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
@@ -108,14 +114,13 @@ def extract_decision_episodes(
     window: list[tuple[int, SessionEvent]] = []
     for ordinal, event in enumerate(trace.events, 1):
         if not window:
-            if event.role == "user" and OPEN_CUES.search(event.text):
+            if _is_open_event(event):
                 window.append((ordinal, event))
             continue
 
         if (
             len(window) == MAX_EPISODE_EVENTS - 1
-            and event.role == "user"
-            and OPEN_CUES.search(event.text)
+            and _is_open_event(event)
         ):
             episodes.append(_episode(project_id, window, "candidate"))
             window = [(ordinal, event)]
@@ -190,6 +195,14 @@ def _episode(
         status=status,
         evidence_ids=evidence_ids,
         events=private_events,
+    )
+
+
+def _is_open_event(event: SessionEvent) -> bool:
+    return bool(
+        event.role == "user"
+        and OPEN_CUES.search(event.text)
+        and not _NEGATED_OPEN_CUES.search(event.text)
     )
 
 

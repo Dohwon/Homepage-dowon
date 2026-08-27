@@ -137,6 +137,54 @@ def test_completed_confirmation_results_are_supported(completed):
     assert episode.status == "supported"
 
 
+@pytest.mark.parametrize("completed", ("테스트 통과", "검증 완료", "반영 완료"))
+def test_completed_validation_results_are_supported(completed):
+    episode = extract_decision_episodes(
+        _trace(_event("이 문제가 안 돼", line=1), _event(completed, role="assistant", line=2)),
+        "atlas",
+    )[0]
+
+    assert episode.status == "supported"
+
+
+@pytest.mark.parametrize(
+    "not_completed",
+    (
+        "테스트 통과 여부를 확인할 필요가 있습니다",
+        "검증 완료 여부를 확인해",
+        "테스트 통과 필요",
+        "검증 예정",
+    ),
+)
+def test_completion_questions_and_deferred_grammar_remain_candidates(not_completed):
+    episode = extract_decision_episodes(
+        _trace(_event("이 문제가 안 돼", line=1), _event(not_completed, role="assistant", line=2)),
+        "atlas",
+    )[0]
+
+    assert episode.status == "candidate"
+
+
+@pytest.mark.parametrize(
+    "negative_open",
+    ("문제가 없습니다", "제약 없음", "실패하지 않았습니다", "수정 불필요", "롤백하지 않음", "결정하지 않음"),
+)
+def test_negated_open_cues_do_not_create_supported_episodes(negative_open):
+    trace = _trace(_event(negative_open, line=1), _event("확인했습니다", role="assistant", line=2))
+
+    assert extract_decision_episodes(trace, "atlas") == ()
+
+
+@pytest.mark.parametrize("positive_open", ("문제가 있습니다", "이 동작이 안 돼", "다시 수정해", "롤백해"))
+def test_positive_open_cues_still_create_supported_episodes(positive_open):
+    episode = extract_decision_episodes(
+        _trace(_event(positive_open, line=1), _event("확인했습니다", role="assistant", line=2)),
+        "atlas",
+    )[0]
+
+    assert episode.status == "supported"
+
+
 def test_max_boundary_rollover_restarts_on_the_same_user_open_cue():
     trace = _trace(
         _event("첫 문제를 수정해", line=1),

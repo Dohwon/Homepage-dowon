@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from atlas_worker.content_audit import (
     ArticleValidationFinding,
     ArticleValidationReport,
@@ -334,3 +336,29 @@ def test_no_article_skips_validator_findings_but_real_safety_findings_take_prece
     assert calls == []
     assert contradictory.readiness == "review-required"
     assert "contradictory-evidence" in contradictory.findings
+
+
+@pytest.mark.parametrize(
+    "malformed_findings",
+    (
+        [],
+        {ArticleValidationFinding("title", "blank-title")},
+        (finding for finding in (ArticleValidationFinding("title", "blank-title"),)),
+        "title:blank-title",
+        (("title", "blank-title"),),
+    ),
+)
+def test_validator_report_requires_exact_tuple_of_typed_findings(malformed_findings):
+    audit = audit_project_content(
+        _project(),
+        _manifest(),
+        _article("ev-support"),
+        (_evidence("ev-support"),),
+        (),
+        article_validator=lambda _: ArticleValidationReport(
+            title_checked=True, diagrams_checked=True, findings=malformed_findings
+        ),
+    )
+
+    assert audit.readiness == "review-required"
+    assert audit.findings == ("article-validation-malformed",)
