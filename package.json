@@ -2,10 +2,21 @@
   "name": "portfolio-homepage",
   "version": "1.0.0",
   "private": true,
-  "description": "Dowon portfolio homepage with admin CMS, analytics, comments, and Google login.",
+  "description": "Dowon Project Atlas explorer with a preserved portfolio CMS.",
   "scripts": {
     "start": "node server.js",
     "test": "node --test",
-    "test:ui": "playwright test"
+    "test:ui": "playwright test",
+    "vendor": "node scripts/vendor_client_assets.mjs",
+    "postinstall": "npm run vendor"
+  },
+  "dependencies": {
+    "dompurify": ">=3.1 <4",
+    "lucide": ">=0.468 <1",
+    "marked": ">=15 <18"
+  },
+  "devDependencies": {
+    "@playwright/test": ">=1.50 <2",
+    "pngjs": ">=7 <8"
   }
 }

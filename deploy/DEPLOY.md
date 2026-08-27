@@ -1,4 +1,11 @@
-# Portfolio Homepage Deployment
+# Project Atlas Deployment
+
+Public entry points:
+
+- `/`: Project Atlas explorer
+- `/admin.html`: preserved portfolio CMS
+- `/api/atlas/bootstrap`: sanitized Atlas bootstrap payload
+- `/api/health`: process health
 
 ## 1. Environment
 
@@ -8,6 +15,7 @@ Create `.env` from `.env.example` and set:
 - `GOOGLE_CLIENT_ID`
 - `ADMIN_EMAILS`
 - `PORT` / `HOST`
+- `ATLAS_BUNDLE_DIR` (optional absolute path to a validated public bundle)
 
 Google OAuth configuration must allow:
 
@@ -18,7 +26,29 @@ Google OAuth configuration must allow:
 
 ```bash
 cd /home/dowon/securedir/git/codex/portfolio-homepage
+npm install
 node server.js
+```
+
+The default bundle is `public-bundle/` under the service root. Set
+`ATLAS_BUNDLE_DIR` only when the worker promotes the bundle elsewhere. Never point
+it at the workspace, a project repository, session storage, or project memory.
+
+```bash
+ATLAS_BUNDLE_DIR=/absolute/path/to/public-bundle PORT=4173 node server.js
+curl -sS http://127.0.0.1:4173/api/health
+curl -sS http://127.0.0.1:4173/api/atlas/bootstrap
+```
+
+Before a deploy, validate and test the exact bundle and source state:
+
+```bash
+.venv/bin/python scripts/project_atlas.py validate --fixture /absolute/path/to/public-bundle
+.venv/bin/python -m pytest tests/worker -q
+npm test
+npm run test:ui
+node --check server.js
+node --check admin.js
 ```
 
 ## 3. systemd
@@ -38,4 +68,7 @@ Recommended production shape:
 2. Put Nginx or Caddy in front with HTTPS
 3. Point your domain DNS to the server
 
-This app is single-process and file-backed, so it is suitable for a personal site or low-traffic portfolio.
+The process remains single-process and file-backed. `public-bundle/` is read-only
+at runtime; CMS writes remain in `PORTFOLIO_DATA_DIR` (default `data/`). Keep both
+paths on persistent storage when deploying with Railway or another ephemeral
+container platform.

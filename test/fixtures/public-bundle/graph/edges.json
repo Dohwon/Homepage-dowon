@@ -1,4 +1,4 @@
 [
-  {"source": "project:alpha", "target": "domain:knowledge-systems", "kind": "project-domain", "weight": 5, "reasons": []},
+  {"source": "project:alpha", "target": "domain:knowledge-systems", "kind": "tag-membership", "weight": 1, "reasons": []},
   {"source": "project:alpha", "target": "project:beta", "kind": "project-similarity", "weight": 2, "reasons": ["pattern:local-first-publishing"]}
 ]

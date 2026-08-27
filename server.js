@@ -3,18 +3,25 @@ const fs = require("fs");
 const fsp = require("fs/promises");
 const path = require("path");
 const crypto = require("crypto");
+const { createAtlasStore } = require("./lib/atlas-store");
+const { handleAtlasApi } = require("./lib/atlas-routes");
+const { UnsafePublicContentError, assertSafePublicValue } = require("./lib/public-content-policy");
 
 const ROOT = __dirname;
-const DATA_DIR = path.join(ROOT, "data");
 const SEED_DATA_DIR = path.join(ROOT, "seed-data");
-const SITE_CONTENT_PATH = path.join(DATA_DIR, "site-content.json");
-const STATUS_OVERRIDES_PATH = path.join(DATA_DIR, "status_overrides.json");
-const COMMENTS_PATH = path.join(DATA_DIR, "comments.json");
-const BLOG_POSTS_PATH = path.join(DATA_DIR, "blog-posts.json");
-const ANALYTICS_PATH = path.join(DATA_DIR, "analytics.jsonl");
 const ENV_PATH = path.join(ROOT, ".env");
 
 loadEnv();
+
+const DEFAULT_DATA_DIR = path.join(ROOT, "data");
+let DATA_DIR;
+let SITE_CONTENT_PATH;
+let STATUS_OVERRIDES_PATH;
+let COMMENTS_PATH;
+let BLOG_POSTS_PATH;
+let ANALYTICS_PATH;
+
+configureDataPaths(process.env.PORTFOLIO_DATA_DIR || DEFAULT_DATA_DIR);
 
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -59,6 +66,21 @@ const MIME_TYPES = {
   ".webp": "image/webp",
   ".webm": "video/webm"
 };
+const STATIC_PUBLIC_FILES = new Set([
+  "/index.html",
+  "/styles.css",
+  "/app.js",
+  "/admin.html",
+  "/admin.css",
+  "/admin.js"
+]);
+const STATIC_PUBLIC_DIRECTORIES = [
+  { prefix: "/client/", extensions: new Set([".js"]) },
+  { prefix: "/vendor/", extensions: new Set([".js"]) },
+  { prefix: "/assets/", extensions: new Set([".jpg", ".jpeg", ".png", ".svg", ".webp", ".mp4", ".webm"]) },
+  { prefix: "/data/previews/", extensions: new Set([".mp4", ".webm"]) },
+  { prefix: "/data/posters/", extensions: new Set([".jpg", ".jpeg", ".png", ".webp"]) }
+];
 
 const PROJECT_CONTENT_OVERRIDES = {
   "central-memory-prompt-kit": {
@@ -565,6 +587,15 @@ const PROJECT_CONTENT_OVERRIDES = {
     }
   }
 };
+
+function configureDataPaths(dataDir) {
+  DATA_DIR = path.isAbsolute(dataDir) ? dataDir : path.resolve(ROOT, dataDir);
+  SITE_CONTENT_PATH = path.join(DATA_DIR, "site-content.json");
+  STATUS_OVERRIDES_PATH = path.join(DATA_DIR, "status_overrides.json");
+  COMMENTS_PATH = path.join(DATA_DIR, "comments.json");
+  BLOG_POSTS_PATH = path.join(DATA_DIR, "blog-posts.json");
+  ANALYTICS_PATH = path.join(DATA_DIR, "analytics.jsonl");
+}
 
 async function ensureStorage() {
   await fsp.mkdir(DATA_DIR, { recursive: true });
@@ -1240,12 +1271,12 @@ function inspectProjectPathRange(projectPath) {
 function inferPreviewAssets(projectId) {
   const posterExts = [".jpg", ".jpeg", ".png", ".webp"];
   const videoExts = [".mp4", ".webm"];
-  const poster = findAssetPath(path.join(DATA_DIR, "posters"), projectId, posterExts);
-  const video = findAssetPath(path.join(DATA_DIR, "previews"), projectId, videoExts);
+  const poster = findAssetPath(path.join(DATA_DIR, "posters"), projectId, posterExts, "/media/posters");
+  const video = findAssetPath(path.join(DATA_DIR, "previews"), projectId, videoExts, "/media/previews");
   return { poster, video };
 }
 
-function findAssetPath(folder, fileBase, exts) {
+function findAssetPath(folder, fileBase, exts, publicPrefix) {
   try {
     const files = fs.readdirSync(folder);
     const match = files.find((file) => {
@@ -1253,7 +1284,7 @@ function findAssetPath(folder, fileBase, exts) {
       return parsed.name === fileBase && exts.includes(parsed.ext.toLowerCase());
     });
     if (!match) return "";
-    return `/${path.relative(ROOT, path.join(folder, match)).split(path.sep).join("/")}`;
+    return `${publicPrefix}/${encodeURIComponent(match)}`;
   } catch {
     return "";
   }
@@ -1500,6 +1531,7 @@ function requireMember(viewer, res) {
 }
 
 function sanitizeProjectInput(input, existingProject) {
+  assertSafePublicValue(input);
   const base = normalizeProject(
     {
       ...existingProject,
@@ -1809,7 +1841,9 @@ function createViewerSession(profile) {
   };
 }
 
-async function handleApi(req, res, url) {
+async function handleApi(req, res, url, atlasStore) {
+  if (atlasStore && await handleAtlasApi(req, res, url, atlasStore)) return;
+
   const viewer = getViewer(req);
 
   if (req.method === "GET" && url.pathname === "/api/bootstrap") {
@@ -2209,22 +2243,65 @@ async function handleApi(req, res, url) {
 }
 
 async function serveStatic(req, res, url) {
-  const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
-  const resolvedPath = path.normalize(path.join(ROOT, pathname));
-  if (!resolvedPath.startsWith(ROOT)) {
-    sendText(res, 403, "forbidden");
+  const atlasRoute = /^\/(?:projects(?:\/[^/]+)?|topics|graph|changelog|search)\/?$/.test(url.pathname);
+  let requestedPath;
+  try {
+    requestedPath = decodeURIComponent(url.pathname);
+  } catch {
+    sendText(res, 404, "not found");
     return;
   }
-
-  const ext = path.extname(resolvedPath).toLowerCase();
-  const allowedExts = new Set([".html", ".css", ".js", ".jpg", ".jpeg", ".png", ".svg", ".webp", ".mp4", ".webm"]);
-  if (!allowedExts.has(ext)) {
+  const pathname = requestedPath === "/" || atlasRoute ? "/index.html" : requestedPath;
+  if (url.pathname === "/public-bundle" || url.pathname.startsWith("/public-bundle/")) {
+    sendText(res, 404, "not found");
+    return;
+  }
+  if (pathname.includes("\\") || pathname.split("/").some((segment) => segment === "." || segment === "..")) {
     sendText(res, 404, "not found");
     return;
   }
 
+  const ext = path.extname(pathname).toLowerCase();
+  const mediaMatch = pathname.match(/^\/media\/(previews|posters)\/([^/]+)$/);
+  if (mediaMatch) {
+    const [, mediaType, filename] = mediaMatch;
+    const allowedExtensions = mediaType === "previews"
+      ? new Set([".mp4", ".webm"])
+      : new Set([".jpg", ".jpeg", ".png", ".webp"]);
+    if (!allowedExtensions.has(ext)) {
+      sendText(res, 404, "not found");
+      return;
+    }
+    await serveFileWithin(res, path.resolve(DATA_DIR, mediaType, filename), path.resolve(DATA_DIR, mediaType), ext);
+    return;
+  }
+  const allowedStatic = STATIC_PUBLIC_FILES.has(pathname) || STATIC_PUBLIC_DIRECTORIES.some(
+    ({ prefix, extensions }) => pathname.startsWith(prefix) && pathname.length > prefix.length && extensions.has(ext)
+  );
+  if (!allowedStatic) {
+    sendText(res, 404, "not found");
+    return;
+  }
+  const resolvedPath = path.resolve(ROOT, `.${pathname}`);
+  const relativePath = path.relative(ROOT, resolvedPath);
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    sendText(res, 404, "not found");
+    return;
+  }
+
+  await serveFileWithin(res, resolvedPath, ROOT, ext);
+}
+
+async function serveFileWithin(res, resolvedPath, containmentRoot, ext) {
   try {
-    const stat = await fsp.stat(resolvedPath);
+    const realContainmentRoot = await fsp.realpath(containmentRoot);
+    const realPath = await fsp.realpath(resolvedPath);
+    const realRelativePath = path.relative(realContainmentRoot, realPath);
+    if (realRelativePath.startsWith("..") || path.isAbsolute(realRelativePath)) {
+      sendText(res, 404, "not found");
+      return;
+    }
+    const stat = await fsp.stat(realPath);
     if (!stat.isFile()) {
       sendText(res, 404, "not found");
       return;
@@ -2235,22 +2312,28 @@ async function serveStatic(req, res, url) {
       "Content-Type": contentType,
       "Cache-Control": noStoreStatic.has(ext) ? "no-store" : "public, max-age=300"
     });
-    fs.createReadStream(resolvedPath).pipe(res);
+    fs.createReadStream(realPath).pipe(res);
   } catch {
     sendText(res, 404, "not found");
   }
 }
 
-async function handleRequest(req, res) {
+async function handleRequest(req, res, atlasStore) {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
 
   if (url.pathname.startsWith("/api/")) {
     try {
-      await handleApi(req, res, url);
+      await handleApi(req, res, url, atlasStore);
     } catch (error) {
+      if (error instanceof UnsafePublicContentError) {
+        sendJson(res, 400, {
+          error: error.code,
+          category: error.category
+        });
+        return;
+      }
       sendJson(res, 500, {
-        error: "internal_server_error",
-        detail: error.message
+        error: "internal_server_error"
       });
     }
     return;
@@ -2259,9 +2342,28 @@ async function handleRequest(req, res) {
   await serveStatic(req, res, url);
 }
 
-async function main() {
+async function createApplicationServer({
+  port = Number(process.env.PORT || 4173),
+  host = process.env.HOST || "0.0.0.0",
+  atlasBundleDir = process.env.ATLAS_BUNDLE_DIR || path.join(ROOT, "public-bundle"),
+  dataDir = process.env.PORTFOLIO_DATA_DIR || DEFAULT_DATA_DIR
+} = {}) {
+  configureDataPaths(dataDir);
   await ensureStorage();
 
+  const atlasStore = createAtlasStore({
+    bundleDir: path.isAbsolute(atlasBundleDir) ? atlasBundleDir : path.resolve(ROOT, atlasBundleDir),
+    loadCmsContent: loadContent
+  });
+  const server = http.createServer((req, res) => handleRequest(req, res, atlasStore));
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, host, resolve);
+  });
+  return server;
+}
+
+async function main() {
   if (!process.env.SESSION_SECRET) {
     console.warn("[portfolio-homepage] SESSION_SECRET is not set. Sessions will reset when the server restarts.");
   }
@@ -2269,13 +2371,18 @@ async function main() {
     console.warn("[portfolio-homepage] GOOGLE_CLIENT_ID is not configured. Google login button will be disabled.");
   }
 
-  const server = http.createServer(handleRequest);
-  server.listen(PORT, HOST, () => {
-    console.log(`Portfolio homepage running at http://${HOST}:${PORT}`);
+  const server = await createApplicationServer({ port: PORT, host: HOST });
+  const address = server.address();
+  console.log(`Project Atlas running at http://${HOST}:${address.port}`);
+}
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
   });
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+module.exports = {
+  createApplicationServer
+};

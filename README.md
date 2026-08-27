@@ -1,28 +1,34 @@
-# Portfolio Homepage
+# Dowon Project Atlas
 
-카카오 스타일 레퍼런스를 반영한 개인 포트폴리오 앱이다. 기존 정적 페이지를 운영형 Node 서버로 확장해 카드 기반 프로젝트 탐색, 관리자 CMS, 댓글, 방문자 집계, Google 로그인 연결 지점을 제공한다.
+`portfolio-homepage`와 기존 LLM Wiki의 역할을 합친 프로젝트 탐색 서비스다. 로컬
+Project Atlas worker가 만든 검증된 `public-bundle/`만 공개 API로 읽으며, 프로젝트
+목록·주제·변경 기록·검색·관계 그래프와 프로젝트별 작업 이야기를 한 화면에서
+탐색한다. 기존 포트폴리오 CMS는 `/admin.html`에 그대로 보존한다.
 
-## 주요 기능
+## 공개 화면
 
-- 카드 라이브러리형 메인 화면과 블러 상세 모달
-- 카드 호버 시 영상 재생 또는 모션 목업 프리뷰
-- Google 로그인 기반 권한 분리
+- `/`: 최근 프로젝트와 주제 중심 홈
+- `/projects`: 상태·도메인 필터가 있는 전체 프로젝트 목록
+- `/projects/{id}`: Overview, Build Story, Decisions, Rollbacks, Visual Map,
+  Artifacts 탭
+- `/topics`, `/graph`, `/changelog`: 주제, 관계 그래프, 변경 기록
+- `Cmd/Ctrl+K`: 전체 공개 번들 검색
+- `/admin.html`: 기존 Google 로그인 기반 CMS
   - 비로그인: 읽기
   - 로그인 사용자: 읽기 + 댓글
   - 관리자 이메일: 카드 생성/수정/삭제 + 방문 통계
-- 파일 기반 저장소
-  - `data/site-content.json`: 사이트/카드 메인 데이터
-  - `data/comments.json`: 댓글
-  - `data/analytics.jsonl`: 방문 이벤트
-- `deploy/systemd/portfolio-homepage.service` 포함
+
+공개 Atlas API는 raw session, 로컬 경로, provenance를 제공하지 않는다. CMS override도
+허용된 표시 필드만 병합하며 개인정보·비밀정보 패턴은 거부한다.
 
 ## 파일 구조
 
-- `server.js`: 정적 자산 + API 서버
-- `index.html`: 메인 레이아웃
-- `styles.css`: 카카오 레퍼런스 기반 UI
-- `app.js`: 프론트엔드 상태/렌더링/인증/UI 로직
-- `data/projects.json`, `data/projects.generated.json`: 초기 시드 원본
+- `server.js`: Atlas 공개 API, 기존 CMS API, 정적 자산 서버
+- `index.html`, `styles.css`, `client/`: 공개 Project Atlas UI
+- `admin.html`, `admin.css`, `admin.js`: 보존된 기존 CMS
+- `lib/atlas-store.js`: 검증된 bundle 로딩과 CMS allowlist 병합
+- `lib/atlas-routes.js`: `/api/atlas/*` 공개 API
+- `public-bundle/`: worker가 승격한 유일한 공개 프로젝트 데이터
 - `data/site-content.json`: 서버 첫 실행 시 자동 생성되는 운영 데이터
 - `deploy/DEPLOY.md`: 배포 메모
 
@@ -37,16 +43,37 @@ GOOGLE_CLIENT_ID=...
 ADMIN_EMAILS=your-email@example.com
 ```
 
-3. 서버 실행
+3. Node 의존성 설치와 서버 실행
 
 ```bash
 cd /home/dowon/securedir/git/codex/portfolio-homepage
+npm install
 node server.js
 ```
 
 기본 포트는 `4173`이고 기본 바인딩은 `0.0.0.0`이다.
 
-## 프리뷰 영상 연결
+기본 Atlas bundle은 service root의 `public-bundle/`이다. 다른 검증된 bundle을 읽을
+때만 절대 경로로 `ATLAS_BUNDLE_DIR`을 지정한다.
+
+```bash
+ATLAS_BUNDLE_DIR=/absolute/path/to/public-bundle PORT=4173 node server.js
+```
+
+검증된 bundle이 없으면 서버와 `/admin.html`은 계속 동작하고 Atlas API는 빈 상태를
+명시적으로 반환한다. 로컬 경로나 원본 프로젝트 파일을 fallback으로 읽지 않는다.
+
+## 검증
+
+```bash
+.venv/bin/python -m pytest tests/worker -q
+npm test
+npm run test:ui
+node --check server.js
+node --check admin.js
+```
+
+## 기존 CMS 프리뷰 영상
 
 프로젝트 ID 기준으로 아래 파일을 두면 카드 hover 시 자동 사용된다.
 
@@ -56,7 +83,7 @@ node server.js
 
 파일이 없으면 CSS 모션 목업이 기본 프리뷰로 표시된다.
 
-## 운영 메모
+## 기존 CMS 운영 메모
 
 - Google OAuth Origin은 실제 도메인 기준으로 등록해야 한다.
 - `SESSION_SECRET`를 고정하지 않으면 서버 재시작 시 로그인 세션이 끊긴다.

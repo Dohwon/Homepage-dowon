@@ -10,6 +10,10 @@ PROJECT_ANALYSIS.md
 .DS_Store
 .worktrees/
 .venv/
+node_modules/
 .atlas-staging/
+.atlas-test-data/
 .public-bundle.previous/
+test-results/
+playwright-report/
 __pycache__/
