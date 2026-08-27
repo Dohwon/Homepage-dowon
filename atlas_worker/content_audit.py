@@ -6,7 +6,7 @@ from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 import re
-from typing import Literal
+from typing import Literal, Protocol
 
 from .models import ContentAudit, EvidenceRecord, ProjectArticle, ProjectRef, SessionMapping
 from .source_manifest import SourceManifest
@@ -35,7 +35,7 @@ class ArticleValidationFinding:
 
 @dataclass(frozen=True)
 class ArticleValidationReport:
-    """Explicit Task 5 title/SVG validation evidence required for readiness."""
+    """Typed result returned by the Task 5 title/SVG validator."""
 
     title_checked: bool
     diagrams_checked: bool
@@ -48,6 +48,13 @@ class ArticleValidationReport:
             raise TypeError("validation findings must be typed")
 
 
+class ArticleValidator(Protocol):
+    """Task 5 seam that validates a loaded article before readiness is granted."""
+
+    def __call__(self, article: ProjectArticle) -> ArticleValidationReport:
+        """Return complete title and diagram validation evidence."""
+
+
 def audit_project_content(
     project: ProjectRef,
     manifest: SourceManifest,
@@ -55,7 +62,7 @@ def audit_project_content(
     evidence: Iterable[EvidenceRecord],
     mappings: Sequence[SessionMapping],
     *,
-    validation_report: ArticleValidationReport | None = None,
+    article_validator: ArticleValidator | None = None,
 ) -> ContentAudit:
     """Return private readiness without manufacturing article content or public data."""
     all_evidence = tuple(evidence)
@@ -65,7 +72,7 @@ def audit_project_content(
             key=lambda record: (record.evidence_id, record.claim_role, record.content_hash),
         )
     )
-    findings = _validation_findings(validation_report)
+    findings: set[str] = set()
     if manifest.project_id != project.project_id:
         findings.add("manifest-project-mismatch")
 
@@ -77,6 +84,9 @@ def audit_project_content(
     if article is None:
         findings.add("missing-curated-article")
     else:
+        findings.update(_validator_findings(article, article_validator))
+        if not article.title.strip():
+            findings.add("title:blank-title")
         if article.project_id != project.project_id:
             findings.add("article-project-mismatch")
         referenced_ids = _referenced_evidence_ids(article)
@@ -123,9 +133,19 @@ def audit_project_content(
     )
 
 
-def _validation_findings(report: ArticleValidationReport | None) -> set[str]:
-    if report is None:
-        return {"validation-report-missing"}
+def _validator_findings(
+    article: ProjectArticle, validator: ArticleValidator | None
+) -> set[str]:
+    if validator is None:
+        return {"article-validator-missing"}
+    if not callable(validator):
+        return {"article-validator-invalid"}
+    try:
+        report = validator(article)
+    except Exception:
+        return {"article-validation-failed"}
+    if not isinstance(report, ArticleValidationReport):
+        return {"article-validation-malformed"}
     findings = {finding.audit_code() for finding in report.findings}
     if not report.title_checked:
         findings.add("title-validation-unchecked")

@@ -21,13 +21,13 @@ OPEN_CUES = re.compile(
 _COMPLETED = r"(?:했(?:습니다|음|다)?|됨|됐다|되었습니다|되었다)?(?=$|[\s.!])"
 _SUPPORTED_CLOSE_CUES = re.compile(
     rf"(?:테스트(?:\s|까지)*(?:통과|성공){_COMPLETED}"
-    rf"|검증\s*(?:완료|성공){_COMPLETED}"
+    rf"|검증\s*(?:완료|성공|통과){_COMPLETED}"
     rf"|반영\s*완료{_COMPLETED}"
-    rf"|확인{_COMPLETED})",
+    rf"|확인(?:\s*완료{_COMPLETED}|했(?:습니다|음|다)?(?=$|[\s.!])|됨(?=$|[\s.!])|됐다(?=$|[\s.!])|되었습니다(?=$|[\s.!])|되었다(?=$|[\s.!])))",
     re.I,
 )
 _CANDIDATE_CLOSE_CUES = re.compile(
-    r"보류|미해결|(?:확인|검증|반영|실행).{0,16}(?:보겠|하겠|예정)|(?:시작|실행)\s*예정",
+    r"보류|미해결|unresolved|deferred|(?:확인|검증|반영|실행).{0,16}(?:보겠|하겠|예정)|(?:시작|실행)\s*예정",
     re.I,
 )
 _PROJECT_ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")

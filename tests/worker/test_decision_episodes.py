@@ -114,6 +114,29 @@ def test_future_completion_intent_remains_a_candidate(future_result):
     assert episode.status == "candidate"
 
 
+@pytest.mark.parametrize(
+    "not_completed",
+    ("확인", "확인 필요", "확인 요청", "확인해 보겠습니다", "검증 필요", "unresolved", "deferred"),
+)
+def test_non_completed_confirmation_language_remains_candidate(not_completed):
+    episode = extract_decision_episodes(
+        _trace(_event("이 문제가 안 돼", line=1), _event(not_completed, role="assistant", line=2)),
+        "atlas",
+    )[0]
+
+    assert episode.status == "candidate"
+
+
+@pytest.mark.parametrize("completed", ("확인했습니다", "확인 완료", "확인됨"))
+def test_completed_confirmation_results_are_supported(completed):
+    episode = extract_decision_episodes(
+        _trace(_event("이 문제가 안 돼", line=1), _event(completed, role="assistant", line=2)),
+        "atlas",
+    )[0]
+
+    assert episode.status == "supported"
+
+
 def test_max_boundary_rollover_restarts_on_the_same_user_open_cue():
     trace = _trace(
         _event("첫 문제를 수정해", line=1),
