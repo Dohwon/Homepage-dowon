@@ -54,8 +54,8 @@ from .models import (
     validate_schema,
 )
 from .privacy import MIN_ALIAS_KEY_BYTES, PrivacyGate, PrivacyViolation
-from .sessions import iter_session_events, map_session
-from .source_manifest import SubprocessGitRunner, build_source_manifest
+from .session_index import index_session, map_session_trace, merge_child_evidence
+from .source_manifest import SubprocessGitRunner, build_source_manifest, resolve_git_owner
 
 
 EXIT_OK = 0
@@ -577,6 +577,10 @@ def _execute_backfill(
             "mapped_events": scanned["mapped_events"],
             "parse_errors": scanned["parse_errors"],
             "unmapped_events": scanned["unmapped_events"],
+            "parent_sessions": scanned["parent_sessions"],
+            "child_sessions": scanned["child_sessions"],
+            "mapped_by_reason": scanned["mapped_by_reason"],
+            "ambiguous_sessions": scanned["ambiguous_sessions"],
         },
     }
 
@@ -593,17 +597,29 @@ def _scan_sessions(
         project.project_id: SignalClaimExtractor()
         for project in projects
     }
-    for path in paths:
-        for event in iter_session_events(path):
+    runner = SubprocessGitRunner()
+
+    def git_owner(path: Path, refs: Sequence[ProjectRef]) -> str | None:
+        return resolve_git_owner(path, refs, runner)
+
+    traces = tuple(index_session(path) for path in paths)
+    direct_mappings = tuple(
+        map_session_trace(trace, projects, aliases, git_owner) for trace in traces
+    )
+    mappings = merge_child_evidence(traces, direct_mappings)
+    mapped_by_reason = Counter(
+        mapping.reason for mapping in mappings if mapping.project_id is not None
+    )
+    for trace, mapping in zip(traces, mappings):
+        for event in trace.events:
             if event.parse_error:
                 parse_errors += 1
                 continue
-            project_id = map_session(event, projects, aliases)
-            if project_id is None:
+            if mapping.project_id is None:
                 unmapped_events += 1
             else:
                 mapped_events += 1
-                extractor = extractors.get(project_id)
+                extractor = extractors.get(mapping.project_id)
                 if extractor is not None:
                     extractor.consume(event)
 
@@ -618,6 +634,14 @@ def _scan_sessions(
         "mapped_events": mapped_events,
         "parse_errors": parse_errors,
         "unmapped_events": unmapped_events,
+        "parent_sessions": sum(
+            1 for mapping in mappings if mapping.child_session_ids
+        ),
+        "child_sessions": sum(1 for trace in traces if trace.parent_session_id),
+        "mapped_by_reason": dict(sorted(mapped_by_reason.items())),
+        "ambiguous_sessions": sum(
+            1 for mapping in mappings if mapping.reason == "ambiguous"
+        ),
     }
 
 
@@ -714,6 +738,10 @@ def _empty_backfill_result(*, dry_run: bool) -> dict[str, object]:
             "mapped_events": 0,
             "parse_errors": 0,
             "unmapped_events": 0,
+            "parent_sessions": 0,
+            "child_sessions": 0,
+            "mapped_by_reason": {},
+            "ambiguous_sessions": 0,
         },
     }
 

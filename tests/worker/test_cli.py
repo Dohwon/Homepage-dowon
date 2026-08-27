@@ -19,7 +19,7 @@ from atlas_worker.cli import (
     build_parser,
     main,
 )
-from atlas_worker.models import SessionEvent
+from atlas_worker.models import SessionEvent, SessionTrace
 from tests.worker.helpers import (
     invoke_cli_json,
     make_workspace_fixture,
@@ -498,6 +498,10 @@ def test_cli_backfill_maps_discovered_relative_profile_aliases_on_posix_and_wind
         "mapped_events": 4,
         "parse_errors": 0,
         "unmapped_events": 0,
+        "parent_sessions": 0,
+        "child_sessions": 0,
+        "mapped_by_reason": {"alias": 2},
+        "ambiguous_sessions": 0,
     }
     assert len(output["claims"]) == 2
     assert {claim["project_id"] for claim in output["claims"]} == {"alpha"}
@@ -592,7 +596,16 @@ def test_backfill_dry_run_without_session_config_is_valid_zero_session_run(tmp_p
 
     output = invoke_cli_json(["backfill", "--workspace", str(workspace), "--dry-run"])
 
-    assert output["sessions"] == {"files": 0, "mapped_events": 0, "parse_errors": 0, "unmapped_events": 0}
+    assert output["sessions"] == {
+        "files": 0,
+        "mapped_events": 0,
+        "parse_errors": 0,
+        "unmapped_events": 0,
+        "parent_sessions": 0,
+        "child_sessions": 0,
+        "mapped_by_reason": {},
+        "ambiguous_sessions": 0,
+    }
     assert output["claim_counts"] == {}
     assert output["claims"] == []
     assert not output["cursor_written"]
@@ -621,41 +634,58 @@ def test_backfill_streams_explicit_sessions_and_reports_only_sanitized_claims(tm
     assert output["claim_counts"] == {"rollback": 1}
     assert output["claims"][0]["value"] == "rollback requested"
     assert "TOP_SECRET" not in rendered
+    assert "session-one" not in rendered
     assert str(sessions) not in rendered
     assert "TOP_SECRET" not in capsys.readouterr().err
     assert _snapshot(workspace) == before
 
 
-def test_backfill_scans_each_session_once_for_all_projects(tmp_path, monkeypatch):
+def test_backfill_indexes_and_maps_each_session_once(tmp_path, monkeypatch):
     workspace = make_workspace_fixture(tmp_path)
     sessions = tmp_path / "sessions"
     session_path = sessions / "one.jsonl"
     session_path.parent.mkdir()
     session_path.write_text("placeholder\n", encoding="utf-8")
-    iterations = 0
+    indexed = 0
+    mapped = 0
 
-    def one_pass_events(path):
-        nonlocal iterations
+    def one_pass_index(path):
+        nonlocal indexed
         assert path == session_path
-        iterations += 1
-        if iterations > 1:
-            raise AssertionError("session source was scanned more than once")
-        events = (
-            ("alpha", workspace / "projects" / "alpha", "user", "테스트 실패"),
-            ("beta", workspace / "projects" / "finish" / "beta", "user", "rollback requested"),
-            ("alpha", workspace / "projects" / "alpha", "assistant", "테스트 통과"),
-        )
-        for project_id, project_path, role, content in events:
-            yield SessionEvent(
-                session_id=f"session-{project_id}",
+        indexed += 1
+        if indexed > 1:
+            raise AssertionError("session source was indexed more than once")
+        events = tuple(
+            SessionEvent(
+                session_id="session-alpha",
                 timestamp="2026-08-24T10:00:00Z",
-                cwd=str(project_path),
+                cwd=str(workspace / "projects" / "alpha"),
                 role=role,
                 text=content,
             )
+            for role, content in (
+                ("user", "테스트 실패"),
+                ("assistant", "테스트 통과"),
+            )
+        )
+        return SessionTrace(
+            session_id="session-alpha",
+            parent_session_id="",
+            cwd=str(workspace / "projects" / "alpha"),
+            changed_paths=(),
+            git_common_dirs=(),
+            events=events,
+        )
+
+    def counting_map(*args, **kwargs):
+        nonlocal mapped
+        mapped += 1
+        return real_map(*args, **kwargs)
 
     current_cli_module = importlib.import_module("atlas_worker.cli")
-    monkeypatch.setattr(current_cli_module, "iter_session_events", one_pass_events)
+    real_map = current_cli_module.map_session_trace
+    monkeypatch.setattr(current_cli_module, "index_session", one_pass_index)
+    monkeypatch.setattr(current_cli_module, "map_session_trace", counting_map)
 
     output = invoke_cli_json(
         [
@@ -668,12 +698,14 @@ def test_backfill_scans_each_session_once_for_all_projects(tmp_path, monkeypatch
         ]
     )
 
-    assert iterations == 1
-    assert output["sessions"]["mapped_events"] == 3
+    assert indexed == 1
+    assert mapped == 1
+    assert output["sessions"]["mapped_events"] == 2
+    assert output["sessions"]["mapped_by_reason"] == {"cwd": 1}
     assert [
         (claim["project_id"], claim["claim_type"])
         for claim in output["claims"]
-    ] == [("alpha", "failure"), ("beta", "rollback")]
+    ] == [("alpha", "failure")]
 
 
 def test_backfill_reads_sessions_root_from_runtime_config_without_state_writes(tmp_path):

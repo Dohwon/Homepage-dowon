@@ -96,32 +96,47 @@ def map_session(
     aliases: Mapping[str, str],
 ) -> str | None:
     """Map a session cwd to the nearest project root or explicit historical alias."""
-    cwd = normalize_local_path(event.cwd)
-    if not cwd:
+    return map_project_path(event.cwd, projects, aliases)
+
+
+def map_project_path(
+    value: str,
+    projects: Sequence[ProjectRef],
+    aliases: Mapping[str, str],
+    *,
+    include_roots: bool = True,
+    include_aliases: bool = True,
+) -> str | None:
+    """Map one local path without resolving it against the current filesystem."""
+    path = normalize_local_path(value)
+    if not path:
         return None
 
     project_ids = {project.project_id for project in projects}
     candidates: list[tuple[str, str, bool]] = []
     for project in projects:
-        candidates.append((normalize_local_path(str(project.root)), project.project_id, False))
-        for alias in project.aliases:
-            normalized = normalize_local_path(alias)
-            is_relative = not normalized.startswith("/") and not _WINDOWS_DRIVE.match(normalized)
-            candidates.append((normalized, project.project_id, is_relative))
-    for alias, project_id in aliases.items():
-        if project_id in project_ids:
-            normalized = normalize_local_path(alias)
-            is_relative = not normalized.startswith("/") and not _WINDOWS_DRIVE.match(normalized)
-            candidates.append((normalized, project_id, is_relative))
+        if include_roots:
+            candidates.append((normalize_local_path(str(project.root)), project.project_id, False))
+        if include_aliases:
+            for alias in project.aliases:
+                normalized = normalize_local_path(alias)
+                is_relative = not normalized.startswith("/") and not _WINDOWS_DRIVE.match(normalized)
+                candidates.append((normalized, project.project_id, is_relative))
+    if include_aliases:
+        for alias, project_id in aliases.items():
+            if project_id in project_ids:
+                normalized = normalize_local_path(alias)
+                is_relative = not normalized.startswith("/") and not _WINDOWS_DRIVE.match(normalized)
+                candidates.append((normalized, project_id, is_relative))
 
     matches = [
         (candidate, project_id)
         for candidate, project_id, is_relative in candidates
         if candidate
         and (
-            _component_sequence_prefix(cwd, candidate)
+            _component_sequence_prefix(path, candidate)
             if is_relative
-            else _component_prefix(cwd, candidate)
+            else _component_prefix(path, candidate)
         )
     ]
     if not matches:

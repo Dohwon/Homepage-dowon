@@ -22,6 +22,15 @@ EvidenceSourceType = Literal["session", "spec", "code", "test", "git", "project_
 EvidencePrivacy = Literal["public-safe", "private", "secret"]
 EvidenceClaimRole = Literal["supports", "contradicts", "supersedes"]
 Readiness = Literal["ready", "insufficient-evidence", "review-required"]
+SessionMappingReason = Literal[
+    "changed-path",
+    "git-common-dir",
+    "cwd",
+    "alias",
+    "parent-session",
+    "ambiguous",
+    "unmapped",
+]
 
 GRAPH_NODE_KINDS = frozenset({"project", "domain", "problem", "pattern", "technology", "outcome"})
 GRAPH_EDGE_KINDS = frozenset({"tag-membership", "project-similarity"})
@@ -236,6 +245,28 @@ class SessionEvent:
     source_path: str = ""
     line_number: int = 0
     parse_error: str = ""
+
+
+@dataclass(frozen=True)
+class SessionTrace:
+    """Private, one-pass session evidence used only for local ownership mapping."""
+
+    session_id: str
+    parent_session_id: str
+    cwd: str
+    changed_paths: tuple[str, ...]
+    git_common_dirs: tuple[str, ...]
+    events: tuple[SessionEvent, ...]
+
+
+@dataclass(frozen=True)
+class SessionMapping:
+    """Private ownership decision; it must never enter a public bundle or CLI payload."""
+
+    session_id: str
+    project_id: str | None
+    reason: SessionMappingReason
+    child_session_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
