@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "label", "source_type", "observed_at"],
+    "properties": {
+      "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+      "label": {"type": "string", "minLength": 1},
+      "source_type": {"enum": ["session", "spec", "code", "test", "git", "project_memory"]},
+      "observed_at": {"type": "string", "format": "date-time"},
+      "url": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^[A-Za-z][A-Za-z0-9+.-]*:[^\\s]+$"
+      }
+    }
+  }
+}

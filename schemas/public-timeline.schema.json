@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["event_id", "date", "title", "context", "decision", "outcome", "stage"],
+    "properties": {
+      "event_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+      "date": {"type": "string", "format": "date"},
+      "title": {"type": "string", "minLength": 1},
+      "context": {"type": "string"},
+      "decision": {"type": "string"},
+      "outcome": {"type": "string"},
+      "stage": {"type": "string", "minLength": 1}
+    }
+  }
+}

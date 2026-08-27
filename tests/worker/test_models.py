@@ -3,9 +3,13 @@ from pathlib import Path
 import pytest
 
 from atlas_worker.models import (
+    ArticleSection,
+    DiagramRef,
+    EvidenceRecord,
     GraphData,
     GraphEdge,
     GraphNode,
+    ProjectArticle,
     ProjectRef,
     PublicProject,
     TagSet,
@@ -172,3 +176,124 @@ def test_graph_data_rejects_unknown_node_and_edge_kinds():
 
     with pytest.raises(ValueError, match="Unknown graph edge kind: unknown"):
         GraphData(nodes=(), edges=(GraphEdge("project:alpha", "project:beta", "unknown", 1),))
+
+
+def test_project_article_omits_absent_optional_sections_from_public_projection():
+    article = ProjectArticle(
+        project_id="alpha",
+        title="라우팅 실패 분류 개선",
+        summary="운영 로그에서 실패 유형을 재현 가능하게 분류했다.",
+        sections=(
+            ArticleSection(
+                section_id="failure-taxonomy",
+                title="실패 유형 분리",
+                section_type="planning",
+                body="같은 실패처럼 보이던 사례를 입력, 라우팅, 실행 단계로 나눴다.",
+                evidence_ids=("ev-spec",),
+            ),
+        ),
+        readiness="ready",
+    )
+
+    payload = article.to_public_dict()
+
+    assert payload["sections"][0]["id"] == "failure-taxonomy"
+    assert "prior_context" not in payload
+    assert "diagrams" not in payload["sections"][0]
+    validate_schema(payload, "public-article")
+
+
+def test_public_article_schema_rejects_private_evidence_locator():
+    payload = {
+        "project_id": "alpha",
+        "title": "라우팅 개선",
+        "summary": "검증된 요약",
+        "readiness": "ready",
+        "sections": [
+            {
+                "id": "routing",
+                "title": "라우팅 개선",
+                "section_type": "decision",
+                "body": "본문",
+                "evidence_ids": ["ev-1"],
+                "source_locator": "/home/dowon/private",
+            }
+        ],
+    }
+
+    with pytest.raises(ValueError, match="source_locator"):
+        validate_schema(payload, "public-article")
+
+
+def test_public_article_diagrams_expose_only_public_metadata():
+    article = ProjectArticle(
+        project_id="alpha",
+        title="라우팅 개선",
+        summary="검증된 요약",
+        sections=(
+            ArticleSection(
+                section_id="routing",
+                title="라우팅 개선",
+                section_type="decision",
+                body="본문",
+                evidence_ids=("ev-1",),
+                diagrams=(
+                    DiagramRef(
+                        diagram_id="routing-flow",
+                        source_path="project_memory/project-atlas/visuals/routing-flow.svg",
+                        caption="라우팅 흐름",
+                        alt="입력부터 실행까지의 라우팅 흐름",
+                        svg="<svg><title>private source</title></svg>",
+                    ),
+                ),
+            ),
+        ),
+        readiness="ready",
+    )
+
+    payload = article.to_public_dict()
+
+    assert payload["sections"][0]["diagrams"] == [
+        {"id": "routing-flow", "caption": "라우팅 흐름", "alt": "입력부터 실행까지의 라우팅 흐름"}
+    ]
+    validate_schema(payload, "public-article")
+
+
+def test_evidence_record_projects_only_public_fields_and_validates_preapproved_url():
+    evidence = EvidenceRecord(
+        evidence_id="ev-spec",
+        project_id="alpha",
+        label="라우팅 사양",
+        source_type="spec",
+        source_locator="project_memory/project-atlas/evidence.yaml:12",
+        observed_at="2026-08-27T09:00:00+09:00",
+        privacy_class="private",
+        content_hash="a" * 64,
+        url="https://example.com/projects/alpha/spec",
+    )
+
+    payload = evidence.to_public_dict()
+
+    assert payload == {
+        "id": "ev-spec",
+        "label": "라우팅 사양",
+        "source_type": "spec",
+        "observed_at": "2026-08-27T09:00:00+09:00",
+        "url": "https://example.com/projects/alpha/spec",
+    }
+    validate_schema([payload], "public-evidence")
+
+
+def test_public_evidence_schema_rejects_invalid_url():
+    payload = [
+        {
+            "id": "ev-spec",
+            "label": "라우팅 사양",
+            "source_type": "spec",
+            "observed_at": "2026-08-27T09:00:00+09:00",
+            "url": "not a uri",
+        }
+    ]
+
+    with pytest.raises(ValueError, match="url"):
+        validate_schema(payload, "public-evidence")

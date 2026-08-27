@@ -15,6 +15,12 @@ Publication = Literal["public", "private", "excluded"]
 TagKind = Literal["domain", "problem", "pattern", "technology", "outcome"]
 GraphNodeKind = Literal["project", "domain", "problem", "pattern", "technology", "outcome"]
 GraphEdgeKind = Literal["tag-membership", "project-similarity"]
+ArticleSectionType = Literal["planning", "decision", "implementation", "validation", "result"]
+DecisionStatus = Literal["adopted", "revised", "rolled-back", "unresolved"]
+EvidenceSourceType = Literal["session", "spec", "code", "test", "git", "project_memory"]
+EvidencePrivacy = Literal["public-safe", "private", "secret"]
+EvidenceClaimRole = Literal["supports", "contradicts", "supersedes"]
+Readiness = Literal["ready", "insufficient-evidence", "review-required"]
 
 GRAPH_NODE_KINDS = frozenset({"project", "domain", "problem", "pattern", "technology", "outcome"})
 GRAPH_EDGE_KINDS = frozenset({"tag-membership", "project-similarity"})
@@ -100,6 +106,95 @@ class ProjectEvent:
     decision: str
     outcome: str
     stage: str
+
+
+@dataclass(frozen=True)
+class EvidenceRecord:
+    evidence_id: str
+    project_id: str
+    label: str
+    source_type: EvidenceSourceType
+    source_locator: str
+    observed_at: str
+    privacy_class: EvidencePrivacy
+    content_hash: str
+    claim_role: EvidenceClaimRole = "supports"
+    url: str | None = None
+
+    def to_public_dict(self) -> dict[str, object]:
+        """Project pre-approved public URL metadata without private provenance."""
+        payload: dict[str, object] = {
+            "id": self.evidence_id,
+            "label": self.label,
+            "source_type": self.source_type,
+            "observed_at": self.observed_at,
+        }
+        if self.url is not None:
+            payload["url"] = self.url
+        return payload
+
+
+@dataclass(frozen=True)
+class DiagramRef:
+    diagram_id: str
+    source_path: str
+    caption: str
+    alt: str
+    svg: str = field(repr=False, compare=False)
+
+
+@dataclass(frozen=True)
+class ArticleSection:
+    section_id: str
+    title: str
+    section_type: ArticleSectionType
+    body: str
+    evidence_ids: tuple[str, ...]
+    diagrams: tuple[DiagramRef, ...] = ()
+
+
+@dataclass(frozen=True)
+class DecisionIndexEntry:
+    decision_id: str
+    section_id: str
+    status: DecisionStatus
+    evidence_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ProjectArticle:
+    project_id: str
+    title: str
+    summary: str
+    sections: tuple[ArticleSection, ...]
+    readiness: Readiness
+    prior_context: str = ""
+    decision_index: tuple[DecisionIndexEntry, ...] = ()
+
+    def to_public_dict(self) -> dict[str, object]:
+        payload: dict[str, object] = {
+            "project_id": self.project_id,
+            "title": self.title,
+            "summary": self.summary,
+            "readiness": self.readiness,
+            "sections": [_public_section(section) for section in self.sections],
+        }
+        if self.prior_context:
+            payload["prior_context"] = self.prior_context
+        if self.decision_index:
+            payload["decision_index"] = [asdict(item) for item in self.decision_index]
+        return payload
+
+
+@dataclass(frozen=True)
+class ContentAudit:
+    project_id: str
+    readiness: Readiness
+    evidence_counts: dict[str, int]
+    session_stats: dict[str, int]
+    missing_evidence_ids: tuple[str, ...]
+    unmapped_session_ids: tuple[str, ...]
+    findings: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -243,7 +338,7 @@ def validate_schema(instance: object, schema_name: str) -> None:
         raise ValueError(f"Unknown schema: {schema_name}")
 
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    validator = Draft202012Validator(schema)
+    validator = Draft202012Validator(schema, format_checker=Draft202012Validator.FORMAT_CHECKER)
     error = next(iter(validator.iter_errors(instance)), None)
     if error is not None:
         raise ValueError(_schema_error_message(error, instance)) from error
@@ -287,3 +382,19 @@ def _neighbor_id(edge: GraphEdge, project_id: str) -> str:
 
 def _graph_project_id(project_id: str) -> str:
     return f"project:{quote(project_id, safe='')}"
+
+
+def _public_section(section: ArticleSection) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "id": section.section_id,
+        "title": section.title,
+        "section_type": section.section_type,
+        "body": section.body,
+        "evidence_ids": list(section.evidence_ids),
+    }
+    if section.diagrams:
+        payload["diagrams"] = [
+            {"id": item.diagram_id, "caption": item.caption, "alt": item.alt}
+            for item in section.diagrams
+        ]
+    return payload

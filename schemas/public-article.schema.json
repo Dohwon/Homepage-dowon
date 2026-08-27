@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project_id", "title", "summary", "readiness", "sections"],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/stableId"},
+    "title": {"type": "string", "minLength": 1},
+    "summary": {"type": "string", "minLength": 1},
+    "readiness": {"enum": ["ready", "insufficient-evidence", "review-required"]},
+    "prior_context": {"type": "string", "minLength": 1},
+    "sections": {"type": "array", "items": {"$ref": "#/$defs/section"}},
+    "decision_index": {"type": "array", "items": {"$ref": "#/$defs/decision"}}
+  },
+  "$defs": {
+    "stableId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "section_type", "body", "evidence_ids"],
+      "properties": {
+        "id": {"$ref": "#/$defs/stableId"},
+        "title": {"type": "string", "minLength": 1},
+        "section_type": {"enum": ["planning", "decision", "implementation", "validation", "result"]},
+        "body": {"type": "string", "minLength": 1},
+        "evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/stableId"}},
+        "diagrams": {"type": "array", "items": {"$ref": "#/$defs/diagram"}}
+      }
+    },
+    "diagram": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "caption", "alt"],
+      "properties": {
+        "id": {"$ref": "#/$defs/stableId"},
+        "caption": {"type": "string", "minLength": 1},
+        "alt": {"type": "string", "minLength": 1}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_id", "section_id", "status", "evidence_ids"],
+      "properties": {
+        "decision_id": {"$ref": "#/$defs/stableId"},
+        "section_id": {"$ref": "#/$defs/stableId"},
+        "status": {"enum": ["adopted", "revised", "rolled-back", "unresolved"]},
+        "evidence_ids": {"type": "array", "items": {"$ref": "#/$defs/stableId"}}
+      }
+    }
+  }
+}
