@@ -305,14 +305,17 @@ def _parse_custom_wrappers(source: str) -> tuple[Mapping[str, object], ...]:
     if tokens is None:
         return ()
     values: list[Mapping[str, object]] = []
-    for statement in _top_level_statements(tokens):
+    statements = _top_level_statements(tokens)
+    if statements is None:
+        return ()
+    for statement in statements:
         values.extend(_parse_top_level_statement(statement))
     return tuple(values)
 
 
 def _top_level_statements(
     tokens: Sequence[tuple[str, str]],
-) -> tuple[tuple[tuple[str, str], ...], ...]:
+) -> tuple[tuple[tuple[str, str], ...], ...] | None:
     statements: list[tuple[tuple[str, str], ...]] = []
     openings = {"(": ")", "[": "]", "{": "}"}
     closings = set(openings.values())
@@ -323,13 +326,15 @@ def _top_level_statements(
             stack.append(openings[value])
         elif value in closings:
             if not stack or value != stack[-1]:
-                return tuple(statements)
+                return None
             stack.pop()
         elif value == ";" and not stack:
             if index > start:
                 statements.append(tuple(tokens[start:index]))
             start = index + 1
-    if not stack and start < len(tokens):
+    if stack:
+        return None
+    if start < len(tokens):
         statements.append(tuple(tokens[start:]))
     return tuple(statements)
 

@@ -395,6 +395,48 @@ def test_custom_tool_call_keeps_completed_assignment_when_other_statement_is_inv
     assert trace.changed_paths == ("/workspace/projects/beta/src/kept.py",)
 
 
+def test_custom_tool_call_discards_prior_evidence_when_source_has_structural_delimiter_failure(tmp_path):
+    valid = 'await tools.exec_command({ workdir: "/workspace/projects/beta", path: "src/valid.py" });'
+    malformed_suffixes = {
+        "mismatched-closer": ")",
+        "unclosed-paren": "(",
+        "unclosed-brace": "const x = {",
+    }
+
+    for name, suffix in malformed_suffixes.items():
+        session_path = tmp_path / f"custom-{name}.jsonl"
+        records = (
+            {"type": "session_meta", "payload": {"id": name, "cwd": "/workspace/projects/alpha"}},
+            {"type": "response_item", "payload": {"item": {"type": "custom_tool_call", "input": valid + suffix}}},
+        )
+        session_path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+
+        trace = index_session(session_path)
+
+        assert trace.cwd == "/workspace/projects/alpha"
+        assert trace.changed_paths == ()
+
+
+def test_custom_tool_call_keeps_valid_evidence_before_complete_unsupported_statement(tmp_path):
+    session_path = tmp_path / "custom-complete-unsupported.jsonl"
+    source = "".join(
+        (
+            'await tools.exec_command({ workdir: "/workspace/projects/beta", path: "src/valid.py" });',
+            "text(result.output);",
+        )
+    )
+    records = (
+        {"type": "session_meta", "payload": {"id": "complete", "cwd": "/workspace/projects/alpha"}},
+        {"type": "response_item", "payload": {"item": {"type": "custom_tool_call", "input": source}}},
+    )
+    session_path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+
+    trace = index_session(session_path)
+
+    assert trace.cwd == "/workspace/projects/beta"
+    assert trace.changed_paths == ("/workspace/projects/beta/src/valid.py",)
+
+
 def test_apply_patch_extracts_add_update_delete_and_move_targets_only(tmp_path):
     session_path = tmp_path / "move.jsonl"
     patch = "\n".join(
