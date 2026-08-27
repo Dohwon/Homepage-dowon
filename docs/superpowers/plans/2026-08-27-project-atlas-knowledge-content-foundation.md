@@ -520,7 +520,12 @@ def test_article_loader_preserves_long_markdown_and_section_order(project_tree):
         "sections": [
             {"id": "retention", "title": "TMAP 데이터 장기 저장 제한 해결", "section_type": "decision",
              "body": "TMAP 경로는 세션 입력으로만 사용한다.\n\nVWorld Feature ID와 geometry snapshot을 영구 저장한다.",
-             "evidence_ids": ["ev-tmap-spec"], "diagrams": ["tmap-vworld-lifecycle"]},
+             "evidence_ids": ["ev-tmap-spec"],
+             "diagrams": [{
+                 "id": "tmap-vworld-lifecycle",
+                 "caption": "TMAP 입력과 VWorld 영구 기록의 데이터 수명",
+                 "alt": "TMAP 경로는 세션에서만 사용되고 VWorld Feature와 geometry snapshot은 영구 저장되는 흐름",
+             }]},
         ],
     })
     article = load_project_article(project_tree.ref, gate())
