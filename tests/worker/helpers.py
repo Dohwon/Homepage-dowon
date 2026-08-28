@@ -6,6 +6,9 @@ from pathlib import Path
 
 import yaml
 
+from atlas_worker.content_audit import audit_curated_project_content
+from atlas_worker.privacy import PrivacyGate
+from atlas_worker.source_manifest import build_source_manifest
 from atlas_worker.graph import build_graph
 from atlas_worker.manifest import content_version, project_hashes_from_files
 from atlas_worker.models import (
@@ -17,6 +20,57 @@ from atlas_worker.models import (
     SessionEvent,
     TagSet,
 )
+
+
+class StaticGitRunner:
+    def __init__(
+        self,
+        *,
+        common_dirs: dict[Path, str] | None = None,
+        heads: dict[Path, str] | None = None,
+    ) -> None:
+        self.common_dirs = common_dirs or {}
+        self.heads = heads or {}
+
+    def run(self, cwd: Path, *args: str) -> str:
+        if args == ("rev-parse", "--git-common-dir"):
+            return self.common_dirs.get(cwd, "")
+        if args == ("rev-parse", "HEAD"):
+            return self.heads.get(cwd, "")
+        return ""
+
+
+def atlas_content_gate() -> PrivacyGate:
+    return PrivacyGate(alias_key=b"atlas-content-acceptance-key")
+
+
+def project_content_fixture_root(name: str) -> Path:
+    return Path(__file__).parents[1] / "fixtures" / "project-content" / name
+
+
+def project_content_fixture_ref(
+    name: str,
+    *,
+    project_id: str,
+    display_name: str | None = None,
+    lifecycle: str = "active",
+    publication: str = "public",
+) -> ProjectRef:
+    root = project_content_fixture_root(name)
+    return ProjectRef(
+        project_id=project_id,
+        display_name=display_name or project_id.replace("-", " ").title(),
+        root=root,
+        relative_path=f"tests/fixtures/project-content/{name}",
+        lifecycle=lifecycle,
+        publication=publication,
+        aliases=(),
+    )
+
+
+def audit_ref(ref: ProjectRef) -> object:
+    manifest = build_source_manifest(ref, StaticGitRunner())
+    return audit_curated_project_content(ref, manifest, (), atlas_content_gate())
 
 
 def make_project_ref(

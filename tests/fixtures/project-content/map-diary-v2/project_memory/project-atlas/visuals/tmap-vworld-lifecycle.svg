@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360">
+  <title>TMAP and VWorld lifecycle</title>
+  <desc>TMAP route input expires after the session and only VWorld feature identifiers with geometry snapshot remain as the durable visit record.</desc>
+  <rect x="40" y="80" width="320" height="200" rx="8" fill="#f3f6fb" stroke="#2f4f6f" stroke-width="2"/>
+  <text x="68" y="122" fill="#142033" font-size="26">TMAP 세션 입력 수명</text>
+  <text x="68" y="162" fill="#31475f" font-size="18">예상 경로 조회</text>
+  <text x="68" y="194" fill="#31475f" font-size="18">세션 입력으로만 유지</text>
+  <text x="68" y="226" fill="#31475f" font-size="18">24시간 제한 적용</text>
+  <text x="68" y="258" fill="#31475f" font-size="18">영구 변환 후 원본 경로 폐기</text>
+  <path d="M360 180 H600" fill="none" stroke="#2f4f6f" stroke-width="3"/>
+  <path d="M600 180 L576 166" fill="none" stroke="#2f4f6f" stroke-width="3"/>
+  <path d="M600 180 L576 194" fill="none" stroke="#2f4f6f" stroke-width="3"/>
+  <rect x="600" y="80" width="320" height="200" rx="8" fill="#eef8f1" stroke="#2f6f46" stroke-width="2"/>
+  <text x="628" y="122" fill="#102417" font-size="26">VWorld 영구 기록 수명</text>
+  <text x="628" y="162" fill="#2a4e38" font-size="18">VWorld Feature ID 저장</text>
+  <text x="628" y="194" fill="#2a4e38" font-size="18">geometry snapshot 저장</text>
+  <text x="628" y="226" fill="#2a4e38" font-size="18">방문 기록 재현 가능</text>
+  <text x="628" y="258" fill="#2a4e38" font-size="18">세션 종료 후에도 유지</text>
+</svg>

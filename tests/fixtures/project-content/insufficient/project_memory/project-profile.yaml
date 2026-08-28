@@ -1,0 +1,16 @@
+id: insufficient
+name: Insufficient
+lifecycle: active
+publication: public
+summary: Curated article 없이 공개 상태만 선언된 evidence-poor fixture.
+tags:
+  domain:
+    - Mapping
+  problem:
+    - Unclear evidence
+  pattern:
+    - Manual review
+  technology:
+    - Python
+  outcome:
+    - Pending curation

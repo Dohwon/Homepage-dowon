@@ -1,0 +1,27 @@
+- id: v2-tmap-retention-spec
+  project_id: 260802-map-diary-v2
+  label: TMAP 24시간 저장 제한 명세
+  source_type: spec
+  source_locator: /private/spec-fixtures/map-diary-v2-design.md:27
+  observed_at: "2026-08-27T10:00:00Z"
+  privacy_class: private
+  content_hash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  claim_role: supports
+- id: v2-vworld-feature-spec
+  project_id: 260802-map-diary-v2
+  label: VWorld Feature ID와 geometry snapshot 영구 기록 명세
+  source_type: spec
+  source_locator: /private/spec-fixtures/map-diary-v2-design.md:28
+  observed_at: "2026-08-27T10:00:00Z"
+  privacy_class: private
+  content_hash: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  claim_role: supports
+- id: v2-source-discard-spec
+  project_id: 260802-map-diary-v2
+  label: TMAP 원본 경로 폐기 명세
+  source_type: spec
+  source_locator: /private/spec-fixtures/map-diary-v2-design.md:29
+  observed_at: "2026-08-27T10:00:00Z"
+  privacy_class: private
+  content_hash: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+  claim_role: supports
