@@ -67,6 +67,18 @@ EXIT_OK = 0
 EXIT_VALIDATION = 2
 EXIT_PRIVACY = 3
 EXIT_IO = 4
+_AUDIT_EMPTY_EVIDENCE_COUNTS = {
+    "context": 0,
+    "contradicts": 0,
+    "supports": 0,
+    "total": 0,
+}
+_AUDIT_EMPTY_SESSION_COUNTS = {
+    "ambiguous": 0,
+    "mapped": 0,
+    "total": 0,
+    "unmapped": 0,
+}
 
 _PROFILE_KEYS = (
     "id",
@@ -324,13 +336,82 @@ def _command_audit_content(args: argparse.Namespace) -> dict[str, object]:
             raise ConfigError("/project")
         return build_source_manifest(project, runner).audit_payload()
 
+    gate = PrivacyGate(alias_key=secrets.token_bytes(MIN_ALIAS_KEY_BYTES))
     ambiguous_ids = {ref.project_id for ref in report.ambiguous}
     projects = [
-        build_source_manifest(project, runner).audit_payload()
+        _audit_content_item(project, runner, gate)
         for project in report.projects
         if project.publication == "public" and project.project_id not in ambiguous_ids
     ]
     return {"projects": projects}
+
+
+def _audit_content_item(
+    project: ProjectRef,
+    runner: SubprocessGitRunner,
+    gate: PrivacyGate,
+) -> dict[str, object]:
+    try:
+        manifest = build_source_manifest(project, runner)
+    except Exception:
+        return _audit_failure_item(project.project_id, "source-manifest-error")
+
+    item = {
+        "project_id": project.project_id,
+        "source_manifest": {
+            "status": "ready",
+            "summary": _manifest_summary(manifest.audit_payload()),
+            "finding_codes": [],
+        },
+        "content_audit": _content_audit_payload(project, manifest, gate),
+    }
+    gate.require_safe(item)
+    return item
+
+
+def _manifest_summary(payload: Mapping[str, object]) -> dict[str, object]:
+    return {
+        "files": payload["files"],
+        "content_hash": payload["content_hash"],
+    }
+
+
+def _content_audit_payload(
+    project: ProjectRef,
+    manifest: Any,
+    gate: PrivacyGate,
+) -> dict[str, object]:
+    try:
+        audit = audit_curated_project_content(project, manifest, (), gate)
+    except Exception:
+        return _audit_failure_status("content-audit-error")
+    return {
+        "readiness": audit.readiness,
+        "evidence_counts": dict(audit.evidence_counts),
+        "session_counts": dict(audit.session_stats),
+        "finding_codes": list(audit.findings),
+    }
+
+
+def _audit_failure_item(project_id: str, code: str) -> dict[str, object]:
+    return {
+        "project_id": project_id,
+        "source_manifest": {
+            "status": "review-required",
+            "summary": None,
+            "finding_codes": [code],
+        },
+        "content_audit": _audit_failure_status(code),
+    }
+
+
+def _audit_failure_status(code: str) -> dict[str, object]:
+    return {
+        "readiness": "review-required",
+        "evidence_counts": dict(_AUDIT_EMPTY_EVIDENCE_COUNTS),
+        "session_counts": dict(_AUDIT_EMPTY_SESSION_COUNTS),
+        "finding_codes": [code],
+    }
 
 
 def _workspace(value: Path) -> Path:

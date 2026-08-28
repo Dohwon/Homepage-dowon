@@ -128,14 +128,22 @@ def _reviewed_profile(project_id: str, lifecycle: str = "active") -> dict[str, o
     }
 
 
-def _write_ready_article(workspace: Path, readiness: str = "ready") -> None:
-    source = workspace / "projects" / "alpha" / "project_memory" / "project-atlas"
+def _write_ready_article(
+    workspace: Path,
+    readiness: str = "ready",
+    *,
+    project_id: str = "alpha",
+    article_title: str = "Routing record",
+    evidence_id: str | None = None,
+) -> None:
+    evidence_id = evidence_id or f"{project_id}-proof"
+    source = workspace / "projects" / project_id / "project_memory" / "project-atlas"
     source.mkdir(parents=True)
     (source / "article.yaml").write_text(
         yaml.safe_dump(
             {
-                "project_id": "alpha",
-                "title": "Routing record",
+                "project_id": project_id,
+                "title": article_title,
                 "summary": "Public routing decision",
                 "readiness": readiness,
                 "sections": [{
@@ -143,7 +151,7 @@ def _write_ready_article(workspace: Path, readiness: str = "ready") -> None:
                     "title": "Routing",
                     "section_type": "decision",
                     "body": "The public routing contract is deterministic.",
-                    "evidence_ids": ["routing-proof"],
+                    "evidence_ids": [evidence_id],
                 }],
             },
             sort_keys=False,
@@ -152,8 +160,8 @@ def _write_ready_article(workspace: Path, readiness: str = "ready") -> None:
     )
     (source / "evidence.yaml").write_text(
         yaml.safe_dump([{
-            "id": "routing-proof",
-            "project_id": "alpha",
+            "id": evidence_id,
+            "project_id": project_id,
             "label": "Public routing contract",
             "source_type": "test",
             "source_locator": "/private/atlas/test.py:1",
@@ -237,8 +245,9 @@ def test_audit_content_emits_relative_manifest_summary_without_private_paths(tmp
     assert "/git/" not in json.dumps(output)
 
 
-def test_audit_content_without_project_emits_sorted_public_projects_only_once(tmp_path):
+def test_audit_content_without_project_emits_sanitized_manifest_and_content_audit(tmp_path):
     workspace = make_workspace_fixture(tmp_path)
+    _write_ready_article(workspace)
 
     alpha = workspace / "projects" / "alpha"
     (alpha / "src").mkdir()
@@ -271,11 +280,29 @@ def test_audit_content_without_project_emits_sorted_public_projects_only_once(tm
 
     output = invoke_cli_json(["audit-content", "--workspace", str(workspace), "--format", "json"])
 
-    project_ids = [item["project_id"] for item in output["projects"]]
+    items = output["projects"]
+    project_ids = [item["project_id"] for item in items]
     rendered = json.dumps(output)
     assert project_ids == ["alpha", "beta", "zeta"]
     assert len(project_ids) == len(set(project_ids))
-    assert all(set(item) == {"project_id", "files", "content_hash"} for item in output["projects"])
+    alpha_item = items[0]
+    beta_item = items[1]
+    assert set(alpha_item) == {"project_id", "source_manifest", "content_audit"}
+    assert alpha_item["source_manifest"] == {
+        "status": "ready",
+        "summary": {"files": {"count": 5, "by_class": {"project_memory": 4, "source": 1}}, "content_hash": alpha_item["source_manifest"]["summary"]["content_hash"]},
+        "finding_codes": [],
+    }
+    assert len(alpha_item["source_manifest"]["summary"]["content_hash"]) == 64
+    assert alpha_item["content_audit"] == {
+        "readiness": "ready",
+        "evidence_counts": {"context": 0, "contradicts": 0, "supports": 1, "total": 1},
+        "session_counts": {"ambiguous": 0, "mapped": 0, "total": 0, "unmapped": 0},
+        "finding_codes": [],
+    }
+    assert beta_item["source_manifest"]["status"] == "ready"
+    assert beta_item["content_audit"]["readiness"] == "insufficient-evidence"
+    assert beta_item["content_audit"]["finding_codes"] == ["missing-curated-article"]
     assert str(workspace) not in rendered
     assert "/git/" not in rendered
     assert "gitdir" not in rendered
@@ -283,6 +310,56 @@ def test_audit_content_without_project_emits_sorted_public_projects_only_once(tm
     assert "private-only" not in project_ids
     assert "excluded-one" not in project_ids
     assert "unreviewed" not in project_ids
+
+
+def test_audit_content_without_project_keeps_broken_public_project_once_and_continues(tmp_path):
+    workspace = make_workspace_fixture(tmp_path)
+    _write_ready_article(workspace)
+
+    alpha = workspace / "projects" / "alpha"
+    (alpha / "src").mkdir()
+    (alpha / "src/main.py").write_text("print('alpha')\n", encoding="utf-8")
+
+    broken = workspace / "projects" / "gamma"
+    broken.mkdir()
+    write_project_profile(broken, id="gamma", name="Gamma", publication="public")
+    (broken / "keep.txt").write_text("gamma\n", encoding="utf-8")
+    (broken / "broken-link").symlink_to("/private/symlink-target")
+
+    zeta = workspace / "projects" / "zeta"
+    zeta.mkdir()
+    write_project_profile(zeta, id="zeta", name="Zeta", publication="public")
+    (zeta / "src").mkdir()
+    (zeta / "src/main.py").write_text("print('zeta')\n", encoding="utf-8")
+    _write_ready_article(workspace, project_id="zeta", article_title="Zeta record")
+
+    output = invoke_cli_json(["audit-content", "--workspace", str(workspace), "--format", "json"])
+
+    items = output["projects"]
+    project_ids = [item["project_id"] for item in items]
+    broken_item = next(item for item in items if item["project_id"] == "gamma")
+    rendered = json.dumps(output)
+    assert project_ids == ["alpha", "beta", "gamma", "zeta"]
+    assert project_ids.count("gamma") == 1
+    assert project_ids[-1] == "zeta"
+    assert broken_item == {
+        "project_id": "gamma",
+        "source_manifest": {
+            "status": "review-required",
+            "summary": None,
+            "finding_codes": ["source-manifest-error"],
+        },
+        "content_audit": {
+            "readiness": "review-required",
+            "evidence_counts": {"context": 0, "contradicts": 0, "supports": 0, "total": 0},
+            "session_counts": {"ambiguous": 0, "mapped": 0, "total": 0, "unmapped": 0},
+            "finding_codes": ["source-manifest-error"],
+        },
+    }
+    assert next(item for item in items if item["project_id"] == "zeta")["content_audit"]["readiness"] == "ready"
+    assert str(workspace) not in rendered
+    assert "/private/symlink-target" not in rendered
+    assert "broken-link" not in rendered
 
 
 def test_audit_content_rejects_unknown_project_as_validation_error(tmp_path, capsys):
