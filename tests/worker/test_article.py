@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,8 @@ from atlas_worker.article import (
     load_project_evidence,
     load_system_map,
 )
-from atlas_worker.content_audit import audit_project_content
+from atlas_worker.content_audit import audit_curated_project_content, audit_project_content
+from atlas_worker.models import EvidenceRecord, validate_schema
 from atlas_worker.privacy import PrivacyGate
 from atlas_worker.source_manifest import SourceManifest
 from tests.worker.helpers import make_project_ref
@@ -164,7 +166,7 @@ def test_article_requires_evidence_for_references_and_resolves_decisions(tmp_pat
 @pytest.mark.parametrize(
     "mutation",
     (
-        lambda data: data["sections"].append({**data["sections"][0], "title": "duplicate"}),
+        lambda data: data["sections"].append({**copy.deepcopy(data["sections"][0]), "title": "duplicate"}),
         lambda data: data.update({"decision_index": [
             {"decision_id": "same", "section_id": "retention", "status": "adopted", "evidence_ids": ["ev-spec"]},
             {"decision_id": "same", "section_id": "retention", "status": "revised", "evidence_ids": ["ev-spec"]},
@@ -244,6 +246,31 @@ def test_system_map_is_optional_and_uses_same_svg_gate(tmp_path):
         load_system_map(ref, _gate())
 
 
+@pytest.mark.parametrize(
+    "unsafe_svg",
+    (
+        '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><title>x</title><desc>x</desc><?xml-stylesheet href="x"?></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><title>x</title><desc>x</desc><style>fill:red</style></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" style="fill:red"><title>x</title><desc>x</desc></svg>',
+        '<svg viewBox="0 0 1 1"><title>x</title><desc>x</desc></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><g><title>x</title><desc>x</desc></g></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><title>x</title><title>duplicate</title><desc>x</desc></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 NaN 1"><title>x</title><desc>x</desc></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 inf 1"><title>x</title><desc>x</desc></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 -1"><title>x</title><desc>x</desc></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1"><title>x</title><desc>x</desc></svg>',
+    ),
+)
+def test_svg_requires_no_css_or_processing_instructions_and_strict_root_metadata(tmp_path, unsafe_svg):
+    ref = make_project_ref(tmp_path)
+    _write_article(tmp_path, _article(diagrams=[{"id": "unsafe", "caption": "unsafe", "alt": "unsafe"}]))
+    _write_evidence(tmp_path, [_evidence()])
+    _write_svg(tmp_path, "unsafe", unsafe_svg)
+
+    with pytest.raises(ValueError, match="article-svg"):
+        load_project_article(ref, _gate())
+
+
 def test_evidence_loader_rejects_cross_project_duplicate_ids_and_invalid_records(tmp_path):
     ref = make_project_ref(tmp_path)
     _write_article(tmp_path, _article())
@@ -287,7 +314,85 @@ def test_evidence_loader_reports_invalid_literals_and_shapes_as_value_errors(tmp
         load_project_evidence(ref, _gate())
 
 
-def test_article_loader_rejects_symlinked_sources_without_following_them(tmp_path):
+@pytest.mark.parametrize(
+    "url",
+    (
+        "javascript:alert(1)",
+        "data:text/plain,unsafe",
+        "file:///private/atlas",
+        "http://example.test/evidence",
+        "//example.test/evidence",
+        "https://user:pass@example.test/evidence",
+        "https:///missing-host",
+        "https://example.test/%250aunsafe",
+        "https://example.test/\\unsafe",
+    ),
+)
+def test_evidence_loader_rejects_non_https_or_unsafe_public_urls(tmp_path, url):
+    ref = make_project_ref(tmp_path)
+    _write_article(tmp_path, _article())
+    record = _evidence()
+    record["url"] = url
+    _write_evidence(tmp_path, [record])
+
+    with pytest.raises(ValueError, match="HTTPS"):
+        load_project_evidence(ref, _gate())
+
+
+def test_evidence_url_is_rechecked_at_public_projection_and_schema_boundary(tmp_path):
+    record = EvidenceRecord(
+        evidence_id="ev-unsafe",
+        project_id="alpha",
+        label="Unsafe",
+        source_type="spec",
+        source_locator="/private/evidence",
+        observed_at="2026-08-27T10:00:00Z",
+        privacy_class="private",
+        content_hash="a" * 64,
+        url="javascript:alert(1)",
+    )
+
+    with pytest.raises(ValueError, match="HTTPS"):
+        record.to_public_dict()
+    with pytest.raises(ValueError, match="url"):
+        validate_schema(
+            [{"id": "ev-safe", "label": "Safe", "source_type": "spec", "observed_at": "2026-08-27T10:00:00Z", "url": "http://example.test"}],
+            "public-evidence",
+        )
+
+
+def test_evidence_loader_and_public_projection_accept_well_formed_https_url(tmp_path):
+    ref = make_project_ref(tmp_path)
+    _write_article(tmp_path, _article())
+    record = _evidence()
+    record["url"] = "https://docs.example.test/evidence?version=1#source"
+    _write_evidence(tmp_path, [record])
+
+    evidence = load_project_evidence(ref, _gate())
+
+    assert evidence[0].to_public_dict()["url"] == record["url"]
+
+
+@pytest.mark.parametrize(
+    "raw_yaml",
+    (
+        "project_id: alpha\ntitle: &shared valid\nsummary: *shared\n",
+        "project_id: alpha\ntitle: &shared valid\nsummary: first\nsections: [*shared]\n",
+        "nested: " + "[" * 65 + "x" + "]" * 65 + "\n",
+        "- x\n" * 1100,
+        "x" * (129 * 1024),
+    ),
+)
+def test_article_loader_rejects_yaml_aliases_and_resource_budgets(tmp_path, raw_yaml):
+    ref = make_project_ref(tmp_path)
+    path = _atlas_dir(tmp_path) / "article.yaml"
+    path.write_text(raw_yaml, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="YAML|article|byte limit"):
+        load_project_article(ref, _gate())
+
+
+def test_production_audit_rejects_symlinked_sources_without_following_them(tmp_path):
     ref = make_project_ref(tmp_path)
     outside = tmp_path / "outside.yaml"
     outside.write_text(yaml.safe_dump(_article(), allow_unicode=True), encoding="utf-8")
@@ -295,18 +400,28 @@ def test_article_loader_rejects_symlinked_sources_without_following_them(tmp_pat
     article_path.symlink_to(outside)
 
     with pytest.raises(ValueError, match="symlink"):
-        load_project_article(ref, _gate())
+        audit_curated_project_content(ref, _manifest(), (), _gate())
 
 
-def test_loaded_article_validator_is_called_by_audit_and_can_return_ready(tmp_path):
+def test_production_audit_loads_curated_content_and_injects_validator(tmp_path):
     ref = make_project_ref(tmp_path)
     _write_article(tmp_path, _article())
     _write_evidence(tmp_path, [_evidence()])
-    article = load_project_article(ref, _gate())
-    assert article is not None
-
-    audit = audit_project_content(
-        ref, _manifest(), article, load_project_evidence(ref, _gate()), (), article_validator=ArticleValidator()
-    )
+    audit = audit_curated_project_content(ref, _manifest(), (), _gate())
 
     assert audit.readiness == "ready"
+
+
+def test_production_audit_fails_closed_for_missing_or_invalid_curated_sources(tmp_path):
+    ref = make_project_ref(tmp_path)
+
+    assert audit_curated_project_content(ref, _manifest(), (), _gate()).readiness == "insufficient-evidence"
+
+    _write_article(tmp_path, _article())
+    with pytest.raises(ValueError, match="evidence.yaml"):
+        audit_curated_project_content(ref, _manifest(), (), _gate())
+
+    _write_evidence(tmp_path, [_evidence()])
+    (_atlas_dir(tmp_path) / "article.yaml").write_text("project_id: alpha\nunknown: value\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="Schema validation"):
+        audit_curated_project_content(ref, _manifest(), (), _gate())

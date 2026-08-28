@@ -18,6 +18,7 @@ from .models import (
     EvidenceRecord,
     ProjectArticle,
     ProjectRef,
+    validate_public_evidence_url,
     validate_schema,
 )
 from .privacy import PrivacyGate
@@ -28,7 +29,10 @@ _SOURCE_DIRECTORY = Path("project_memory") / "project-atlas"
 _STABLE_ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _RFC3339 = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$")
 _CONTENT_HASH = re.compile(r"^[a-f0-9]{64}$")
-_URI = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:[^\s]+$")
+_MAX_CURATED_YAML_BYTES = 128 * 1024
+_MAX_CURATED_YAML_NODES = 1024
+_MAX_CURATED_YAML_EVENTS = 4096
+_MAX_CURATED_YAML_DEPTH = 64
 _EVIDENCE_KEYS = frozenset(
     {
         "id",
@@ -191,11 +195,36 @@ def _load_yaml_mapping(path: Path, root: Path, gate: PrivacyGate | None, label: 
 
 def _load_yaml(path: Path, root: Path, gate: PrivacyGate | None, label: str) -> Any:
     try:
-        return yaml.load(read_confined_text(path, root, gate), Loader=_UniqueKeyLoader)
+        text = read_confined_text(path, root, gate, max_bytes=_MAX_CURATED_YAML_BYTES)
+        _validate_yaml_budget(text)
+        return yaml.load(text, Loader=_UniqueKeyLoader)
     except ValueError:
         raise
     except yaml.YAMLError as error:
         raise ValueError(f"invalid {label} YAML") from error
+
+
+def _validate_yaml_budget(text: str) -> None:
+    depth = 0
+    nodes = 0
+    for events, event in enumerate(yaml.parse(text, Loader=_UniqueKeyLoader), start=1):
+        if events > _MAX_CURATED_YAML_EVENTS:
+            raise ValueError("YAML event limit exceeded")
+        if isinstance(event, yaml.events.AliasEvent):
+            raise ValueError("YAML aliases are not allowed")
+        if getattr(event, "anchor", None) is not None:
+            raise ValueError("YAML anchors are not allowed")
+        if isinstance(event, (yaml.events.MappingStartEvent, yaml.events.SequenceStartEvent)):
+            depth += 1
+            nodes += 1
+            if depth > _MAX_CURATED_YAML_DEPTH:
+                raise ValueError("YAML nesting limit exceeded")
+        elif isinstance(event, (yaml.events.MappingEndEvent, yaml.events.SequenceEndEvent)):
+            depth -= 1
+        elif isinstance(event, yaml.events.ScalarEvent):
+            nodes += 1
+        if nodes > _MAX_CURATED_YAML_NODES:
+            raise ValueError("YAML node limit exceeded")
 
 
 def _load_project_evidence(
@@ -253,8 +282,8 @@ def _evidence_record(value: Any, project_id: str) -> EvidenceRecord:
     if not isinstance(role, str) or role not in _EVIDENCE_ROLES:
         raise ValueError("evidence claim_role is invalid")
     url = value.get("url")
-    if url is not None and (not isinstance(url, str) or not _URI.fullmatch(url)):
-        raise ValueError("evidence url must be a pre-approved URI shape")
+    if url is not None:
+        validate_public_evidence_url(url)
     return EvidenceRecord(
         evidence_id=value["id"],
         project_id=value["project_id"],

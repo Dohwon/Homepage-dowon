@@ -121,7 +121,8 @@ def test_valid_article_with_varying_section_counts_and_support_context_evidence_
         article_validator=_clean_validator,
     )
 
-    assert audit.readiness == "ready"
+    assert audit.readiness == "review-required"
+    assert audit.findings == ("loader-proof-missing",)
     assert audit.evidence_counts == {"context": 1, "contradicts": 0, "supports": 1, "total": 2}
     assert audit.session_stats == {"ambiguous": 0, "mapped": 1, "total": 1, "unmapped": 0}
 
@@ -287,7 +288,7 @@ def test_article_validator_is_invoked_and_blank_title_overrides_a_clean_result()
     assert "title:blank-title" in audit.findings
 
 
-def test_loaded_article_validator_provides_checked_clean_report_to_audit():
+def test_manual_article_and_concrete_validator_cannot_grant_ready_without_loader_proof():
     audit = audit_project_content(
         _project(),
         _manifest(),
@@ -297,7 +298,8 @@ def test_loaded_article_validator_provides_checked_clean_report_to_audit():
         article_validator=LoadedArticleValidator(),
     )
 
-    assert audit.readiness == "ready"
+    assert audit.readiness == "review-required"
+    assert audit.findings == ("loader-proof-missing",)
 
 
 def test_validator_missing_static_malformed_and_raising_inputs_fail_closed():

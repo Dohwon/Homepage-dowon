@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import math
 import re
 import xml.etree.ElementTree as ET
 
@@ -26,49 +27,69 @@ _CANVAS_WIDTH = 1200
 _NODE_WIDTH = 208
 _NODE_GAP = 24
 _SVG_DECLARATION = re.compile(r"<!\s*(?:doctype|entity)\b", re.I)
-_CSS_URL = re.compile(r"url\s*\(\s*([^)]*?)\s*\)", re.I | re.S)
 _SVG_FRAGMENT = re.compile(r"^#[A-Za-z_][A-Za-z0-9_.:-]*$")
+_SVG_NAMESPACE = "http://www.w3.org/2000/svg"
+_PROCESSING_INSTRUCTION = re.compile(r"<\?(.*?)\?>", re.S)
 
 
 def validate_curated_svg(svg: str, *, label: str) -> None:
     """Validate a local curated SVG without allowing executable or external content."""
     if not isinstance(svg, str) or _SVG_DECLARATION.search(svg):
         raise ValueError(f"{label}: declarations and entities are not allowed")
+    for match in _PROCESSING_INSTRUCTION.finditer(svg):
+        instruction = match.group(1)
+        if match.start() != 0 or not instruction.startswith("xml "):
+            raise ValueError(f"{label}: processing instructions are not allowed")
     try:
         root = ET.fromstring(svg)
     except ET.ParseError as error:
         raise ValueError(f"{label}: malformed XML") from error
-    if _svg_name(root.tag) != "svg":
+    if root.tag != f"{{{_SVG_NAMESPACE}}}svg":
         raise ValueError(f"{label}: root must be svg")
-    if not root.attrib.get("viewBox", "").strip():
-        raise ValueError(f"{label}: viewBox is required")
-    if not _has_nonempty_element(root, "title") or not _has_nonempty_element(root, "desc"):
+    _validate_view_box(root.attrib.get("viewBox"), label)
+    if not _has_exact_direct_metadata(root, "title") or not _has_exact_direct_metadata(root, "desc"):
         raise ValueError(f"{label}: title and desc are required")
     for element in root.iter():
         name = _svg_name(element.tag)
         if name.casefold() in {"script", "foreignobject"}:
             raise ValueError(f"{label}: active SVG element")
+        if name.casefold() == "style":
+            raise ValueError(f"{label}: CSS is not allowed")
         for attribute, value in element.attrib.items():
             attribute_name = _svg_name(attribute).casefold()
+            if attribute_name == "style":
+                raise ValueError(f"{label}: CSS is not allowed")
             if attribute_name.startswith("on"):
                 raise ValueError(f"{label}: event handlers are not allowed")
             if attribute_name in {"href", "src"} and not _is_local_fragment(value):
                 raise ValueError(f"{label}: external or file reference is not allowed")
-            if attribute_name == "style":
-                _validate_svg_css(value, label)
-        if name.casefold() == "style":
-            _validate_svg_css("".join(element.itertext()), label)
 
 
 def _svg_name(value: str) -> str:
     return value.rsplit("}", 1)[-1]
 
 
-def _has_nonempty_element(root: ET.Element, name: str) -> bool:
-    return any(
-        _svg_name(element.tag) == name and "".join(element.itertext()).strip()
-        for element in root.iter()
-    )
+def _has_exact_direct_metadata(root: ET.Element, name: str) -> bool:
+    values = [
+        element
+        for element in root
+        if element.tag == f"{{{_SVG_NAMESPACE}}}{name}"
+    ]
+    return len(values) == 1 and bool("".join(values[0].itertext()).strip())
+
+
+def _validate_view_box(value: str | None, label: str) -> None:
+    if not isinstance(value, str):
+        raise ValueError(f"{label}: viewBox is required")
+    parts = tuple(part for part in re.split(r"[\s,]+", value.strip()) if part)
+    if len(parts) != 4:
+        raise ValueError(f"{label}: viewBox must contain four finite numbers")
+    try:
+        numbers = tuple(float(part) for part in parts)
+    except ValueError:
+        raise ValueError(f"{label}: viewBox must contain four finite numbers") from None
+    if not all(math.isfinite(number) for number in numbers) or numbers[2] <= 0 or numbers[3] <= 0:
+        raise ValueError(f"{label}: viewBox dimensions must be positive finite numbers")
 
 
 def _is_local_fragment(value: str) -> bool:
@@ -76,13 +97,6 @@ def _is_local_fragment(value: str) -> bool:
     return bool(_SVG_FRAGMENT.fullmatch(fragment))
 
 
-def _validate_svg_css(value: str, label: str) -> None:
-    if re.search(r"@import\b", value, re.I):
-        raise ValueError(f"{label}: CSS imports are not allowed")
-    for match in _CSS_URL.finditer(value):
-        target = match.group(1).strip().strip("\"'")
-        if not _is_local_fragment(target):
-            raise ValueError(f"{label}: external CSS url is not allowed")
 
 
 def has_problem_solving_evidence(events: tuple[ProjectEvent, ...]) -> bool:

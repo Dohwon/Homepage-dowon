@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import re
 from typing import Literal
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlsplit
 
 from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import ValidationError
@@ -48,6 +48,7 @@ _DATE_VALUE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _DATE_TIME_VALUE = re.compile(
     r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})"
 )
+_PUBLIC_EVIDENCE_URL_DECODE_STEPS = 4
 
 
 @_SCHEMA_FORMAT_CHECKER.checks("date")
@@ -168,8 +169,48 @@ class EvidenceRecord:
             "observed_at": self.observed_at,
         }
         if self.url is not None:
-            payload["url"] = self.url
+            payload["url"] = validate_public_evidence_url(self.url)
         return payload
+
+
+def validate_public_evidence_url(value: str) -> str:
+    """Accept only syntactically safe absolute HTTPS evidence URLs.
+
+    Domain approval remains curation policy; this boundary only rejects unsafe
+    URL forms before they can become public payload data.
+    """
+    if not isinstance(value, str):
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+    decoded = value
+    for _ in range(_PUBLIC_EVIDENCE_URL_DECODE_STEPS):
+        next_value = unquote(decoded)
+        if next_value == decoded:
+            break
+        decoded = next_value
+    else:
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+    if any(character.isspace() or ord(character) < 32 or ord(character) == 127 for character in decoded):
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+    if "\\" in decoded:
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+    try:
+        parsed = urlsplit(value)
+        host = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        raise ValueError("evidence url must be an absolute HTTPS URL") from None
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or not host
+        or parsed.username is not None
+        or parsed.password is not None
+        or "@" in parsed.netloc
+        or "%" in host
+        or port is not None and not 0 < port <= 65535
+    ):
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+    return value
 
 
 @dataclass(frozen=True)

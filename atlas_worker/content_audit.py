@@ -9,11 +9,13 @@ import re
 from typing import Literal, Protocol
 
 from .models import ContentAudit, EvidenceRecord, ProjectArticle, ProjectRef, SessionMapping
+from .privacy import PrivacyGate
 from .source_manifest import SourceManifest
 
 
 ValidationKind = Literal["title", "diagram"]
 _FINDING_CODE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+_LOADER_PROOF = object()
 
 
 @dataclass(frozen=True)
@@ -57,6 +59,7 @@ def audit_project_content(
     mappings: Sequence[SessionMapping],
     *,
     article_validator: ArticleValidator | None = None,
+    _loader_proof: object | None = None,
 ) -> ContentAudit:
     """Return private readiness without manufacturing article content or public data."""
     all_evidence = tuple(evidence)
@@ -116,14 +119,41 @@ def audit_project_content(
     ):
         findings.add("no-supporting-evidence")
 
+    readiness = _readiness(findings, article)
+    if readiness == "ready" and _loader_proof is not _LOADER_PROOF:
+        findings.add("loader-proof-missing")
+        readiness = "review-required"
     return _audit(
         project.project_id,
-        _readiness(findings, article),
+        readiness,
         project_evidence,
         session_stats,
         missing_ids,
         unmapped_session_ids,
         findings,
+    )
+
+
+def audit_curated_project_content(
+    project: ProjectRef,
+    manifest: SourceManifest,
+    mappings: Sequence[SessionMapping],
+    gate: PrivacyGate,
+) -> ContentAudit:
+    """Audit only confined, validated sources with the concrete article validator."""
+    from .article import ArticleValidator as LoadedArticleValidator
+    from .article import load_project_article, load_project_evidence
+
+    article = load_project_article(project, gate)
+    evidence = load_project_evidence(project, gate)
+    return audit_project_content(
+        project,
+        manifest,
+        article,
+        evidence,
+        mappings,
+        article_validator=LoadedArticleValidator(),
+        _loader_proof=_LOADER_PROOF,
     )
 
 

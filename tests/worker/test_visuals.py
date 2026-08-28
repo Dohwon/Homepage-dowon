@@ -233,7 +233,7 @@ def test_svg_contains_accessible_metadata_and_ordered_stable_nodes():
 
 def test_curated_svg_accepts_local_fragment_references_but_rejects_external_documents():
     safe = (
-        '<svg viewBox="0 0 1 1"><title>Map</title><desc>Map description</desc>'
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><title>Map</title><desc>Map description</desc>'
         '<path id="line" d="M0 0"/><use href="#line"/></svg>'
     )
 

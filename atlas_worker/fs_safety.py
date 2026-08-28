@@ -48,11 +48,25 @@ def require_confined_directory(
     return True
 
 
-def read_confined_text(path: Path, root: Path, gate: PrivacyGate | None = None) -> str:
-    return _read_confined_bytes(path, root, gate).decode("utf-8")
+def read_confined_text(
+    path: Path,
+    root: Path,
+    gate: PrivacyGate | None = None,
+    *,
+    max_bytes: int | None = None,
+) -> str:
+    return _read_confined_bytes(path, root, gate, max_bytes=max_bytes).decode("utf-8")
 
 
-def _read_confined_bytes(path: Path, root: Path, gate: PrivacyGate | None = None) -> bytes:
+def _read_confined_bytes(
+    path: Path,
+    root: Path,
+    gate: PrivacyGate | None = None,
+    *,
+    max_bytes: int | None = None,
+) -> bytes:
+    if max_bytes is not None and (not isinstance(max_bytes, int) or max_bytes < 0):
+        raise ValueError("max_bytes must be a non-negative integer")
     candidate = _confined_absolute(path, root)
     require_no_symlink_path(candidate)
     if gate is not None:
@@ -60,6 +74,8 @@ def _read_confined_bytes(path: Path, root: Path, gate: PrivacyGate | None = None
     before = candidate.lstat()
     if not stat.S_ISREG(before.st_mode):
         raise ValueError("curated source is not a regular file")
+    if max_bytes is not None and before.st_size > max_bytes:
+        raise ValueError("curated source exceeds byte limit")
 
     flags = os.O_RDONLY
     if hasattr(os, "O_CLOEXEC"):
@@ -76,7 +92,9 @@ def _read_confined_bytes(path: Path, root: Path, gate: PrivacyGate | None = None
             raise ValueError("curated source changed during no-follow open")
         with os.fdopen(descriptor, "rb") as handle:
             descriptor = -1
-            content = handle.read()
+            content = handle.read() if max_bytes is None else handle.read(max_bytes + 1)
+            if max_bytes is not None and len(content) > max_bytes:
+                raise ValueError("curated source exceeds byte limit")
     finally:
         if descriptor >= 0:
             os.close(descriptor)
