@@ -1,14 +1,12 @@
 import { toRouteHref, PROJECT_TABS } from "./router.js";
-import { renderMarkdown } from "./markdown.js";
+import { renderMarkdown, sanitizeSvg } from "./markdown.js";
 import { createGraphView } from "./graph-view.js";
 
 const TAB_LABELS = {
-  "overview": "Overview",
-  "build-story": "Build Story",
   "decisions": "Decisions",
-  "rollbacks": "Rollbacks",
-  "visual-map": "Visual Map",
-  "artifacts": "Artifacts"
+  "system-map": "System Map",
+  "build-timeline": "Build Timeline",
+  "evidence": "Evidence"
 };
 
 const KIND_LABELS = {
@@ -28,6 +26,23 @@ const GRAPH_KIND_COLORS = {
   outcome: "var(--outcome)"
 };
 
+const SECTION_TYPE_LABELS = {
+  planning: "Planning",
+  decision: "Decision",
+  implementation: "Implementation",
+  validation: "Validation",
+  result: "Result"
+};
+
+const EVIDENCE_TYPE_LABELS = {
+  session: "Sessions",
+  spec: "Specs",
+  code: "Code",
+  test: "Tests",
+  git: "Git",
+  project_memory: "Project Memory"
+};
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -37,7 +52,18 @@ function escapeHtml(value) {
 function safeHref(value, fallback = "/") {
   const href = String(value || "").trim();
   if (href.startsWith("/") && !href.startsWith("//")) return escapeHtml(href);
-  if (/^https:\/\//i.test(href)) return escapeHtml(href);
+  try {
+    const url = new URL(href);
+    const privateIpv4 = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(url.hostname)
+      && ((url.hostname.startsWith("10.") || url.hostname.startsWith("127.") || url.hostname.startsWith("192.168."))
+        || url.hostname.startsWith("169.254.")
+        || /^172\.(1[6-9]|2\d|3[01])\./.test(url.hostname));
+    if (/^https:$/i.test(url.protocol) && !privateIpv4 && url.hostname !== "localhost") {
+      return escapeHtml(url.toString());
+    }
+  } catch {
+    return fallback;
+  }
   return fallback;
 }
 
@@ -221,7 +247,7 @@ function bindGraph(root, state, navigate) {
   const status = root.querySelector("[data-graph-status]");
   const view = createGraphView(svg, state.graph, {
     onSelect(node) {
-      if (node.kind === "project") navigate({ view: "project", projectId: node.id.replace(/^project:/, ""), tab: "overview" });
+      if (node.kind === "project") navigate({ view: "project", projectId: node.id.replace(/^project:/, ""), tab: "decisions" });
       else {
         view.focus(node.id);
         status.textContent = node.label;
@@ -251,67 +277,164 @@ function projectTabs(project, currentTab) {
   return [...PROJECT_TABS].map((tab) => `<a id="project-tab-${tab}" class="tab-button" role="tab" aria-controls="project-tabpanel" aria-selected="${tab === currentTab}" tabindex="${tab === currentTab ? "0" : "-1"}" data-route-link href="${toRouteHref({ view: "project", projectId: project.id, tab })}">${TAB_LABELS[tab]}</a>`).join("");
 }
 
-function markdownHeadings(markdown) {
-  return String(markdown || "").split(/\r?\n/).flatMap((line) => {
-    const match = line.match(/^(#{2,3})\s+(.+)$/);
-    return match ? [{ level: match[1].length, label: match[2].replace(/[`*_]/g, "") }] : [];
-  });
+function contentStateMessage(readiness, fallback) {
+  if (readiness === "review-required") return "공개 전 검토가 필요합니다.";
+  if (readiness === "insufficient-evidence") return "확인 가능한 공개 근거가 부족합니다.";
+  return fallback;
 }
 
-function slug(value, index) {
-  return `${String(value).toLowerCase().replace(/[^a-z0-9가-힣]+/g, "-").replace(/^-|-$/g, "") || "section"}-${index}`;
+function renderEmptyState(message) {
+  return { html: `<p class="empty-state">${escapeHtml(message)}</p>`, headings: [] };
 }
 
-function markdownWithAnchors(markdown) {
-  const headings = markdownHeadings(markdown);
-  let rendered = renderMarkdown(markdown);
-  headings.forEach((heading, index) => {
-    const id = slug(heading.label, index);
-    const pattern = new RegExp(`<h${heading.level}>`, "i");
-    rendered = rendered.replace(pattern, `<h${heading.level} id="${id}">`);
-    heading.id = id;
-  });
-  return { rendered, headings };
+function renderArticleFigure(diagram, visuals) {
+  if (!diagram?.id) return "";
+  const svg = sanitizeSvg(visuals?.[diagram.id]);
+  if (!svg) return "";
+  const alt = escapeHtml(diagram.alt || diagram.caption || diagram.id);
+  return `<figure class="article-figure" data-article-figure>
+    <div class="article-figure-media" role="img" aria-label="${alt}">${svg}</div>
+    <figcaption>${escapeHtml(diagram.caption || diagram.id)}</figcaption>
+  </figure>`;
 }
 
-function safeVisualMap(svg) {
-  if (!svg || !window.DOMPurify) return "";
-  return window.DOMPurify.sanitize(String(svg), {
-    USE_PROFILES: { svg: true, svgFilters: true },
-    FORBID_TAGS: ["script", "foreignObject"],
-    FORBID_ATTR: ["style", "onload", "onclick", "onerror"]
-  });
+function renderSectionType(value) {
+  const label = SECTION_TYPE_LABELS[value] || value;
+  return `<p class="section-type">${escapeHtml(label)}</p>`;
 }
 
-function overviewContent(project) {
-  const tagSections = Object.entries(project.tags || {}).filter(([, values]) => values?.length).map(([kind, values]) => `
-    <section>
-      <h2>${escapeHtml(KIND_LABELS[kind] || kind)}</h2>
-      <div class="tag-row">${values.map((value) => `<span class="tag">${escapeHtml(value)}</span>`).join("")}</div>
-    </section>`).join("");
-  return `<div class="markdown-body"><p>${escapeHtml(project.summary)}</p>${project.outcome ? `<h2>Outcome</h2><p>${escapeHtml(project.outcome)}</p>` : ""}${tagSections}</div>`;
+export function renderArticle(project) {
+  const article = project?.article;
+  const readiness = article?.readiness;
+  if (!article || readiness === "insufficient-evidence") {
+    return renderEmptyState(contentStateMessage(readiness, "확인 가능한 공개 근거가 부족합니다."));
+  }
+  if (readiness === "review-required") {
+    return renderEmptyState(contentStateMessage(readiness, "공개 전 검토가 필요합니다."));
+  }
+
+  const headings = [];
+  const intro = [];
+  if (article.summary) {
+    intro.push(`<div class="markdown-body article-summary">${renderMarkdown(article.summary)}</div>`);
+  }
+  if (article.prior_context) {
+    headings.push({ id: "prior-context", label: "이전 단계" });
+    intro.push(`<section id="prior-context" data-article-section="prior-context">
+      <h2>이전 단계</h2>
+      <div class="markdown-body">${renderMarkdown(article.prior_context)}</div>
+    </section>`);
+  }
+  const sections = Array.isArray(article.sections) ? article.sections.map((section) => {
+    headings.push({ id: section.id, label: section.title });
+    const figures = Array.isArray(section.diagrams)
+      ? section.diagrams.map((diagram) => renderArticleFigure(diagram, project.visuals)).join("")
+      : "";
+    return `<section id="${escapeHtml(section.id)}" data-article-section="${escapeHtml(section.id)}">
+      ${renderSectionType(section.section_type)}
+      <h2>${escapeHtml(section.title)}</h2>
+      <div class="markdown-body">${renderMarkdown(section.body)}</div>
+      ${figures}
+    </section>`;
+  }).join("") : "";
+
+  if (!sections && !intro.length) {
+    return renderEmptyState("공개된 결정 본문이 아직 없습니다.");
+  }
+
+  return {
+    html: `<article class="decision-article" data-project-reader>${intro.join("")}${sections}</article>`,
+    headings
+  };
 }
 
-function artifactsContent(project) {
-  const highlights = Array.isArray(project.highlights) ? project.highlights : [];
-  const links = project.links && typeof project.links === "object" ? Object.entries(project.links) : [];
-  if (!highlights.length && !links.length) return '<p class="empty-state">공개된 산출물 링크가 없습니다.</p>';
-  return `<div class="markdown-body">${highlights.length ? `<h2>Highlights</h2><ul>${highlights.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}${links.length ? `<h2>Links</h2><ul>${links.map(([label, href]) => `<li><a href="${safeHref(href, "#")}" target="_blank" rel="noreferrer noopener">${escapeHtml(label)}</a></li>`).join("")}</ul>` : ""}</div>`;
+export function renderSystemMap(project) {
+  const svg = sanitizeSvg(project?.systemMap);
+  if (!svg) return renderEmptyState(contentStateMessage(project?.article?.readiness, "공개된 시스템 맵이 없습니다."));
+  return { html: `<div class="project-map" data-system-map>${svg}</div>`, headings: [] };
+}
+
+function timelineItems(records = []) {
+  return records
+    .map((record, index) => ({ ...record, __index: index }))
+    .sort((left, right) => {
+      const leftDate = typeof left.date === "string" ? left.date : "";
+      const rightDate = typeof right.date === "string" ? right.date : "";
+      if (leftDate && rightDate) return leftDate.localeCompare(rightDate) || left.__index - right.__index;
+      if (leftDate) return -1;
+      if (rightDate) return 1;
+      return left.__index - right.__index;
+    });
+}
+
+function timelineDetail(label, value) {
+  return value ? `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>` : "";
+}
+
+export function renderTimeline(project) {
+  const records = Array.isArray(project?.timeline) ? project.timeline : [];
+  if (!records.length) return renderEmptyState(contentStateMessage(project?.article?.readiness, "공개된 빌드 타임라인이 없습니다."));
+  return {
+    html: `<div class="timeline-list">${timelineItems(records).map((event) => `<article class="timeline-entry" data-timeline-event="${escapeHtml(event.event_id || "")}">
+      <p class="timeline-meta"><span>${escapeHtml(event.date || "날짜 미확인")}</span><span>${escapeHtml(event.stage || "")}</span></p>
+      <h2>${escapeHtml(event.title || "Untitled event")}</h2>
+      <div class="markdown-body">
+        ${timelineDetail("Context", event.context)}
+        ${timelineDetail("Decision", event.decision)}
+        ${timelineDetail("Outcome", event.outcome)}
+      </div>
+    </article>`).join("")}</div>`,
+    headings: []
+  };
+}
+
+function evidenceItems(records = []) {
+  return records.reduce((groups, record) => {
+    const type = typeof record?.source_type === "string" ? record.source_type : "other";
+    if (!groups.has(type)) groups.set(type, []);
+    groups.get(type).push(record);
+    return groups;
+  }, new Map());
+}
+
+function renderEvidenceLink(url) {
+  const href = safeHref(url, "");
+  return href ? `<a href="${href}" target="_blank" rel="noreferrer noopener">Open source</a>` : "";
+}
+
+export function renderEvidence(project) {
+  const records = Array.isArray(project?.evidence) ? project.evidence : [];
+  if (!records.length) return renderEmptyState(contentStateMessage(project?.article?.readiness, "공개된 근거 목록이 없습니다."));
+  const groups = evidenceItems(records);
+  return {
+    html: `<div class="evidence-groups">${[...groups.entries()].map(([type, items]) => `<section class="evidence-group" data-evidence-group="${escapeHtml(type)}">
+      <h2>${escapeHtml(EVIDENCE_TYPE_LABELS[type] || type)}</h2>
+      <ul>${items.map((record) => {
+        const link = renderEvidenceLink(record?.url);
+        return `<li data-evidence-id="${escapeHtml(record?.id || "")}">
+          <strong>${escapeHtml(record?.label || record?.id || "Evidence")}</strong>
+          <span>${escapeHtml(record?.observed_at || "")}</span>
+          ${link ? `<span>${link}</span>` : ""}
+        </li>`;
+      }).join("")}</ul>
+    </section>`).join("")}</div>`,
+    headings: []
+  };
+}
+
+export function renderProjectContent(project, tab) {
+  if (tab === "decisions") return renderArticle(project);
+  if (tab === "system-map") return renderSystemMap(project);
+  if (tab === "build-timeline") return renderTimeline(project);
+  if (tab === "evidence") return renderEvidence(project);
+  return renderEmptyState("공개된 프로젝트 탭을 찾지 못했습니다.");
 }
 
 function projectContent(project, tab) {
-  if (tab === "overview") return { html: overviewContent(project), headings: [] };
-  if (tab === "visual-map") {
-    const svg = safeVisualMap(project.visualMap);
-    return { html: svg ? `<div class="project-map" data-project-map>${svg}</div>` : '<p class="empty-state">아직 공개된 문제 해결 지도가 없습니다.</p>', headings: [] };
+  if (!PROJECT_TABS.has(tab)) {
+    return renderEmptyState("공개된 프로젝트 탭을 찾지 못했습니다.");
   }
-  if (tab === "artifacts") return { html: artifactsContent(project), headings: [] };
-  const field = { "build-story": "buildStory", decisions: "decisions", rollbacks: "rollbacks" }[tab];
-  const markdown = project[field];
-  if (!markdown) return { html: '<p class="empty-state">아직 공개된 기록이 없습니다.</p>', headings: [] };
-  const content = markdownWithAnchors(markdown);
-  const articleAttrs = tab === "decisions" ? ' class="markdown-body" data-project-reader' : ' class="markdown-body"';
-  return { html: `<article${articleAttrs}>${content.rendered}</article>`, headings: content.headings };
+  return renderProjectContent(project, tab);
 }
 
 function renderProject(state) {

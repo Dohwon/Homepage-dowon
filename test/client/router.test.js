@@ -174,9 +174,11 @@ test("client store normalizes defaults and strips private data recursively", asy
       id: "alpha",
       sessions: [{ id: "session-1" }],
       Sessions: [{ id: "session-2" }],
+      source_locator: "/home/dowon/.codex/sessions/private.jsonl",
       nested: {
         provenance: { source: "local" },
         PROVENANCE: { source: "local-variant" },
+        evidence_locator: "session:private",
         title: "Public"
       }
     }

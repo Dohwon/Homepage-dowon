@@ -21,6 +21,7 @@ function stripPrivateFields(value) {
     const normalizedKey = key.replace(/[-_]/g, "").toLowerCase();
     const isPrivate = normalizedKey.startsWith("session")
       || normalizedKey.startsWith("provenance")
+      || normalizedKey.includes("locator")
       || normalizedKey === "rawsession"
       || normalizedKey === "sourcepath";
     if (!RESERVED_KEYS.has(key) && !isPrivate) clean[key] = stripPrivateFields(nestedValue);

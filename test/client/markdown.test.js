@@ -82,3 +82,51 @@ test("markdown rendering coerces missing content to an empty string", async t =>
   assert.equal(renderMarkdown(0), "");
   assert.equal(receivedSource, "0");
 });
+
+test("markdown rendering strips unsafe urls while preserving safe https links", async t => {
+  const restore = preserveGlobals();
+  t.after(restore);
+  globalThis.marked = {
+    parse() {
+      return '<p><a href="javascript:alert(1)">bad</a><a href="https://example.com/doc">good</a></p>';
+    }
+  };
+  globalThis.DOMPurify = {
+    sanitize(html) {
+      return html
+        .replace(/href="javascript:[^"]*"/g, "")
+        .replace(/href="https?:\/\/(?:10|127|169\.254|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.[^"]*"/g, "");
+    }
+  };
+  const { renderMarkdown } = await importBrowserModule("client/markdown.js");
+
+  const result = renderMarkdown("[bad](javascript:alert(1)) [good](https://example.com/doc)");
+
+  assert.doesNotMatch(result, /javascript:/);
+  assert.match(result, /https:\/\/example\.com\/doc/);
+});
+
+test("svg sanitization uses an independent strict svg policy", async t => {
+  const restore = preserveGlobals();
+  t.after(restore);
+  let receivedOptions;
+  globalThis.marked = { parse: () => "" };
+  globalThis.DOMPurify = {
+    sanitize(svg, options) {
+      receivedOptions = options;
+      return svg
+        .replace(/<script[\s\S]*?<\/script>/g, "")
+        .replace(/<foreignObject[\s\S]*?<\/foreignObject>/g, "")
+        .replace(/\s(?:onload|onclick|onerror|href|xlink:href)="[^"]*"/g, "");
+    }
+  };
+  const { sanitizeSvg } = await importBrowserModule("client/markdown.js");
+
+  const result = sanitizeSvg('<svg xmlns="http://www.w3.org/2000/svg" onload="unsafe()"><script>bad()</script><foreignObject>bad</foreignObject><g href="https://evil.example/track"><path d="M0 0h1" /></g></svg>');
+
+  assert.match(result, /<svg/);
+  assert.doesNotMatch(result, /script|foreignObject|onload|href=/);
+  assert.deepEqual(receivedOptions.USE_PROFILES, { svg: true, svgFilters: true });
+  assert.deepEqual(receivedOptions.FORBID_TAGS, ["script", "foreignObject", "iframe", "object", "embed"]);
+  assert.deepEqual(receivedOptions.FORBID_ATTR, ["style", "onload", "onclick", "onerror", "href", "xlink:href"]);
+});
