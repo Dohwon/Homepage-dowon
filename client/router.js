@@ -36,8 +36,9 @@ const LEGACY_TABS = Object.freeze({
 });
 
 export function normalizeTab(value) {
+  if (typeof value !== "string") return "decisions";
   if (PROJECT_TABS.has(value)) return value;
-  return LEGACY_TABS[value] || "decisions";
+  return Object.hasOwn(LEGACY_TABS, value) ? LEGACY_TABS[value] : "decisions";
 }
 
 export function parseRoute(input) {

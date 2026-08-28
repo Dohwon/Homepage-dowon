@@ -60,6 +60,27 @@ test("legacy project tabs normalize without exposing removed tabs", async () => 
   );
 });
 
+test("prototype keys and non-string tab values always normalize to decisions", async () => {
+  const { normalizeTab, parseRoute, toRouteHref } = await importBrowserModule("client/router.js");
+  const prototypeKeys = ["constructor", "toString", "hasOwnProperty", "__proto__"];
+
+  for (const value of prototypeKeys) {
+    assert.equal(normalizeTab(value), "decisions");
+    assert.deepEqual(
+      parseRoute(new URL(`https://atlas.test/projects/alpha?tab=${encodeURIComponent(value)}`)),
+      { view: "project", projectId: "alpha", tab: "decisions" }
+    );
+    assert.equal(
+      toRouteHref({ view: "project", projectId: "alpha", tab: value }),
+      "/projects/alpha"
+    );
+  }
+
+  for (const value of [undefined, null, 0, false, Symbol("tab"), { tab: "overview" }, ["overview"]]) {
+    assert.equal(normalizeTab(value), "decisions");
+  }
+});
+
 test("public route allowlists cannot be extended at runtime", async () => {
   const { PROJECT_TABS, VIEWS } = await importBrowserModule("client/router.js");
 
