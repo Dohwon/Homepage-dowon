@@ -21,6 +21,7 @@ from atlas_worker.manifest import content_version, tree_hash
 from atlas_worker.models import (
     ArticleSection,
     BundleManifest,
+    DecisionIndexEntry,
     DiagramRef,
     EvidenceRecord,
     GraphData,
@@ -201,6 +202,81 @@ def test_bundle_writes_v2_article_and_only_referenced_figures(tmp_path):
     assert not (project_dir / "decisions.md").exists()
     assert not (project_dir / "visuals" / "problem-solving.svg").exists()
     assert "projects/alpha/article.json" in manifest.files
+
+
+def test_bundle_rejects_duplicate_article_section_ids(tmp_path):
+    article = _article()
+    duplicate = replace(article.sections[0], diagrams=())
+    context = replace(
+        _context(),
+        project_articles={"alpha": replace(article, sections=(article.sections[0], duplicate))},
+        project_evidence={"alpha": (_evidence(),)},
+    )
+
+    with pytest.raises(ValueError, match="section IDs"):
+        build_candidate_bundle(context, tmp_path / "candidate")
+
+
+def test_bundle_rejects_duplicate_article_decision_ids(tmp_path):
+    article = _article()
+    decision = DecisionIndexEntry("routing-decision", "routing", "adopted", ("routing-proof",))
+    context = replace(
+        _context(),
+        project_articles={"alpha": replace(article, decision_index=(decision, decision))},
+        project_evidence={"alpha": (_evidence(),)},
+    )
+
+    with pytest.raises(ValueError, match="decision IDs"):
+        build_candidate_bundle(context, tmp_path / "candidate")
+
+
+def test_bundle_rejects_duplicate_section_evidence_references(tmp_path):
+    article = _article()
+    section = replace(article.sections[0], evidence_ids=("routing-proof", "routing-proof"))
+    context = replace(
+        _context(),
+        project_articles={"alpha": replace(article, sections=(section,))},
+        project_evidence={"alpha": (_evidence(),)},
+    )
+
+    with pytest.raises(ValueError, match="section evidence references"):
+        build_candidate_bundle(context, tmp_path / "candidate")
+
+
+def test_bundle_rejects_duplicate_decision_evidence_references(tmp_path):
+    article = _article()
+    decision = DecisionIndexEntry(
+        "routing-decision", "routing", "adopted", ("routing-proof", "routing-proof")
+    )
+    context = replace(
+        _context(),
+        project_articles={"alpha": replace(article, decision_index=(decision,))},
+        project_evidence={"alpha": (_evidence(),)},
+    )
+
+    with pytest.raises(ValueError, match="decision evidence references"):
+        build_candidate_bundle(context, tmp_path / "candidate")
+
+
+def test_bundle_rejects_decision_that_does_not_reference_an_article_section(tmp_path):
+    article = _article()
+    decision = DecisionIndexEntry("routing-decision", "missing-section", "adopted", ("routing-proof",))
+    context = replace(
+        _context(),
+        project_articles={"alpha": replace(article, decision_index=(decision,))},
+        project_evidence={"alpha": (_evidence(),)},
+    )
+
+    with pytest.raises(ValueError, match="decision section ID"):
+        build_candidate_bundle(context, tmp_path / "candidate")
+
+
+def test_bundle_rejects_duplicate_search_document_ids(tmp_path):
+    context = _context()
+    context = replace(context, search_documents=(context.search_documents[0], context.search_documents[0]))
+
+    with pytest.raises(ValueError, match="search document IDs"):
+        build_candidate_bundle(context, tmp_path / "candidate")
 
 
 def _tree_bytes(root: Path) -> dict[str, bytes]:

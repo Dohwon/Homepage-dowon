@@ -72,6 +72,56 @@ test("rejects a manifest without an explicit migration version", async (t) => {
   );
 });
 
+test("rejects invalid v2 article identity and reference lists", async (t) => {
+  const cases = [
+    ["duplicate section", (article) => { article.sections.push({ ...article.sections[0], diagrams: [] }); }],
+    ["duplicate decision", (article) => {
+      article.decision_index = [
+        { decision_id: "routing-decision", section_id: "routing", status: "adopted", evidence_ids: ["routing-proof"] },
+        { decision_id: "routing-decision", section_id: "routing", status: "adopted", evidence_ids: ["routing-proof"] }
+      ];
+    }],
+    ["duplicate section evidence", (article) => { article.sections[0].evidence_ids = ["routing-proof", "routing-proof"]; }],
+    ["duplicate decision evidence", (article) => {
+      article.decision_index = [{ decision_id: "routing-decision", section_id: "routing", status: "adopted", evidence_ids: ["routing-proof", "routing-proof"] }];
+    }],
+    ["missing decision section", (article) => {
+      article.decision_index = [{ decision_id: "routing-decision", section_id: "missing-section", status: "adopted", evidence_ids: ["routing-proof"] }];
+    }]
+  ];
+
+  for (const [label, mutate] of cases) {
+    const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-invalid-article-"));
+    t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+    await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+    const articlePath = path.join(temporaryRoot, "projects", "alpha", "article.json");
+    const article = JSON.parse(await fsp.readFile(articlePath, "utf8"));
+    mutate(article);
+    await fsp.writeFile(articlePath, JSON.stringify(article));
+
+    await assert.rejects(
+      () => createAtlasStore({ bundleDir: temporaryRoot }).project("alpha"),
+      /invalid_atlas_article/,
+      label
+    );
+  }
+});
+
+test("rejects duplicate public search document IDs", async (t) => {
+  const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-duplicate-search-"));
+  t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+  await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+  const searchPath = path.join(temporaryRoot, "search-index.json");
+  const records = JSON.parse(await fsp.readFile(searchPath, "utf8"));
+  records.push({ ...records[0] });
+  await fsp.writeFile(searchPath, JSON.stringify(records));
+
+  await assert.rejects(
+    () => createAtlasStore({ bundleDir: temporaryRoot }).search("routing"),
+    /invalid_atlas_search_record/
+  );
+});
+
 test("fails closed when a generated project contains fields outside the public schema", async (t) => {
   const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-unknown-field-"));
   t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));

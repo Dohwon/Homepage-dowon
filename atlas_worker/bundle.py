@@ -454,6 +454,9 @@ def _search_index(documents: tuple[SearchDocument, ...], project_ids: tuple[str,
     known = set(project_ids)
     if any(document.project_id not in known for document in documents):
         raise ValueError("search document references unknown project")
+    document_ids = [document.document_id for document in documents]
+    if len(document_ids) != len(set(document_ids)):
+        raise ValueError("search document IDs must be unique")
     return [
         document.to_dict()
         for document in sorted(
@@ -700,6 +703,24 @@ def _project_artifacts(
         validate_schema(article, "public-article")
         if article["project_id"] != project_id:
             raise ValueError("article project ID does not match bundle path")
+        section_ids = [section["id"] for section in article["sections"]]
+        if len(section_ids) != len(set(section_ids)):
+            raise ValueError("article section IDs must be unique")
+        section_id_set = set(section_ids)
+        for section in article["sections"]:
+            evidence_references = section["evidence_ids"]
+            if len(evidence_references) != len(set(evidence_references)):
+                raise ValueError("article section evidence references must be unique")
+        decisions = article.get("decision_index", [])
+        decision_ids = [decision["decision_id"] for decision in decisions]
+        if len(decision_ids) != len(set(decision_ids)):
+            raise ValueError("article decision IDs must be unique")
+        for decision in decisions:
+            if decision["section_id"] not in section_id_set:
+                raise ValueError("article decision section ID must reference an article section")
+            evidence_references = decision["evidence_ids"]
+            if len(evidence_references) != len(set(evidence_references)):
+                raise ValueError("article decision evidence references must be unique")
         diagram_ids = tuple(
             diagram["id"]
             for section in article["sections"]
@@ -721,7 +742,7 @@ def _project_artifacts(
             for evidence_id in section["evidence_ids"]
         } | {
             evidence_id
-            for decision in article.get("decision_index", [])
+            for decision in decisions
             for evidence_id in decision["evidence_ids"]
         }
         if referenced_evidence - evidence_ids:
