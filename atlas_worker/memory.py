@@ -15,6 +15,13 @@ from .models import ProjectEvent, ProjectMemory, ProjectRef, validate_schema
 from .privacy import PrivacyGate
 
 
+def load_project_evidence(ref: ProjectRef, gate: PrivacyGate | None = None):
+    """Compatibility entry point for the curated article evidence loader."""
+    from .article import load_project_evidence as _load_project_evidence
+
+    return _load_project_evidence(ref, gate)
+
+
 _SECTION_NAMES = {
     "build story": "build_story",
     "build-story": "build_story",

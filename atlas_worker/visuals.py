@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import re
+import xml.etree.ElementTree as ET
 
 from .models import ProjectEvent, ProjectRef
 
@@ -24,6 +25,64 @@ _ACTIVE_ATTRIBUTE = re.compile(r"\b(?:href|src|on[a-z]+)\s*=", re.I)
 _CANVAS_WIDTH = 1200
 _NODE_WIDTH = 208
 _NODE_GAP = 24
+_SVG_DECLARATION = re.compile(r"<!\s*(?:doctype|entity)\b", re.I)
+_CSS_URL = re.compile(r"url\s*\(\s*([^)]*?)\s*\)", re.I | re.S)
+_SVG_FRAGMENT = re.compile(r"^#[A-Za-z_][A-Za-z0-9_.:-]*$")
+
+
+def validate_curated_svg(svg: str, *, label: str) -> None:
+    """Validate a local curated SVG without allowing executable or external content."""
+    if not isinstance(svg, str) or _SVG_DECLARATION.search(svg):
+        raise ValueError(f"{label}: declarations and entities are not allowed")
+    try:
+        root = ET.fromstring(svg)
+    except ET.ParseError as error:
+        raise ValueError(f"{label}: malformed XML") from error
+    if _svg_name(root.tag) != "svg":
+        raise ValueError(f"{label}: root must be svg")
+    if not root.attrib.get("viewBox", "").strip():
+        raise ValueError(f"{label}: viewBox is required")
+    if not _has_nonempty_element(root, "title") or not _has_nonempty_element(root, "desc"):
+        raise ValueError(f"{label}: title and desc are required")
+    for element in root.iter():
+        name = _svg_name(element.tag)
+        if name.casefold() in {"script", "foreignobject"}:
+            raise ValueError(f"{label}: active SVG element")
+        for attribute, value in element.attrib.items():
+            attribute_name = _svg_name(attribute).casefold()
+            if attribute_name.startswith("on"):
+                raise ValueError(f"{label}: event handlers are not allowed")
+            if attribute_name in {"href", "src"} and not _is_local_fragment(value):
+                raise ValueError(f"{label}: external or file reference is not allowed")
+            if attribute_name == "style":
+                _validate_svg_css(value, label)
+        if name.casefold() == "style":
+            _validate_svg_css("".join(element.itertext()), label)
+
+
+def _svg_name(value: str) -> str:
+    return value.rsplit("}", 1)[-1]
+
+
+def _has_nonempty_element(root: ET.Element, name: str) -> bool:
+    return any(
+        _svg_name(element.tag) == name and "".join(element.itertext()).strip()
+        for element in root.iter()
+    )
+
+
+def _is_local_fragment(value: str) -> bool:
+    fragment = value.strip()
+    return bool(_SVG_FRAGMENT.fullmatch(fragment))
+
+
+def _validate_svg_css(value: str, label: str) -> None:
+    if re.search(r"@import\b", value, re.I):
+        raise ValueError(f"{label}: CSS imports are not allowed")
+    for match in _CSS_URL.finditer(value):
+        target = match.group(1).strip().strip("\"'")
+        if not _is_local_fragment(target):
+            raise ValueError(f"{label}: external CSS url is not allowed")
 
 
 def has_problem_solving_evidence(events: tuple[ProjectEvent, ...]) -> bool:

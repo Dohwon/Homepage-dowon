@@ -6,7 +6,7 @@ import pytest
 
 from atlas_worker.memory_writer import update_project_memory
 from atlas_worker.models import EvidenceClaim, ProjectEvent
-from atlas_worker.visuals import render_problem_solving_svg
+from atlas_worker.visuals import render_problem_solving_svg, validate_curated_svg
 from atlas_worker.backfill import extract_signal_claims
 from atlas_worker.evidence import merge_claims
 from tests.worker.helpers import (
@@ -229,6 +229,20 @@ def test_svg_contains_accessible_metadata_and_ordered_stable_nodes():
     assert "prefers-color-scheme: dark" in svg
     assert "<script" not in svg.lower()
     assert ET.fromstring(svg).tag == "{http://www.w3.org/2000/svg}svg"
+
+
+def test_curated_svg_accepts_local_fragment_references_but_rejects_external_documents():
+    safe = (
+        '<svg viewBox="0 0 1 1"><title>Map</title><desc>Map description</desc>'
+        '<path id="line" d="M0 0"/><use href="#line"/></svg>'
+    )
+
+    validate_curated_svg(safe, label="article-svg")
+    with pytest.raises(ValueError, match="article-svg"):
+        validate_curated_svg(
+            '<svg viewBox="0 0 1 1"><title>Map</title><desc>Map description</desc><use href="data:image/svg+xml,x"/></svg>',
+            label="article-svg",
+        )
 
 
 def test_svg_omits_stages_without_selected_evidence():

@@ -2,7 +2,8 @@ import pytest
 from pathlib import Path
 
 from atlas_worker.evidence import merge_claims
-from atlas_worker.memory import load_project_memory
+from atlas_worker.memory import load_project_evidence, load_project_memory
+from atlas_worker.privacy import PrivacyGate
 from atlas_worker.memory_writer import update_project_memory
 from atlas_worker.models import EvidenceClaim
 from tests.worker.helpers import (
@@ -55,6 +56,13 @@ def test_missing_optional_memory_files_return_empty_sections(tmp_path):
     assert memory.events == ()
     assert not (tmp_path / "project_memory" / "rollbacks.md").exists()
     assert not (tmp_path / "manager_memory").exists()
+
+
+def test_evidence_loader_does_not_create_missing_article_or_evidence_files(tmp_path):
+    ref = make_project_ref(tmp_path)
+
+    assert load_project_evidence(ref, PrivacyGate(alias_key=b"memory-test-key")) == ()
+    assert not (tmp_path / "project_memory" / "project-atlas").exists()
 
 
 def test_memory_reads_only_list_items_under_explicit_level_two_headings(tmp_path):

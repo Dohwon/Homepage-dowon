@@ -7,6 +7,7 @@ from atlas_worker.content_audit import (
     ArticleValidationReport,
     audit_project_content,
 )
+from atlas_worker.article import ArticleValidator as LoadedArticleValidator
 from atlas_worker.models import (
     ArticleSection,
     EvidenceRecord,
@@ -284,6 +285,19 @@ def test_article_validator_is_invoked_and_blank_title_overrides_a_clean_result()
     assert calls == [article]
     assert audit.readiness == "review-required"
     assert "title:blank-title" in audit.findings
+
+
+def test_loaded_article_validator_provides_checked_clean_report_to_audit():
+    audit = audit_project_content(
+        _project(),
+        _manifest(),
+        _article("ev-support"),
+        (_evidence("ev-support"),),
+        (),
+        article_validator=LoadedArticleValidator(),
+    )
+
+    assert audit.readiness == "ready"
 
 
 def test_validator_missing_static_malformed_and_raising_inputs_fail_closed():
