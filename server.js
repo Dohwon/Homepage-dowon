@@ -2345,7 +2345,6 @@ async function handleRequest(req, res, atlasStore) {
 async function createApplicationServer({
   port = Number(process.env.PORT || 4173),
   host = process.env.HOST || "0.0.0.0",
-  socketPath,
   atlasBundleDir = process.env.ATLAS_BUNDLE_DIR || path.join(ROOT, "public-bundle"),
   dataDir = process.env.PORTFOLIO_DATA_DIR || DEFAULT_DATA_DIR
 } = {}) {
@@ -2359,10 +2358,6 @@ async function createApplicationServer({
   const server = http.createServer((req, res) => handleRequest(req, res, atlasStore));
   await new Promise((resolve, reject) => {
     server.once("error", reject);
-    if (socketPath) {
-      server.listen(socketPath, resolve);
-      return;
-    }
     server.listen(port, host, resolve);
   });
   return server;
