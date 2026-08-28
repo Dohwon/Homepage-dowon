@@ -21,16 +21,23 @@ export const VIEWS = readonlySet([
 ]);
 
 export const PROJECT_TABS = readonlySet([
-  "overview",
-  "build-story",
   "decisions",
-  "rollbacks",
-  "visual-map",
-  "artifacts"
+  "system-map",
+  "build-timeline",
+  "evidence"
 ]);
 
+const LEGACY_TABS = Object.freeze({
+  overview: "decisions",
+  "build-story": "build-timeline",
+  rollbacks: "evidence",
+  "visual-map": "system-map",
+  artifacts: "evidence"
+});
+
 export function normalizeTab(value) {
-  return PROJECT_TABS.has(value) ? value : "overview";
+  if (PROJECT_TABS.has(value)) return value;
+  return LEGACY_TABS[value] || "decisions";
 }
 
 export function parseRoute(input) {
@@ -58,7 +65,7 @@ export function toRouteHref(route = {}) {
     const projectId = String(route.projectId || "");
     if (!projectId) return "/projects";
     const tab = normalizeTab(route.tab);
-    const query = tab === "overview" ? "" : `?tab=${encodeURIComponent(tab)}`;
+    const query = tab === "decisions" ? "" : `?tab=${encodeURIComponent(tab)}`;
     return `/projects/${encodeURIComponent(projectId)}${query}`;
   }
 

@@ -20,18 +20,15 @@ function jsonResponse(payload, status = 200) {
   };
 }
 
-test("project routes preserve only public project tabs", async () => {
+test("project routes expose four decision-reader tabs", async () => {
   const { parseRoute, PROJECT_TABS } = await importBrowserModule("client/router.js");
-  const publicTabs = [
-    "overview",
-    "build-story",
-    "decisions",
-    "rollbacks",
-    "visual-map",
-    "artifacts"
-  ];
+  const publicTabs = ["decisions", "system-map", "build-timeline", "evidence"];
 
   assert.deepEqual([...PROJECT_TABS], publicTabs);
+  assert.deepEqual(
+    parseRoute(new URL("https://atlas.test/projects/alpha")),
+    { view: "project", projectId: "alpha", tab: "decisions" }
+  );
   for (const tab of publicTabs) {
     assert.deepEqual(
       parseRoute(new URL(`https://atlas.test/projects/alpha?tab=${tab}`)),
@@ -40,21 +37,26 @@ test("project routes preserve only public project tabs", async () => {
   }
 });
 
-test("private and unknown project tabs always normalize to overview", async () => {
+test("legacy project tabs normalize without exposing removed tabs", async () => {
   const { normalizeTab, parseRoute, PROJECT_TABS } = await importBrowserModule("client/router.js");
 
   assert.equal(PROJECT_TABS.has("sessions"), false);
   assert.equal(PROJECT_TABS.has("provenance"), false);
+  assert.equal(normalizeTab("overview"), "decisions");
+  assert.equal(normalizeTab("build-story"), "build-timeline");
+  assert.equal(normalizeTab("visual-map"), "system-map");
+  assert.equal(normalizeTab("rollbacks"), "evidence");
+  assert.equal(normalizeTab("artifacts"), "evidence");
   for (const tab of ["sessions", "provenance", "unknown", "", null]) {
-    assert.equal(normalizeTab(tab), "overview");
+    assert.equal(normalizeTab(tab), "decisions");
   }
   assert.deepEqual(
     parseRoute(new URL("https://atlas.test/projects/alpha?tab=sessions")),
-    { view: "project", projectId: "alpha", tab: "overview" }
+    { view: "project", projectId: "alpha", tab: "decisions" }
   );
   assert.deepEqual(
     parseRoute(new URL("https://atlas.test/projects/alpha?tab=provenance")),
-    { view: "project", projectId: "alpha", tab: "overview" }
+    { view: "project", projectId: "alpha", tab: "decisions" }
   );
 });
 
@@ -84,7 +86,7 @@ test("project hrefs encode ids and cannot serialize private tabs", async () => {
 
   assert.equal(
     toRouteHref({ view: "project", projectId: "alpha beta", tab: "decisions" }),
-    "/projects/alpha%20beta?tab=decisions"
+    "/projects/alpha%20beta"
   );
   assert.equal(
     toRouteHref({ view: "project", projectId: "alpha", tab: "sessions" }),
