@@ -152,7 +152,7 @@ def build_parser() -> argparse.ArgumentParser:
     audit = commands.add_parser("audit-content")
     _add_workspace(audit)
     _add_format(audit)
-    audit.add_argument("--project", required=True)
+    audit.add_argument("--project")
     return parser
 
 
@@ -317,10 +317,20 @@ def _command_audit_content(args: argparse.Namespace) -> dict[str, object]:
     workspace = _workspace(args.workspace)
     config = _load_runtime_config(workspace)
     report = _discover(workspace, config)
-    project = next((item for item in report.projects if item.project_id == args.project), None)
-    if project is None:
-        raise ConfigError("/project")
-    return build_source_manifest(project, SubprocessGitRunner()).audit_payload()
+    runner = SubprocessGitRunner()
+    if args.project is not None:
+        project = next((item for item in report.projects if item.project_id == args.project), None)
+        if project is None:
+            raise ConfigError("/project")
+        return build_source_manifest(project, runner).audit_payload()
+
+    ambiguous_ids = {ref.project_id for ref in report.ambiguous}
+    projects = [
+        build_source_manifest(project, runner).audit_payload()
+        for project in report.projects
+        if project.publication == "public" and project.project_id not in ambiguous_ids
+    ]
+    return {"projects": projects}
 
 
 def _workspace(value: Path) -> Path:

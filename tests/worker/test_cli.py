@@ -213,6 +213,9 @@ def test_parser_exposes_all_worker_commands_and_required_options(tmp_path):
     assert parser.parse_args(["validate", "--fixture", workspace]).fixture == Path(workspace)
     assert parser.parse_args(["run", "--workspace", workspace, "--dry-run"]).dry_run
     assert parser.parse_args(
+        ["audit-content", "--workspace", workspace, "--format", "json"]
+    ).project is None
+    assert parser.parse_args(
         ["audit-content", "--workspace", workspace, "--project", "alpha", "--format", "json"]
     ).project == "alpha"
 
@@ -232,6 +235,54 @@ def test_audit_content_emits_relative_manifest_summary_without_private_paths(tmp
     assert len(output["content_hash"]) == 64
     assert str(workspace) not in json.dumps(output)
     assert "/git/" not in json.dumps(output)
+
+
+def test_audit_content_without_project_emits_sorted_public_projects_only_once(tmp_path):
+    workspace = make_workspace_fixture(tmp_path)
+
+    alpha = workspace / "projects" / "alpha"
+    (alpha / "src").mkdir()
+    (alpha / "src/main.py").write_text("print('alpha')\n", encoding="utf-8")
+
+    beta = workspace / "projects" / "finish" / "beta"
+    (beta / "lib").mkdir()
+    (beta / "lib/index.js").write_text("console.log('beta');\n", encoding="utf-8")
+
+    zeta = workspace / "projects" / "zeta"
+    zeta.mkdir()
+    write_project_profile(zeta, id="zeta", name="Zeta", publication="public")
+    (zeta / "docs").mkdir()
+    (zeta / "docs/notes.md").write_text("zeta notes\n", encoding="utf-8")
+
+    private = workspace / "projects" / "private-only"
+    private.mkdir()
+    write_project_profile(private, id="private-only", name="Private Only", publication="private")
+    (private / "notes.md").write_text("private evidence\n", encoding="utf-8")
+
+    excluded = workspace / "projects" / "excluded-one"
+    excluded.mkdir()
+    write_project_profile(excluded, id="excluded-one", name="Excluded One", publication="excluded")
+    (excluded / "notes.md").write_text("excluded evidence\n", encoding="utf-8")
+
+    ambiguous = workspace / "projects" / "unreviewed"
+    ambiguous.mkdir()
+    (ambiguous / ".git").write_text("gitdir: /private/ambiguous\n", encoding="utf-8")
+    (ambiguous / "notes.md").write_text("ambiguous evidence\n", encoding="utf-8")
+
+    output = invoke_cli_json(["audit-content", "--workspace", str(workspace), "--format", "json"])
+
+    project_ids = [item["project_id"] for item in output["projects"]]
+    rendered = json.dumps(output)
+    assert project_ids == ["alpha", "beta", "zeta"]
+    assert len(project_ids) == len(set(project_ids))
+    assert all(set(item) == {"project_id", "files", "content_hash"} for item in output["projects"])
+    assert str(workspace) not in rendered
+    assert "/git/" not in rendered
+    assert "gitdir" not in rendered
+    assert "/private/ambiguous" not in rendered
+    assert "private-only" not in project_ids
+    assert "excluded-one" not in project_ids
+    assert "unreviewed" not in project_ids
 
 
 def test_audit_content_rejects_unknown_project_as_validation_error(tmp_path, capsys):
