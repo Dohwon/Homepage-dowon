@@ -310,7 +310,8 @@ function projectContent(project, tab) {
   const markdown = project[field];
   if (!markdown) return { html: '<p class="empty-state">아직 공개된 기록이 없습니다.</p>', headings: [] };
   const content = markdownWithAnchors(markdown);
-  return { html: `<article class="markdown-body">${content.rendered}</article>`, headings: content.headings };
+  const articleAttrs = tab === "decisions" ? ' class="markdown-body" data-project-reader' : ' class="markdown-body"';
+  return { html: `<article${articleAttrs}>${content.rendered}</article>`, headings: content.headings };
 }
 
 function renderProject(state) {

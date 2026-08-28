@@ -4,14 +4,14 @@ import { parseRoute, toRouteHref } from "./router.js";
 import { renderError, renderRoute } from "./render.js";
 import { bindSearchDialog } from "./search-dialog.js";
 import { bindTheme } from "./theme.js";
-import { bindReadingProgress } from "./progress.js";
+import { createProgressLifecycle } from "./progress.js";
 
 const api = createAtlasApi();
 const root = document.querySelector("#atlas-main");
 const progressElement = document.querySelector("#reading-progress");
+const progressLifecycle = createProgressLifecycle(progressElement);
 const store = createStore({ route: parseRoute(new URL(window.location.href)) });
 let navigationId = 0;
-let disposeReadingProgress = () => {};
 
 function normalizeDestination(destination) {
   if (destination instanceof URL) return destination;
@@ -23,6 +23,7 @@ async function navigate(destination, { replace = false, focus = true } = {}) {
   const url = normalizeDestination(destination);
   const route = parseRoute(url);
   const currentId = ++navigationId;
+  progressLifecycle.begin(currentId);
   if (replace) history.replaceState({}, "", `${url.pathname}${url.search}`);
   else if (`${location.pathname}${location.search}` !== `${url.pathname}${url.search}`) history.pushState({}, "", `${url.pathname}${url.search}`);
 
@@ -41,16 +42,12 @@ async function navigate(destination, { replace = false, focus = true } = {}) {
       window.scrollTo({ top: 0, behavior: "instant" });
       root.focus({ preventScroll: true });
     }
-    disposeReadingProgress();
-    const reader = root.querySelector("[data-project-reader]") || root.querySelector("#project-tabpanel > article");
-    if (reader && !reader.hasAttribute("data-project-reader")) reader.setAttribute("data-project-reader", "");
-    disposeReadingProgress = bindReadingProgress(progressElement, reader);
+    progressLifecycle.commit(currentId, route, root);
   } catch (error) {
     if (currentId !== navigationId) return;
     store.setState({ loading: false, error });
     renderError(root, error);
-    disposeReadingProgress();
-    disposeReadingProgress = bindReadingProgress(progressElement, null);
+    progressLifecycle.reset(currentId);
   }
 }
 
