@@ -20,3 +20,11 @@ sections:
       - id: tmap-vworld-lifecycle
         caption: TMAP 세션 입력과 VWorld 영구 기록의 데이터 수명
         alt: TMAP 경로는 세션 입력으로만 쓰고 VWorld Feature ID와 geometry snapshot만 영구 저장하는 흐름
+decision_index:
+  - decision_id: tmap-data-retention-boundary
+    section_id: retention
+    status: adopted
+    evidence_ids:
+      - v2-tmap-retention-spec
+      - v2-vworld-feature-spec
+      - v2-source-discard-spec

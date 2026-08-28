@@ -6,15 +6,35 @@ const { once } = require("node:events");
 
 const fixtureDir = path.join(__dirname, "../fixtures/public-bundle");
 
-async function request(baseUrl, pathname, { method = "GET", headers = {}, body } = {}) {
+async function request(target, pathname, { method = "GET", headers = {}, body } = {}) {
   const payload = body === undefined ? null : Buffer.from(typeof body === "string" ? body : JSON.stringify(body));
   const requestHeaders = { ...headers };
+  const baseUrl = typeof target === "string" ? target : target.url;
+  const socketPath = typeof target === "string" ? undefined : target.socketPath;
+  if (socketPath && !requestHeaders.Host && !requestHeaders.host) {
+    requestHeaders.Host = "localhost";
+  }
   if (payload) {
     requestHeaders["Content-Length"] = payload.length;
     if (!requestHeaders["Content-Type"]) requestHeaders["Content-Type"] = "application/json";
   }
   return new Promise((resolve, reject) => {
-    const outgoing = http.request(new URL(pathname, baseUrl), { method, headers: requestHeaders }, (incoming) => {
+    const resolved = new URL(pathname, baseUrl);
+    const requestOptions = socketPath ? {
+      method,
+      headers: requestHeaders,
+      socketPath,
+      path: `${resolved.pathname}${resolved.search}`,
+    } : {
+      method,
+      headers: requestHeaders,
+      hostname: resolved.hostname,
+      port: resolved.port,
+      path: `${resolved.pathname}${resolved.search}`,
+    };
+    const outgoing = http.request(
+      requestOptions,
+      (incoming) => {
       const chunks = [];
       incoming.on("data", (chunk) => chunks.push(chunk));
       incoming.on("end", () => {
@@ -35,6 +55,7 @@ async function request(baseUrl, pathname, { method = "GET", headers = {}, body }
 
 async function startTestServer({ atlasBundleDir = fixtureDir, prepareDataDir } = {}) {
   const dataDir = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-server-test-"));
+  const socketPath = path.join(dataDir, "atlas-test.sock");
   await fsp.cp(path.join(__dirname, "../../seed-data"), dataDir, { recursive: true });
   if (prepareDataDir) await prepareDataDir(dataDir);
 
@@ -45,26 +66,28 @@ async function startTestServer({ atlasBundleDir = fixtureDir, prepareDataDir } =
 
   const { createApplicationServer } = require("../../server");
   const server = await createApplicationServer({
-    port: 0,
-    host: "127.0.0.1",
+    socketPath,
     atlasBundleDir,
     dataDir
   });
   if (!server.listening) await once(server, "listening");
 
-  const address = server.address();
   let closed = false;
   return {
     dataDir,
-    url: `http://127.0.0.1:${address.port}`,
+    socketPath,
+    url: "http://localhost",
     async close() {
       if (closed) return;
       closed = true;
       if (server.listening) {
+        server.closeIdleConnections?.();
+        server.closeAllConnections?.();
         await new Promise((resolve, reject) => {
           server.close((error) => error ? reject(error) : resolve());
         });
       }
+      await fsp.rm(socketPath, { force: true });
       await fsp.rm(dataDir, { recursive: true, force: true });
     }
   };

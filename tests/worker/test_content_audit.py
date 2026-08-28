@@ -10,6 +10,7 @@ from atlas_worker.content_audit import (
 from atlas_worker.article import ArticleValidator as LoadedArticleValidator
 from atlas_worker.models import (
     ArticleSection,
+    DecisionIndexEntry,
     EvidenceRecord,
     ProjectArticle,
     ProjectRef,
@@ -207,6 +208,77 @@ def test_duplicate_project_evidence_and_article_references_require_review():
     assert "duplicate-evidence-id" in duplicate_evidence.findings
     assert duplicate_reference.readiness == "review-required"
     assert "duplicate-evidence-reference" in duplicate_reference.findings
+
+
+def test_section_and_decision_index_may_share_same_evidence_reference():
+    article = ProjectArticle(
+        project_id="alpha",
+        title="Evidence-backed decision",
+        summary="Curated result",
+        readiness="ready",
+        sections=(
+            ArticleSection(
+                section_id="section-0",
+                title="Section 0",
+                section_type="decision",
+                body="Curated body",
+                evidence_ids=("ev-support",),
+            ),
+        ),
+        decision_index=(
+            DecisionIndexEntry("retention-boundary", "section-0", "adopted", ("ev-support",)),
+        ),
+    )
+
+    audit = audit_project_content(
+        _project(),
+        _manifest(),
+        article,
+        (_evidence("ev-support"),),
+        (),
+        article_validator=_clean_validator,
+    )
+
+    assert audit.readiness == "review-required"
+    assert audit.findings == ("loader-proof-missing",)
+
+
+def test_duplicate_ids_within_one_decision_evidence_list_still_require_review():
+    article = ProjectArticle(
+        project_id="alpha",
+        title="Evidence-backed decision",
+        summary="Curated result",
+        readiness="ready",
+        sections=(
+            ArticleSection(
+                section_id="section-0",
+                title="Section 0",
+                section_type="decision",
+                body="Curated body",
+                evidence_ids=("ev-support",),
+            ),
+        ),
+        decision_index=(
+            DecisionIndexEntry(
+                "retention-boundary",
+                "section-0",
+                "adopted",
+                ("ev-support", "ev-support"),
+            ),
+        ),
+    )
+
+    audit = audit_project_content(
+        _project(),
+        _manifest(),
+        article,
+        (_evidence("ev-support"),),
+        (),
+        article_validator=_clean_validator,
+    )
+
+    assert audit.readiness == "review-required"
+    assert "duplicate-evidence-reference" in audit.findings
 
 
 def test_unreferenced_contradiction_and_ambiguous_no_article_take_review_precedence():

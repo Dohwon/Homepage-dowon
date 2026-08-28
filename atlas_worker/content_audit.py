@@ -89,7 +89,7 @@ def audit_project_content(
         referenced_ids = _referenced_evidence_ids(article)
         if not referenced_ids:
             findings.add("no-curated-evidence")
-        if len(referenced_ids) != len(set(referenced_ids)):
+        if _has_duplicate_evidence_reference(article):
             findings.add("duplicate-evidence-reference")
 
     evidence_by_id = _evidence_by_id(project_evidence)
@@ -197,6 +197,16 @@ def _referenced_evidence_ids(article: ProjectArticle) -> tuple[str, ...]:
         evidence_id
         for decision in article.decision_index
         for evidence_id in decision.evidence_ids
+    )
+
+
+def _has_duplicate_evidence_reference(article: ProjectArticle) -> bool:
+    return any(
+        len(references) != len(set(references))
+        for references in (
+            *(section.evidence_ids for section in article.sections),
+            *(decision.evidence_ids for decision in article.decision_index),
+        )
     )
 
 

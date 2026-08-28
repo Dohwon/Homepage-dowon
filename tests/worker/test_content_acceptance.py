@@ -7,6 +7,7 @@ import pytest
 from atlas_worker.article import load_project_article, load_project_evidence
 from atlas_worker.config import DiscoveryConfig
 from atlas_worker.discovery import discover_projects
+from atlas_worker.models import DecisionIndexEntry
 from atlas_worker.source_manifest import resolve_git_owner
 from tests.worker.helpers import (
     StaticGitRunner,
@@ -42,23 +43,47 @@ def test_map_diary_v2_article_preserves_verified_data_lifecycle_decision(map_dia
 
     assert article is not None
     assert article.project_id == "260802-map-diary-v2"
+    assert article.title == "지도 기록 다이어리 v2"
+    assert len(article.sections) == 1
+    assert article.sections[0].section_id == "retention"
+    assert article.sections[0].section_type == "decision"
     assert article.sections[0].title == "TMAP 데이터 장기 저장 제한 해결"
+    assert article.sections[0].body == (
+        "TMAP 데이터는 24시간을 넘겨 보관할 수 없어서 예상 경로 계산용 세션 입력으로만 사용했다.\n\n"
+        "영구 방문 기록에는 VWorld Feature ID와 geometry snapshot만 남겨 같은 도로 객체를 다시 확인할 수 있게 했다.\n\n"
+        "영구 변환이 끝난 뒤에는 TMAP 원본 경로를 버리고 방문 기록에 남기지 않도록 저장 계약을 분리했다.\n"
+    )
     assert article.sections[0].evidence_ids == (
         "v2-tmap-retention-spec",
         "v2-vworld-feature-spec",
         "v2-source-discard-spec",
     )
-    body = "\n".join(section.body for section in article.sections)
-    assert "24시간" in body
-    assert "세션 입력" in body
-    assert "VWorld Feature ID" in body
-    assert "geometry snapshot" in body
-    assert "TMAP 원본 경로" in body
+    assert article.decision_index == (
+        DecisionIndexEntry(
+            "tmap-data-retention-boundary",
+            "retention",
+            "adopted",
+            (
+                "v2-tmap-retention-spec",
+                "v2-vworld-feature-spec",
+                "v2-source-discard-spec",
+            ),
+        ),
+    )
     assert audit.readiness == "ready"
-    assert [item.evidence_id for item in evidence] == [
-        "v2-tmap-retention-spec",
-        "v2-vworld-feature-spec",
-        "v2-source-discard-spec",
+    assert [(item.evidence_id, item.source_locator) for item in evidence] == [
+        (
+            "v2-tmap-retention-spec",
+            "project_memory/project-atlas/sources/verified-v2-design.md:3",
+        ),
+        (
+            "v2-vworld-feature-spec",
+            "project_memory/project-atlas/sources/verified-v2-design.md:5",
+        ),
+        (
+            "v2-source-discard-spec",
+            "project_memory/project-atlas/sources/verified-v2-design.md:7",
+        ),
     ]
     assert all("source_locator" not in item for item in (record.to_public_dict() for record in evidence))
     diagram = article.sections[0].diagrams[0]

@@ -29,6 +29,8 @@ _SOURCE_DIRECTORY = Path("project_memory") / "project-atlas"
 _STABLE_ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _RFC3339 = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$")
 _CONTENT_HASH = re.compile(r"^[a-f0-9]{64}$")
+_SOURCE_LOCATOR = re.compile(r"^(?P<path>[^:\r\n]+):(?P<line>[1-9]\d*)$")
+_WINDOWS_DRIVE = re.compile(r"^[A-Za-z]:")
 _MAX_CURATED_YAML_BYTES = 128 * 1024
 _MAX_CURATED_YAML_NODES = 1024
 _MAX_CURATED_YAML_EVENTS = 4096
@@ -243,12 +245,17 @@ def _load_project_evidence(
         return ()
     if not isinstance(data, list):
         raise ValueError("evidence YAML must be a list")
-    records = tuple(_evidence_record(item, ref.project_id) for item in data)
+    records = tuple(_evidence_record(item, ref.project_id, root, gate) for item in data)
     _require_unique((record.evidence_id for record in records), "evidence id")
     return records
 
 
-def _evidence_record(value: Any, project_id: str) -> EvidenceRecord:
+def _evidence_record(
+    value: Any,
+    project_id: str,
+    root: Path,
+    gate: PrivacyGate | None,
+) -> EvidenceRecord:
     if not isinstance(value, dict):
         raise ValueError("evidence record must be a mapping")
     keys = frozenset(value)
@@ -268,6 +275,7 @@ def _evidence_record(value: Any, project_id: str) -> EvidenceRecord:
         raise ValueError("evidence source_type is invalid")
     if not isinstance(value["source_locator"], str) or not value["source_locator"].strip():
         raise ValueError("evidence source_locator must be nonempty")
+    source_locator = _validated_source_locator(value["source_locator"], root, gate)
     if not isinstance(value["observed_at"], str) or not _RFC3339.fullmatch(value["observed_at"]):
         raise ValueError("evidence observed_at must be RFC3339")
     try:
@@ -289,13 +297,34 @@ def _evidence_record(value: Any, project_id: str) -> EvidenceRecord:
         project_id=value["project_id"],
         label=value["label"],
         source_type=value["source_type"],
-        source_locator=value["source_locator"],
+        source_locator=source_locator,
         observed_at=value["observed_at"],
         privacy_class=value["privacy_class"],
         content_hash=value["content_hash"],
         claim_role=role,
         url=url,
     )
+
+
+def _validated_source_locator(value: str, root: Path, gate: PrivacyGate | None) -> str:
+    locator = value.strip()
+    match = _SOURCE_LOCATOR.fullmatch(locator)
+    if match is None:
+        raise ValueError("evidence source_locator must resolve to a confined source")
+    relative_path = match.group("path").replace("\\", "/")
+    if (
+        relative_path.startswith("/")
+        or relative_path.startswith("../")
+        or "/../" in relative_path
+        or _WINDOWS_DRIVE.match(relative_path)
+        or relative_path.startswith("//")
+    ):
+        raise ValueError("evidence source_locator must resolve to a confined source")
+    text = read_confined_text(root / Path(relative_path), root, gate)
+    line_number = int(match.group("line"))
+    if line_number > len(text.splitlines()):
+        raise ValueError("evidence source_locator line is out of range")
+    return f"{relative_path}:{line_number}"
 
 
 def _load_sections(
