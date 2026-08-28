@@ -1,5 +1,1 @@
-[
-  {"id": "project:alpha", "label": "Alpha Project", "kind": "project"},
-  {"id": "project:beta", "label": "Beta Project", "kind": "project"},
-  {"id": "domain:knowledge-systems", "label": "Knowledge Systems", "kind": "domain"}
-]
+[{"id":"domain:data%20quality","kind":"domain","label":"Data Quality"},{"id":"domain:knowledge%20systems","kind":"domain","label":"Knowledge Systems"},{"id":"outcome:project%20explorer","kind":"outcome","label":"Project explorer"},{"id":"outcome:verified%20report","kind":"outcome","label":"Verified report"},{"id":"pattern:local-first%20publishing","kind":"pattern","label":"Local-first publishing"},{"id":"pattern:reproducible%20evaluation","kind":"pattern","label":"Reproducible evaluation"},{"id":"problem:fragmented%20context","kind":"problem","label":"Fragmented context"},{"id":"problem:unclear%20evidence","kind":"problem","label":"Unclear evidence"},{"id":"project:alpha","kind":"project","label":"Alpha Project"},{"id":"project:beta","kind":"project","label":"Beta Project"},{"id":"technology:node.js","kind":"technology","label":"Node.js"},{"id":"technology:python","kind":"technology","label":"Python"}]

@@ -165,6 +165,7 @@ def write_bundle_fixture(
     version: str | None,
     summary: str,
     project_ids: tuple[str, ...] = ("alpha",),
+    format_version: int = 2,
 ) -> None:
     root.mkdir(parents=True, exist_ok=True)
     projects = []
@@ -212,10 +213,20 @@ def write_bundle_fixture(
             for project_id in sorted(project_ids)
         ],
     )
-    refresh_fixture_manifest(root, version=version, project_ids=project_ids)
+    refresh_fixture_manifest(
+        root,
+        version=version,
+        project_ids=project_ids,
+        format_version=format_version,
+    )
 
 
-def refresh_fixture_manifest(root: Path, version: str | None, project_ids: tuple[str, ...]) -> None:
+def refresh_fixture_manifest(
+    root: Path,
+    version: str | None,
+    project_ids: tuple[str, ...],
+    format_version: int = 2,
+) -> None:
     files = {
         path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
         for path in sorted(root.rglob("*"), key=lambda item: item.as_posix())
@@ -230,6 +241,7 @@ def refresh_fixture_manifest(root: Path, version: str | None, project_ids: tuple
         root / "manifest.json",
         {
             "files": files,
+            "format_version": format_version,
             "projects": list(ordered_projects),
             "version": version if version is not None else derived_version,
         },

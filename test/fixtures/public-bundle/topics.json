@@ -1,4 +1,1 @@
-[
-  {"kind": "domain", "label": "Data Quality", "project_ids": ["beta"]},
-  {"kind": "domain", "label": "Knowledge Systems", "project_ids": ["alpha"]}
-]
+[{"kind":"domain","label":"Data Quality","project_ids":["beta"]},{"kind":"domain","label":"Knowledge Systems","project_ids":["alpha"]},{"kind":"outcome","label":"Project explorer","project_ids":["alpha"]},{"kind":"outcome","label":"Verified report","project_ids":["beta"]},{"kind":"pattern","label":"Local-first publishing","project_ids":["alpha"]},{"kind":"pattern","label":"Reproducible evaluation","project_ids":["beta"]},{"kind":"problem","label":"Fragmented context","project_ids":["alpha"]},{"kind":"problem","label":"Unclear evidence","project_ids":["beta"]},{"kind":"technology","label":"Node.js","project_ids":["alpha"]},{"kind":"technology","label":"Python","project_ids":["beta"]}]

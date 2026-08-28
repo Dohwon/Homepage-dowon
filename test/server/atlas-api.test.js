@@ -38,7 +38,8 @@ test("atlas API exposes project tabs but no sessions or provenance", async (t) =
 
   assert.equal(response.status, 200);
   assert.equal(payload.id, "alpha");
-  assert.match(payload.buildStory, /## Constraint/);
+  assert.equal(payload.article.sections[0].id, "routing");
+  assert.equal(payload.buildStory, undefined);
   assert.equal(payload.sessions, undefined);
   assert.equal(payload.provenance, undefined);
 });
@@ -104,10 +105,10 @@ test("bootstrap, graph, and search routes expose stable bundle data", async (t) 
   const graph = (await request(server.url, "/api/atlas/graph")).json();
   const search = (await request(server.url, "/api/atlas/search?q=ROUTING")).json();
 
-  assert.equal(bootstrap.version, "test-v1");
+  assert.equal(bootstrap.version, "31dab58058afafc3a2f772323754250837287090dce78b56deb7c8f4c40d72e0");
   assert.deepEqual(bootstrap.projects.map((project) => project.id), ["alpha", "beta"]);
-  assert.equal(graph.nodes.length, 3);
-  assert.deepEqual(search.items.map((item) => item.id), ["alpha-overview"]);
+  assert.equal(graph.nodes.length, 12);
+  assert.deepEqual(search.items.map((item) => item.id), ["alpha-overview", "article:alpha:routing"]);
 });
 
 test("existing API families remain reachable with isolated test data", async (t) => {

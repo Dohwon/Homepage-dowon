@@ -14,19 +14,62 @@ function createStore(cms = {}) {
   });
 }
 
-test("loads the public bundle and optional project sections", async () => {
+test("loads the v2 public bundle and omits heavy content from bootstrap", async () => {
   const store = createStore();
 
   const bootstrap = await store.bootstrap();
   const project = await store.project("alpha");
 
-  assert.equal(bootstrap.version, "test-v1");
+  assert.equal(bootstrap.version, "31dab58058afafc3a2f772323754250837287090dce78b56deb7c8f4c40d72e0");
   assert.deepEqual(bootstrap.projects.map((item) => item.id), ["alpha", "beta"]);
-  assert.equal(bootstrap.topics.length, 2);
+  assert.equal(bootstrap.topics.length, 10);
   assert.equal(bootstrap.changelog.length, 2);
-  assert.match(project.buildStory, /## Constraint/);
+  assert.equal(bootstrap.projects[0].article, undefined);
+  assert.equal(project.article.sections[0].id, "routing");
   assert.equal(project.sessions, undefined);
   assert.equal(project.provenance, undefined);
+});
+
+test("loads structured v2 public project content without legacy fields", async () => {
+  const project = await createStore().project("alpha");
+
+  assert.equal(project.article.sections[0].id, "routing");
+  assert.equal(project.timeline[0].event_id, "alpha-1");
+  assert.match(project.visuals["routing-flow"], /<svg/);
+  assert.equal(project.buildStory, undefined);
+  assert.equal(project.decisions, undefined);
+  assert.equal(project.visualMap, undefined);
+});
+
+test("loads legacy sections only from an explicit v1 manifest", async (t) => {
+  const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-v1-bundle-"));
+  t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+  await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+  const manifestPath = path.join(temporaryRoot, "manifest.json");
+  const manifest = JSON.parse(await fsp.readFile(manifestPath, "utf8"));
+  manifest.format_version = 1;
+  await fsp.writeFile(manifestPath, JSON.stringify(manifest));
+  await fsp.writeFile(path.join(temporaryRoot, "projects", "alpha", "decisions.md"), "# Decisions\n");
+
+  const project = await createAtlasStore({ bundleDir: temporaryRoot }).project("alpha");
+
+  assert.equal(project.decisions, "# Decisions\n");
+  assert.equal(project.article, undefined);
+});
+
+test("rejects a manifest without an explicit migration version", async (t) => {
+  const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-no-format-"));
+  t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+  await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+  const manifestPath = path.join(temporaryRoot, "manifest.json");
+  const manifest = JSON.parse(await fsp.readFile(manifestPath, "utf8"));
+  delete manifest.format_version;
+  await fsp.writeFile(manifestPath, JSON.stringify(manifest));
+
+  await assert.rejects(
+    () => createAtlasStore({ bundleDir: temporaryRoot }).project("alpha"),
+    /invalid_atlas_manifest/
+  );
 });
 
 test("fails closed when a generated project contains fields outside the public schema", async (t) => {
@@ -99,9 +142,9 @@ test("hidden generated projects are omitted from every public collection", async
   });
 
   assert.deepEqual((await store.bootstrap()).projects.map((project) => project.id), ["beta"]);
-  assert.deepEqual((await store.bootstrap()).topics.map((topic) => topic.label), ["Data Quality"]);
+  assert.deepEqual((await store.bootstrap()).topics.map((topic) => topic.label), ["Data Quality", "Verified report", "Reproducible evaluation", "Unclear evidence", "Python"]);
   assert.deepEqual((await store.bootstrap()).changelog.map((entry) => entry.project_id), ["beta"]);
-  assert.deepEqual((await store.graph()).nodes.map((node) => node.id), ["project:beta"]);
+  assert.deepEqual((await store.graph()).nodes.map((node) => node.id), ["domain:data%20quality", "outcome:verified%20report", "pattern:reproducible%20evaluation", "problem:unclear%20evidence", "project:beta", "technology:python"]);
   assert.deepEqual(await store.search("routing"), []);
 });
 
@@ -130,5 +173,5 @@ test("search is case-insensitive, stable, and excludes hidden projects", async (
 
   const items = await store.search("ROUTING");
 
-  assert.deepEqual(items.map((item) => item.id), ["alpha-overview"]);
+  assert.deepEqual(items.map((item) => item.id), ["alpha-overview", "article:alpha:routing"]);
 });

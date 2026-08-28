@@ -128,6 +128,78 @@ def _reviewed_profile(project_id: str, lifecycle: str = "active") -> dict[str, o
     }
 
 
+def _write_ready_article(workspace: Path, readiness: str = "ready") -> None:
+    source = workspace / "projects" / "alpha" / "project_memory" / "project-atlas"
+    source.mkdir(parents=True)
+    (source / "article.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "project_id": "alpha",
+                "title": "Routing record",
+                "summary": "Public routing decision",
+                "readiness": readiness,
+                "sections": [{
+                    "id": "routing",
+                    "title": "Routing",
+                    "section_type": "decision",
+                    "body": "The public routing contract is deterministic.",
+                    "evidence_ids": ["routing-proof"],
+                }],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    (source / "evidence.yaml").write_text(
+        yaml.safe_dump([{
+            "id": "routing-proof",
+            "project_id": "alpha",
+            "label": "Public routing contract",
+            "source_type": "test",
+            "source_locator": "/private/atlas/test.py:1",
+            "observed_at": "2026-08-24T10:00:00Z",
+            "privacy_class": "private",
+            "content_hash": "a" * 64,
+        }], sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+def test_build_publishes_audited_structured_article_and_section_search(tmp_path, monkeypatch):
+    workspace = make_workspace_fixture(tmp_path)
+    _write_ready_article(workspace)
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+
+    output = invoke_cli_json(["build", "--workspace", str(workspace)])
+
+    public = workspace / "portfolio-homepage" / "public-bundle"
+    article = json.loads((public / "projects" / "alpha" / "article.json").read_text(encoding="utf-8"))
+    evidence = json.loads((public / "projects" / "alpha" / "evidence.json").read_text(encoding="utf-8"))
+    search = json.loads((public / "search-index.json").read_text(encoding="utf-8"))
+    assert output["validated"]
+    assert article["sections"][0]["id"] == "routing"
+    assert set(evidence[0]) == {"id", "label", "source_type", "observed_at"}
+    assert {item["id"] for item in search} >= {"project:alpha", "article:alpha:routing"}
+    assert "/private/atlas" not in json.dumps({"article": article, "evidence": evidence, "search": search})
+
+
+def test_build_rejects_curated_article_that_is_not_ready_before_promotion(tmp_path, monkeypatch, capsys):
+    workspace = make_workspace_fixture(tmp_path)
+    _write_ready_article(workspace, readiness="review-required")
+    public = workspace / "portfolio-homepage" / "public-bundle"
+    write_bundle_fixture(public, version=None, summary="last good")
+    before = _snapshot(public)
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+
+    code = main(["build", "--workspace", str(workspace)])
+
+    assert code == EXIT_VALIDATION
+    assert _snapshot(public) == before
+    assert json.loads(capsys.readouterr().err) == {
+        "error": {"category": "config", "pointer": "/project-atlas/readiness"}
+    }
+
+
 def test_parser_exposes_all_worker_commands_and_required_options(tmp_path):
     parser = build_parser()
     workspace = str(tmp_path)
@@ -1083,7 +1155,7 @@ def test_build_real_write_requires_explicit_runtime_alias_key(tmp_path, capsys):
     assert "traceback" not in capsys.readouterr().err.casefold()
 
 
-def test_build_real_write_promotes_valid_public_profiles_and_direct_memory(tmp_path, monkeypatch):
+def test_build_real_write_promotes_valid_public_profiles_without_unstructured_memory(tmp_path, monkeypatch):
     workspace = make_workspace_fixture(tmp_path)
     monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
 
@@ -1093,9 +1165,7 @@ def test_build_real_write_promotes_valid_public_profiles_and_direct_memory(tmp_p
     assert output["projects"] == ["alpha", "beta"]
     assert output["changed"]
     assert (public / "manifest.json").is_file()
-    assert "Keep direct curated memory" in (
-        public / "projects" / "alpha" / "decisions.md"
-    ).read_text(encoding="utf-8")
+    assert not (public / "projects" / "alpha" / "decisions.md").exists()
     project = json.loads((public / "projects" / "alpha" / "project.json").read_text(encoding="utf-8"))
     assert project["aliases"] == []
 
@@ -1799,24 +1869,11 @@ def test_reviewed_history_round_trips_into_local_and_public_svg_changelog_idempo
     local_memory = workspace / "projects" / "alpha" / "project_memory"
     local_svg = local_memory / "visuals" / "problem-solving.svg"
     public = workspace / "portfolio-homepage" / "public-bundle"
-    public_decisions = (public / "projects" / "alpha" / "decisions.md").read_text(
-        encoding="utf-8"
-    )
-    public_build_story = (
-        public / "projects" / "alpha" / "build-story.md"
-    ).read_text(encoding="utf-8")
-    public_rollbacks = (public / "projects" / "alpha" / "rollbacks.md").read_text(
-        encoding="utf-8"
-    )
     changelog = json.loads((public / "changelog.json").read_text(encoding="utf-8"))
     assert first["backfill"]["applied"] == {"claims": 3, "files": 4, "projects": 1}
     assert local_svg.is_file()
-    assert (public / "projects" / "alpha" / "visuals" / "problem-solving.svg").is_file()
-    assert "Keep direct curated memory" in public_decisions
-    assert "architecture decision recorded" in public_decisions
-    assert "revision confirmed" in public_build_story
-    assert "rollback requested" in public_rollbacks
-    assert "atlas:event" not in public_build_story + public_decisions + public_rollbacks
+    assert not (public / "projects" / "alpha" / "decisions.md").exists()
+    assert not (public / "projects" / "alpha" / "visuals" / "problem-solving.svg").exists()
     assert {(entry["stage"], entry["date"]) for entry in changelog} == {
         ("decision", "2026-08-24"),
         ("revision", "2026-08-24"),

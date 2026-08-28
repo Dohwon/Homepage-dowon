@@ -19,11 +19,15 @@ from atlas_worker.bundle import (
 from atlas_worker.graph import build_graph
 from atlas_worker.manifest import content_version, tree_hash
 from atlas_worker.models import (
+    ArticleSection,
     BundleManifest,
+    DiagramRef,
+    EvidenceRecord,
     GraphData,
     GraphEdge,
     GraphNode,
     ProjectEvent,
+    ProjectArticle,
     ProjectMemory,
     PublicProject,
 )
@@ -141,6 +145,64 @@ def _context(
     )
 
 
+def _article(project_id: str = "alpha") -> ProjectArticle:
+    return ProjectArticle(
+        project_id=project_id,
+        title="Routing decision record",
+        summary="Public routing decisions",
+        readiness="ready",
+        sections=(
+            ArticleSection(
+                section_id="routing",
+                title="Routing",
+                section_type="decision",
+                body="The public routing contract remains deterministic.",
+                evidence_ids=("routing-proof",),
+                diagrams=(
+                    DiagramRef(
+                        diagram_id="routing-flow",
+                        source_path="project_memory/project-atlas/visuals/routing-flow.svg",
+                        caption="Routing flow",
+                        alt="Routing flow diagram",
+                        svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><path d="M0 0h1" /></svg>',
+                    ),
+                ),
+            ),
+        ),
+    )
+
+
+def _evidence(project_id: str = "alpha") -> EvidenceRecord:
+    return EvidenceRecord(
+        evidence_id="routing-proof",
+        project_id=project_id,
+        label="Public routing contract",
+        source_type="test",
+        source_locator="private locator",
+        observed_at="2026-08-24T10:00:00Z",
+        privacy_class="public-safe",
+        content_hash="a" * 64,
+    )
+
+
+def test_bundle_writes_v2_article_and_only_referenced_figures(tmp_path):
+    context = replace(
+        _context(),
+        project_articles={"alpha": _article()},
+        project_evidence={"alpha": (_evidence(),)},
+    )
+
+    manifest = build_candidate_bundle(context, tmp_path / "candidate")
+    project_dir = tmp_path / "candidate" / "projects" / "alpha"
+    article = json.loads((project_dir / "article.json").read_text(encoding="utf-8"))
+
+    assert article["sections"][0]["id"] == "routing"
+    assert (project_dir / "visuals" / "routing-flow.svg").is_file()
+    assert not (project_dir / "decisions.md").exists()
+    assert not (project_dir / "visuals" / "problem-solving.svg").exists()
+    assert "projects/alpha/article.json" in manifest.files
+
+
 def _tree_bytes(root: Path) -> dict[str, bytes]:
     return {
         path.relative_to(root).as_posix(): path.read_bytes()
@@ -157,7 +219,7 @@ def _symlinked_parent(tmp_path: Path, name: str) -> tuple[Path, Path]:
     return linked_parent, real_parent
 
 
-def test_build_emits_only_exact_public_layout_and_non_empty_optional_files(tmp_path):
+def test_build_emits_only_exact_v2_public_layout_without_unstructured_filler(tmp_path):
     staging = tmp_path / "staging"
     build_candidate_bundle(_context(), staging)
 
@@ -166,14 +228,11 @@ def test_build_emits_only_exact_public_layout_and_non_empty_optional_files(tmp_p
         "graph/edges.json",
         "graph/nodes.json",
         "manifest.json",
-        "projects/alpha/build-story.md",
-        "projects/alpha/decisions.md",
         "projects/alpha/project.json",
-        "projects/alpha/visuals/problem-solving.svg",
         "search-index.json",
         "topics.json",
     )
-    assert not (staging / "projects/alpha/rollbacks.md").exists()
+    assert not (staging / "projects/alpha/decisions.md").exists()
 
 
 def test_build_omits_public_svg_until_typed_history_has_a_decision_path(tmp_path):
@@ -209,6 +268,29 @@ def test_public_bundle_validation_api_is_read_only(tmp_path):
     assert _tree_bytes(fixture) == before
 
 
+def test_validate_bundle_reads_explicit_v1_legacy_contract_for_one_release(tmp_path):
+    fixture = tmp_path / "public-bundle"
+    write_bundle_fixture(fixture, version=None, summary="safe", format_version=1)
+    legacy = fixture / "projects" / "alpha" / "decisions.md"
+    legacy.write_text("# Decisions\n\n- Preserve v1 reads\n", encoding="utf-8")
+    refresh_fixture_manifest(fixture, None, ("alpha",), format_version=1)
+
+    manifest = validate_bundle(fixture, PrivacyGate(alias_key=b"key"))
+
+    assert manifest.format_version == 1
+
+
+def test_validate_bundle_rejects_missing_format_version(tmp_path):
+    fixture = tmp_path / "public-bundle"
+    write_bundle_fixture(fixture, version=None, summary="safe")
+    payload = json.loads((fixture / "manifest.json").read_text(encoding="utf-8"))
+    del payload["format_version"]
+    (fixture / "manifest.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="format_version"):
+        validate_bundle(fixture, PrivacyGate(alias_key=b"key"))
+
+
 def test_build_rebuilds_staging_from_empty(tmp_path):
     staging = tmp_path / "staging"
     (staging / "raw-session").mkdir(parents=True)
@@ -228,7 +310,8 @@ def test_manifest_is_schema_exact_content_derived_and_byte_deterministic(tmp_pat
     build_candidate_bundle(_context(projects=projects), second)
     payload = json.loads((first / "manifest.json").read_text(encoding="utf-8"))
 
-    assert set(payload) == {"version", "projects", "files"}
+    assert set(payload) == {"format_version", "version", "projects", "files"}
+    assert payload["format_version"] == 2
     assert payload["projects"] == ["alpha", "beta"]
     assert "manifest.json" not in payload["files"]
     assert manifest.project_hashes.keys() == {"alpha", "beta"}
@@ -362,7 +445,7 @@ def test_previous_manifest_with_impossible_public_layout_is_rejected(tmp_path):
         )
 
 
-def test_build_strips_only_exact_managed_comments(tmp_path):
+def test_build_omits_legacy_memory_even_when_it_contains_managed_comments(tmp_path):
     context = _context(
         decisions=(
             "<!-- atlas:event:decision-001 -->\nKeep typed contracts\n<!-- /atlas:event:decision-001 -->",
@@ -370,14 +453,18 @@ def test_build_strips_only_exact_managed_comments(tmp_path):
     )
 
     build_candidate_bundle(context, tmp_path / "staging")
-    markdown = (tmp_path / "staging/projects/alpha/decisions.md").read_text(encoding="utf-8")
-
-    assert "Keep typed contracts" in markdown
-    assert "atlas:event" not in markdown
+    assert not (tmp_path / "staging/projects/alpha/decisions.md").exists()
 
 
 def test_build_blocks_arbitrary_html_comments(tmp_path):
-    context = _context(decisions=("Keep this <!-- author note --> private",))
+    article = _article()
+    context = replace(
+        _context(),
+        project_articles={
+            "alpha": replace(article, sections=(replace(article.sections[0], body="Keep this <!-- author note --> private"),))
+        },
+        project_evidence={"alpha": (_evidence(),)},
+    )
 
     with pytest.raises(PrivacyViolation, match="html_comment"):
         build_candidate_bundle(context, tmp_path / "staging")
@@ -1172,13 +1259,13 @@ def test_promotion_rejects_unexpected_files_and_hash_mismatch(tmp_path):
         promote_bundle(staging, tmp_path / "public-bundle", PrivacyGate(alias_key=b"key"))
 
 
-def test_promotion_rejects_empty_optional_markdown(tmp_path):
+def test_promotion_rejects_legacy_artifacts_from_a_v2_candidate(tmp_path):
     staging = tmp_path / "staging"
     write_bundle_fixture(staging, None, "safe")
     (staging / "projects/alpha/decisions.md").write_text("", encoding="utf-8")
     refresh_fixture_manifest(staging, None, ("alpha",))
 
-    with pytest.raises(ValueError, match="non-empty"):
+    with pytest.raises(ValueError, match="unexpected"):
         promote_bundle(staging, tmp_path / "public-bundle", PrivacyGate(alias_key=b"key"))
 
 
@@ -1192,6 +1279,7 @@ def test_bundle_manifest_serialization_excludes_local_project_hashes():
     )
 
     assert manifest.to_dict() == {
+        "format_version": 2,
         "version": "v1",
         "projects": ["alpha"],
         "files": {"projects/alpha/project.json": "hash"},

@@ -25,6 +25,7 @@ from .backfill import (
     should_skip_session,
     updated_cursors,
 )
+from .article import load_project_article, load_project_evidence, load_system_map
 from .bundle import (
     BundleContext,
     SearchDocument,
@@ -33,6 +34,7 @@ from .bundle import (
     validate_bundle,
 )
 from .config import DiscoveryConfig
+from .content_audit import audit_curated_project_content
 from .discovery import discover_projects
 from .evidence import merge_claims
 from .fs_safety import (
@@ -46,7 +48,10 @@ from .memory import load_project_memory
 from .memory_writer import plan_project_memory_writes
 from .models import (
     DiscoveryReport,
+    EvidenceRecord,
     EvidenceClaim,
+    ProjectArticle,
+    ProjectEvent,
     ProjectMemory,
     ProjectRef,
     PublicProject,
@@ -790,7 +795,7 @@ def _execute_build(
     dry_run: bool,
 ) -> dict[str, object]:
     service_root = _service_root(workspace, runtime_config)
-    context = _bundle_context(discovery, gate)
+    context = _bundle_context(workspace, discovery, gate)
     public_dir = service_root / "public-bundle"
     with tempfile.TemporaryDirectory(prefix=".project-atlas-staging-", dir=service_root) as temporary:
         staging = Path(temporary) / "candidate"
@@ -813,10 +818,17 @@ def _execute_build(
     }
 
 
-def _bundle_context(discovery: DiscoveryReport, gate: PrivacyGate) -> BundleContext:
+def _bundle_context(
+    workspace: Path,
+    discovery: DiscoveryReport,
+    gate: PrivacyGate,
+) -> BundleContext:
     ambiguous_ids = {ref.project_id for ref in discovery.ambiguous}
     projects: list[PublicProject] = []
     memories: dict[str, ProjectMemory] = {}
+    articles = {}
+    evidence_by_project = {}
+    system_maps = {}
     source_hashes: dict[str, str] = {}
     for ref in discovery.projects:
         if ref.publication != "public" or ref.project_id in ambiguous_ids:
@@ -844,19 +856,39 @@ def _bundle_context(discovery: DiscoveryReport, gate: PrivacyGate) -> BundleCont
         validate_schema(project.to_dict(), "public-project")
         projects.append(project)
         memories[ref.project_id] = memory
-        source_hashes[ref.project_id] = _curated_source_hash(project, memory)
+        article = None
+        evidence = ()
+        if not ref.standalone_asset:
+            article = load_project_article(ref, gate)
+            evidence = load_project_evidence(ref, gate)
+        if article is not None:
+            audit = audit_curated_project_content(
+                ref,
+                build_source_manifest(ref, SubprocessGitRunner()),
+                (),
+                gate,
+            )
+            if article.readiness != "ready" or audit.readiness != "ready":
+                raise ConfigError("/project-atlas/readiness")
+            articles[ref.project_id] = article
+            evidence_by_project[ref.project_id] = evidence
+            system_map = load_system_map(ref, gate)
+            if system_map is not None:
+                system_maps[ref.project_id] = system_map
+        source_hashes[ref.project_id] = _curated_source_hash(
+            project,
+            article,
+            evidence,
+            memory.events,
+            system_maps.get(ref.project_id),
+        )
 
     ordered = tuple(sorted(projects, key=lambda project: project.project_id))
     graph = build_graph(ordered)
     search_documents = tuple(
-        SearchDocument(
-            document_id=f"project:{project.project_id}",
-            project_id=project.project_id,
-            title=project.display_name,
-            body=project.summary,
-            url=f"/projects/{project.project_id}",
-        )
+        document
         for project in ordered
+        for document in _project_search_documents(project, articles.get(project.project_id))
     )
     return BundleContext(
         projects=ordered,
@@ -871,13 +903,49 @@ def _bundle_context(discovery: DiscoveryReport, gate: PrivacyGate) -> BundleCont
         source_hashes=source_hashes,
         previous_manifest=None,
         privacy_gate=gate,
+        project_articles=articles,
+        project_evidence=evidence_by_project,
+        project_system_maps=system_maps,
     )
 
 
-def _curated_source_hash(project: PublicProject, memory: ProjectMemory) -> str:
+def _project_search_documents(
+    project: PublicProject,
+    article: ProjectArticle | None,
+) -> tuple[SearchDocument, ...]:
+    documents = [
+        SearchDocument(
+            document_id=f"project:{project.project_id}",
+            project_id=project.project_id,
+            title=project.display_name,
+            body=project.summary,
+            url=f"/projects/{project.project_id}",
+        )
+    ]
+    if article is not None:
+        for section in article.sections:
+            documents.append(
+                SearchDocument(
+                    document_id=f"article:{project.project_id}:{section.section_id}",
+                    project_id=project.project_id,
+                    title=section.title,
+                    body=section.body,
+                    url=f"/projects/{project.project_id}?tab=decisions#{section.section_id}",
+                )
+            )
+    return tuple(documents)
+
+
+def _curated_source_hash(
+    project: PublicProject,
+    article: ProjectArticle | None,
+    evidence: tuple[EvidenceRecord, ...],
+    events: tuple[ProjectEvent, ...],
+    system_map: str | None,
+) -> str:
     payload = {
-        "build_story": list(memory.build_story),
-        "decisions": list(memory.decisions),
+        "article": article.to_public_dict() if article is not None else None,
+        "evidence": [item.to_public_dict() for item in evidence],
         "events": [
             {
                 "context": event.context,
@@ -888,10 +956,10 @@ def _curated_source_hash(project: PublicProject, memory: ProjectMemory) -> str:
                 "stage": event.stage,
                 "title": event.title,
             }
-            for event in memory.events
+            for event in events
         ],
         "project": project.to_dict(),
-        "rollbacks": list(memory.rollbacks),
+        "system_map": system_map,
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()

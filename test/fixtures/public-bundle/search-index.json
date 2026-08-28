@@ -1,4 +1,5 @@
 [
   {"id": "alpha-overview", "project_id": "alpha", "title": "Alpha Project", "body": "routing local-first project explorer", "url": "/projects/alpha"},
+  {"id": "article:alpha:routing", "project_id": "alpha", "title": "Routing", "body": "The routing decision is published as a deterministic public contract.", "url": "/projects/alpha?tab=decisions#routing"},
   {"id": "beta-overview", "project_id": "beta", "title": "Beta Project", "body": "data quality reproducible evaluation", "url": "/projects/beta"}
 ]

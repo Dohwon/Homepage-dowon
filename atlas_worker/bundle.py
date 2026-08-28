@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -28,8 +28,10 @@ from .models import (
     GRAPH_EDGE_KINDS,
     GRAPH_NODE_KINDS,
     BundleManifest,
+    EvidenceRecord,
     GraphData,
     ProjectEvent,
+    ProjectArticle,
     ProjectMemory,
     ProjectRef,
     PromotionResult,
@@ -39,14 +41,19 @@ from .models import (
 from .privacy import PrivacyGate
 from .graph import TAG_WEIGHTS
 from .taxonomy import display_tag_label, normalize_tag_label
-from .visuals import has_problem_solving_evidence, render_problem_solving_svg
 
 
-_OPTIONAL_PROJECT_FILES = (
+_V1_OPTIONAL_PROJECT_FILES = (
     "build-story.md",
     "decisions.md",
     "rollbacks.md",
     "visuals/problem-solving.svg",
+)
+_V2_OPTIONAL_PROJECT_FILES = (
+    "article.json",
+    "evidence.json",
+    "timeline.json",
+    "system-map.svg",
 )
 _MANDATORY_FILES = frozenset(
     {
@@ -96,6 +103,9 @@ class BundleContext:
     source_hashes: Mapping[str, str]
     previous_manifest: BundleManifest | None
     privacy_gate: PrivacyGate
+    project_articles: Mapping[str, ProjectArticle] = field(default_factory=dict)
+    project_evidence: Mapping[str, tuple[EvidenceRecord, ...]] = field(default_factory=dict)
+    project_system_maps: Mapping[str, str] = field(default_factory=dict)
 
 
 def build_candidate_bundle(context: BundleContext, staging_dir: Path) -> BundleManifest:
@@ -112,22 +122,17 @@ def build_candidate_bundle(context: BundleContext, staging_dir: Path) -> BundleM
         validate_schema(project_payload, "public-project")
         _write_json(project_dir / "project.json", project_payload, context.privacy_gate)
 
-        memory = context.project_memories.get(project.project_id)
-        if memory is not None:
-            for field_name, title, filename in (
-                ("build_story", "Build Story", "build-story.md"),
-                ("decisions", "Decisions", "decisions.md"),
-                ("rollbacks", "Rollbacks", "rollbacks.md"),
-            ):
-                markdown = _render_markdown(title, getattr(memory, field_name))
-                if markdown is not None:
-                    _write_text(project_dir / filename, markdown, context.privacy_gate)
-
-        events = context.project_events.get(project.project_id, ())
-        if has_problem_solving_evidence(events):
-            svg = render_problem_solving_svg(_project_ref(project), events)
-            _validate_svg(svg)
-            _write_text(project_dir / "visuals" / "problem-solving.svg", svg, context.privacy_gate)
+        article = (context.project_articles or {}).get(project.project_id)
+        if article is not None:
+            _write_v2_project_content(
+                project_dir,
+                project.project_id,
+                article,
+                (context.project_evidence or {}).get(project.project_id, ()),
+                context.project_events.get(project.project_id, ()),
+                (context.project_system_maps or {}).get(project.project_id),
+                context.privacy_gate,
+            )
 
     nodes = _graph_nodes(context.graph)
     edges = _graph_edges(context.graph)
@@ -161,6 +166,7 @@ def build_candidate_bundle(context: BundleContext, staging_dir: Path) -> BundleM
         files=files,
         project_hashes=project_hashes,
         changed_projects=changed_projects,
+        format_version=2,
     )
     manifest_payload = manifest.to_dict()
     validate_schema(manifest_payload, "public-manifest")
@@ -266,6 +272,9 @@ def _validate_context(
     for mapping_name, mapping in (
         ("project_memories", context.project_memories),
         ("project_events", context.project_events),
+        ("project_articles", context.project_articles or {}),
+        ("project_evidence", context.project_evidence or {}),
+        ("project_system_maps", context.project_system_maps or {}),
     ):
         unknown = sorted(set(mapping) - known)
         if unknown:
@@ -275,6 +284,62 @@ def _validate_context(
             raise ValueError("source_hashes must map non-empty strings to SHA-256 hashes")
     if context.previous_manifest is not None:
         _validate_previous_manifest(context.previous_manifest)
+
+
+def _write_v2_project_content(
+    project_dir: Path,
+    project_id: str,
+    article: ProjectArticle,
+    evidence: tuple[EvidenceRecord, ...],
+    events: tuple[ProjectEvent, ...],
+    system_map: str | None,
+    gate: PrivacyGate,
+) -> None:
+    if article.project_id != project_id:
+        raise ValueError("article project does not match bundle project")
+    article_payload = article.to_public_dict()
+    validate_schema(article_payload, "public-article")
+    _write_json(project_dir / "article.json", article_payload, gate)
+
+    diagrams: dict[str, str] = {}
+    for section in article.sections:
+        for diagram in section.diagrams:
+            if diagram.diagram_id in diagrams:
+                raise ValueError("article diagram IDs must be unique")
+            _validate_svg(diagram.svg)
+            diagrams[diagram.diagram_id] = diagram.svg
+    for diagram_id, svg in sorted(diagrams.items()):
+        _write_text(project_dir / "visuals" / f"{diagram_id}.svg", svg, gate)
+
+    public_evidence = []
+    for record in evidence:
+        if record.project_id != project_id:
+            raise ValueError("evidence project does not match bundle project")
+        public_evidence.append(record.to_public_dict())
+    if public_evidence:
+        validate_schema(public_evidence, "public-evidence")
+        _write_json(project_dir / "evidence.json", public_evidence, gate)
+
+    timeline = [_event_to_public(event) for event in events]
+    if timeline:
+        validate_schema(timeline, "public-timeline")
+        _write_json(project_dir / "timeline.json", timeline, gate)
+
+    if system_map is not None:
+        _validate_svg(system_map)
+        _write_text(project_dir / "system-map.svg", system_map, gate)
+
+
+def _event_to_public(event: ProjectEvent) -> dict[str, str]:
+    return {
+        "event_id": event.event_id,
+        "date": event.date,
+        "title": event.title,
+        "context": event.context,
+        "decision": event.decision,
+        "outcome": event.outcome,
+        "stage": event.stage,
+    }
 
 
 def _render_markdown(title: str, entries: tuple[str, ...]) -> str | None:
@@ -438,16 +503,22 @@ def _privacy_tree(tree: Mapping[str, str]) -> dict[str, object]:
 
 
 def _validate_bundle(root: Path, tree: Mapping[str, str]) -> BundleManifest:
-    _validate_exact_directories(root)
     manifest_payload = _parse_json(tree, "manifest.json")
     validate_schema(manifest_payload, "public-manifest")
+    format_version = manifest_payload["format_version"]
     projects = tuple(manifest_payload["projects"])
     if projects != tuple(sorted(projects)):
         raise ValueError("manifest projects must use stable ordering")
     for project_id in projects:
         _require_project_id(project_id)
 
-    required_files, allowed_files = _public_file_sets(projects, include_manifest=True)
+    project_artifacts = _project_artifacts(tree, projects, format_version)
+    required_files, allowed_files = _public_file_sets(
+        projects,
+        format_version=format_version,
+        artifacts=project_artifacts,
+        include_manifest=True,
+    )
     actual_files = set(tree)
     missing = sorted(required_files - actual_files)
     if missing:
@@ -468,6 +539,7 @@ def _validate_bundle(root: Path, tree: Mapping[str, str]) -> BundleManifest:
         if digest != actual_hashes[path]:
             raise ValueError(f"manifest file hash mismatch: {path}")
 
+    _validate_exact_directories(root, projects, format_version, project_artifacts)
     project_hashes = {}
     project_payloads: dict[str, dict[str, object]] = {}
     for project_id in projects:
@@ -483,13 +555,6 @@ def _validate_bundle(root: Path, tree: Mapping[str, str]) -> BundleManifest:
                 if path.startswith(f"projects/{project_id}/")
             }
         )
-        for markdown_name in ("build-story.md", "decisions.md", "rollbacks.md"):
-            markdown_path = f"projects/{project_id}/{markdown_name}"
-            if markdown_path in tree and not tree[markdown_path].strip():
-                raise ValueError(f"optional project artifact must be non-empty: {markdown_path}")
-        svg_path = f"projects/{project_id}/visuals/problem-solving.svg"
-        if svg_path in tree:
-            _validate_svg(tree[svg_path])
 
     _validate_graph(
         _parse_json(tree, "graph/nodes.json"),
@@ -508,6 +573,7 @@ def _validate_bundle(root: Path, tree: Mapping[str, str]) -> BundleManifest:
         projects=projects,
         files=expected_hashes,
         project_hashes=project_hashes,
+        format_version=format_version,
     )
 
 
@@ -526,8 +592,18 @@ def _validate_previous_manifest(manifest: BundleManifest) -> None:
             if _SHA256.fullmatch(digest) is None:
                 raise ValueError("file hash is not SHA-256")
         if manifest.projects or manifest.files or manifest.project_hashes:
-            required_files, allowed_files = _public_file_sets(manifest.projects, include_manifest=False)
-            if not set(manifest.files).issubset(allowed_files):
+            required_files, allowed_files = _public_file_sets(
+                manifest.projects,
+                format_version=manifest.format_version,
+                artifacts=None,
+                include_manifest=False,
+            )
+            paths_are_allowed = (
+                set(manifest.files).issubset(allowed_files)
+                if manifest.format_version == 1
+                else all(_is_v2_manifest_path(path, manifest.projects) for path in manifest.files)
+            )
+            if not paths_are_allowed:
                 raise ValueError("file hashes contain an unexpected public path")
             if not required_files.issubset(manifest.files):
                 raise ValueError("file hashes omit a required public path")
@@ -557,6 +633,8 @@ def _changed_hash_ids(
 def _public_file_sets(
     projects: tuple[str, ...],
     *,
+    format_version: int,
+    artifacts: Mapping[str, dict[str, object] | None] | None,
     include_manifest: bool,
 ) -> tuple[set[str], set[str]]:
     required = set(_MANDATORY_FILES)
@@ -568,32 +646,148 @@ def _public_file_sets(
         project_path = f"projects/{project_id}/project.json"
         required.add(project_path)
         allowed.add(project_path)
-        allowed.update(f"projects/{project_id}/{path}" for path in _OPTIONAL_PROJECT_FILES)
+        if format_version == 1:
+            allowed.update(
+                f"projects/{project_id}/{path}" for path in _V1_OPTIONAL_PROJECT_FILES
+            )
+        elif format_version == 2:
+            artifact = artifacts.get(project_id) if artifacts is not None else None
+            if artifact is not None:
+                allowed.add(f"projects/{project_id}/article.json")
+                allowed.update(
+                    f"projects/{project_id}/{path}" for path in _V2_OPTIONAL_PROJECT_FILES[1:]
+                )
+                allowed.update(
+                    f"projects/{project_id}/visuals/{diagram_id}.svg"
+                    for diagram_id in artifact["diagram_ids"]
+                )
+        else:
+            raise ValueError("unsupported bundle format version")
     return required, allowed
 
 
-def _validate_exact_directories(root: Path) -> None:
+def _project_artifacts(
+    tree: Mapping[str, str],
+    projects: tuple[str, ...],
+    format_version: int,
+) -> dict[str, dict[str, object] | None]:
+    artifacts: dict[str, dict[str, object] | None] = {}
+    for project_id in projects:
+        if format_version == 1:
+            for markdown_name in ("build-story.md", "decisions.md", "rollbacks.md"):
+                markdown_path = f"projects/{project_id}/{markdown_name}"
+                if markdown_path in tree and not tree[markdown_path].strip():
+                    raise ValueError(f"optional project artifact must be non-empty: {markdown_path}")
+            svg_path = f"projects/{project_id}/visuals/problem-solving.svg"
+            if svg_path in tree:
+                _validate_svg(tree[svg_path])
+            artifacts[project_id] = None
+            continue
+
+        article_path = f"projects/{project_id}/article.json"
+        has_article = article_path in tree
+        content_paths = tuple(
+            f"projects/{project_id}/{name}" for name in _V2_OPTIONAL_PROJECT_FILES[1:]
+        )
+        if not has_article:
+            if any(path in tree for path in content_paths) or any(
+                path.startswith(f"projects/{project_id}/visuals/") for path in tree
+            ):
+                raise ValueError("v2 project content requires article.json")
+            artifacts[project_id] = None
+            continue
+        article = _parse_json(tree, article_path)
+        validate_schema(article, "public-article")
+        if article["project_id"] != project_id:
+            raise ValueError("article project ID does not match bundle path")
+        diagram_ids = tuple(
+            diagram["id"]
+            for section in article["sections"]
+            for diagram in section.get("diagrams", [])
+        )
+        if len(diagram_ids) != len(set(diagram_ids)):
+            raise ValueError("article diagram IDs must be unique")
+        evidence_path = f"projects/{project_id}/evidence.json"
+        evidence_ids: set[str] = set()
+        if evidence_path in tree:
+            evidence = _parse_json(tree, evidence_path)
+            validate_schema(evidence, "public-evidence")
+            evidence_ids = {item["id"] for item in evidence}
+            if len(evidence_ids) != len(evidence):
+                raise ValueError("public evidence IDs must be unique")
+        referenced_evidence = {
+            evidence_id
+            for section in article["sections"]
+            for evidence_id in section["evidence_ids"]
+        } | {
+            evidence_id
+            for decision in article.get("decision_index", [])
+            for evidence_id in decision["evidence_ids"]
+        }
+        if referenced_evidence - evidence_ids:
+            raise ValueError("article references missing public evidence")
+        timeline_path = f"projects/{project_id}/timeline.json"
+        if timeline_path in tree:
+            validate_schema(_parse_json(tree, timeline_path), "public-timeline")
+        system_map_path = f"projects/{project_id}/system-map.svg"
+        if system_map_path in tree:
+            _validate_svg(tree[system_map_path])
+        for diagram_id in diagram_ids:
+            _validate_svg(_require_text(tree, f"projects/{project_id}/visuals/{diagram_id}.svg"))
+        artifacts[project_id] = {"diagram_ids": diagram_ids}
+    return artifacts
+
+
+def _validate_exact_directories(
+    root: Path,
+    projects: tuple[str, ...],
+    format_version: int,
+    artifacts: Mapping[str, dict[str, object] | None],
+) -> None:
     actual = set()
     for path in root.rglob("*"):
         if path.is_symlink():
             raise ValueError(f"bundle tree contains symlink: {path.relative_to(root).as_posix()}")
         if path.is_dir():
             actual.add(path.relative_to(root).as_posix())
-    tree = _load_text_tree(root)
-    manifest_payload = _parse_json(tree, "manifest.json")
-    projects = manifest_payload.get("projects", []) if isinstance(manifest_payload, dict) else []
     expected = {"projects", "graph"}
     for project_id in projects:
-        if isinstance(project_id, str) and _safe_project_id(project_id):
-            expected.add(f"projects/{project_id}")
-            if f"projects/{project_id}/visuals/problem-solving.svg" in tree:
+        expected.add(f"projects/{project_id}")
+        if format_version == 1:
+            if (root / "projects" / project_id / "visuals" / "problem-solving.svg").is_file():
                 expected.add(f"projects/{project_id}/visuals")
+            continue
+        artifact = artifacts[project_id]
+        if artifact is not None and artifact["diagram_ids"]:
+            expected.add(f"projects/{project_id}/visuals")
     unexpected = sorted(actual - expected)
     if unexpected:
         raise ValueError(f"bundle contains unexpected directory: {unexpected[0]}")
     missing = sorted(expected - actual)
     if missing:
         raise ValueError(f"bundle is missing required directory: {missing[0]}")
+
+
+def _require_text(tree: Mapping[str, str], path: str) -> str:
+    value = tree.get(path)
+    if value is None:
+        raise ValueError(f"bundle is missing required file: {path}")
+    return value
+
+
+def _is_v2_manifest_path(path: str, projects: tuple[str, ...]) -> bool:
+    if path in _MANDATORY_FILES - {"manifest.json"}:
+        return True
+    for project_id in projects:
+        prefix = f"projects/{project_id}/"
+        if path == prefix + "project.json" or path in {
+            prefix + name for name in _V2_OPTIONAL_PROJECT_FILES
+        }:
+            return True
+        visual = path.removeprefix(prefix + "visuals/")
+        if visual != path and re.fullmatch(r"[a-z0-9][a-z0-9-]*\.svg", visual):
+            return True
+    return False
 
 
 def _parse_json(tree: Mapping[str, str], path: str) -> object:
