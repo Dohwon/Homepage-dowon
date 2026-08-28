@@ -8,8 +8,10 @@ import { bindReadingProgress } from "./progress.js";
 
 const api = createAtlasApi();
 const root = document.querySelector("#atlas-main");
+const progressElement = document.querySelector("#reading-progress");
 const store = createStore({ route: parseRoute(new URL(window.location.href)) });
 let navigationId = 0;
+let disposeReadingProgress = () => {};
 
 function normalizeDestination(destination) {
   if (destination instanceof URL) return destination;
@@ -39,10 +41,16 @@ async function navigate(destination, { replace = false, focus = true } = {}) {
       window.scrollTo({ top: 0, behavior: "instant" });
       root.focus({ preventScroll: true });
     }
+    disposeReadingProgress();
+    const reader = root.querySelector("[data-project-reader]") || root.querySelector("#project-tabpanel > article");
+    if (reader && !reader.hasAttribute("data-project-reader")) reader.setAttribute("data-project-reader", "");
+    disposeReadingProgress = bindReadingProgress(progressElement, reader);
   } catch (error) {
     if (currentId !== navigationId) return;
     store.setState({ loading: false, error });
     renderError(root, error);
+    disposeReadingProgress();
+    disposeReadingProgress = bindReadingProgress(progressElement, null);
   }
 }
 
@@ -57,7 +65,6 @@ document.addEventListener("click", (event) => {
 
 window.addEventListener("popstate", () => navigate(new URL(window.location.href), { replace: true }));
 bindTheme(document.querySelector("[data-theme-toggle]"));
-bindReadingProgress(document.querySelector("#reading-progress"));
 bindSearchDialog(document.querySelector("#search-dialog"), api);
 window.lucide?.createIcons();
 navigate(new URL(window.location.href), { replace: true, focus: false });
