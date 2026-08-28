@@ -2,6 +2,7 @@
 
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
+import ipaddress
 import json
 from pathlib import Path
 import re
@@ -48,7 +49,8 @@ _DATE_VALUE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _DATE_TIME_VALUE = re.compile(
     r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})"
 )
-_PUBLIC_EVIDENCE_URL_DECODE_STEPS = 4
+_MALFORMED_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
+_DNS_LABEL = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
 
 
 @_SCHEMA_FORMAT_CHECKER.checks("date")
@@ -181,36 +183,75 @@ def validate_public_evidence_url(value: str) -> str:
     """
     if not isinstance(value, str):
         raise ValueError("evidence url must be an absolute HTTPS URL")
-    decoded = value
-    for _ in range(_PUBLIC_EVIDENCE_URL_DECODE_STEPS):
-        next_value = unquote(decoded)
-        if next_value == decoded:
-            break
-        decoded = next_value
-    else:
-        raise ValueError("evidence url must be an absolute HTTPS URL")
-    if any(character.isspace() or ord(character) < 32 or ord(character) == 127 for character in decoded):
-        raise ValueError("evidence url must be an absolute HTTPS URL")
-    if "\\" in decoded:
+    _require_safe_url_text(value)
+    _require_well_formed_percent_escapes(value)
+    decoded = unquote(value)
+    _require_safe_url_text(decoded)
+    _require_well_formed_percent_escapes(decoded)
+    if unquote(decoded) != decoded:
         raise ValueError("evidence url must be an absolute HTTPS URL")
     try:
         parsed = urlsplit(value)
-        host = parsed.hostname
+    except ValueError:
+        raise ValueError("evidence url must be an absolute HTTPS URL") from None
+    if parsed.scheme != "https" or not parsed.netloc or parsed.username is not None or parsed.password is not None:
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+    _validate_public_dns_host(parsed.hostname)
+    try:
         port = parsed.port
     except ValueError:
         raise ValueError("evidence url must be an absolute HTTPS URL") from None
-    if (
-        parsed.scheme != "https"
-        or not parsed.netloc
-        or not host
-        or parsed.username is not None
-        or parsed.password is not None
-        or "@" in parsed.netloc
-        or "%" in host
-        or port is not None and not 0 < port <= 65535
-    ):
-        raise ValueError("evidence url must be an absolute HTTPS URL")
+    _validate_explicit_port(parsed.netloc, port)
     return value
+
+
+def _require_safe_url_text(value: str) -> None:
+    if any(character.isspace() or ord(character) < 32 or ord(character) == 127 for character in value):
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+    if "\\" in value:
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+
+
+def _require_well_formed_percent_escapes(value: str) -> None:
+    if _MALFORMED_PERCENT_ESCAPE.search(value):
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+
+
+def _validate_public_dns_host(host: str | None) -> None:
+    if not isinstance(host, str) or not host.isascii() or len(host) > 253:
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+    if not host or host.startswith(".") or host.endswith(".") or ".." in host or "." not in host:
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        pass
+    else:
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+    labels = tuple(host.split("."))
+    if all(label.isdecimal() for label in labels) or not all(_DNS_LABEL.fullmatch(label) for label in labels):
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+
+
+def _validate_explicit_port(netloc: str, port: int | None) -> None:
+    if "@" in netloc:
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+    if ":" not in netloc:
+        return
+    _, separator, port_text = netloc.rpartition(":")
+    if not separator or not port_text or not port_text.isascii() or not port_text.isdecimal():
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+    if port is None or not 0 < port <= 65535:
+        raise ValueError("evidence url must be an absolute HTTPS URL")
+
+
+@_SCHEMA_FORMAT_CHECKER.checks("atlas-https-url")
+def _is_valid_atlas_https_url(value: object) -> bool:
+    try:
+        validate_public_evidence_url(value)  # type: ignore[arg-type]
+    except ValueError:
+        return False
+    return True
 
 
 @dataclass(frozen=True)

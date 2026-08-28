@@ -14,6 +14,7 @@ from atlas_worker.models import (
     ProjectRef,
     PublicProject,
     TagSet,
+    validate_public_evidence_url,
     validate_schema,
 )
 
@@ -298,6 +299,51 @@ def test_public_evidence_schema_rejects_invalid_url():
 
     with pytest.raises(ValueError, match="url"):
         validate_schema(payload, "public-evidence")
+
+
+@pytest.mark.parametrize(
+    "url",
+    (
+        "https://.",
+        "https://-bad.test/",
+        "https://example..test/",
+        "https://example.test:",
+        "https://\u2603.test/",
+        "https://example.test:65536/",
+        "https://example.test/#%0A",
+        "https://localhost/",
+        "https://127.0.0.1/",
+        "https://[::1]/",
+        "https://user@example.test/",
+        "https://example.test/%ZZ",
+        "https://example.test:0/",
+        "https://" + "a" * 64 + ".test/",
+        "https://" + ".".join(("a" * 63,) * 4) + "/",
+    ),
+)
+def test_public_evidence_url_helper_and_schema_reject_invalid_dns_authorities(url):
+    payload = [{"id": "ev-spec", "label": "Spec", "source_type": "spec", "observed_at": "2026-08-27T09:00:00+09:00", "url": url}]
+
+    with pytest.raises(ValueError, match="HTTPS"):
+        validate_public_evidence_url(url)
+    with pytest.raises(ValueError, match="url"):
+        validate_schema(payload, "public-evidence")
+
+
+@pytest.mark.parametrize(
+    "url",
+    (
+        "https://example.test",
+        "https://EXAMPLE.TEST",
+        "https://xn--bcher-kva.test",
+        "https://example.test:443/path?query=1#fragment",
+    ),
+)
+def test_public_evidence_url_helper_and_schema_accept_public_dns_https_urls(url):
+    payload = [{"id": "ev-spec", "label": "Spec", "source_type": "spec", "observed_at": "2026-08-27T09:00:00+09:00", "url": url}]
+
+    assert validate_public_evidence_url(url) == url
+    validate_schema(payload, "public-evidence")
 
 
 def test_project_article_projects_decision_evidence_ids_as_public_lists():

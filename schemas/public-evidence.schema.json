@@ -12,8 +12,7 @@
       "observed_at": {"type": "string", "format": "date-time"},
       "url": {
         "type": "string",
-        "format": "uri",
-        "pattern": "^https://[^\\s\\\\/@?#]+(?::[0-9]+)?(?:[/?#][^\\s\\\\]*)?$"
+        "format": "atlas-https-url"
       }
     }
   }
