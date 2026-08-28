@@ -41,6 +41,57 @@ test("loads structured v2 public project content without legacy fields", async (
   assert.equal(project.visualMap, undefined);
 });
 
+test("rejects non-public evidence URLs in the v2 store loader", async (t) => {
+  const cases = [
+    "http://example.com/doc",
+    "https://user:pass@example.com/doc",
+    "https://localhost/doc",
+    "https://foo.localhost/doc",
+    "https://127.0.0.1/doc",
+    "https://10.0.0.5/doc",
+    "https://169.254.1.2/doc",
+    "https://192.168.1.5/doc",
+    "https://172.16.0.1/doc",
+    "https://[::1]/doc",
+    "https://[fc00::1]/doc",
+    "https://[fe80::1]/doc",
+    "https://[::ffff:192.168.0.1]/doc",
+    "javascript:alert(1)",
+    "javascript&#58;alert(1)",
+    "%6a%61%76%61%73%63%72%69%70%74:alert(1)"
+  ];
+
+  for (const url of cases) {
+    const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-invalid-evidence-url-"));
+    t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+    await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+    const evidencePath = path.join(temporaryRoot, "projects", "alpha", "evidence.json");
+    const evidence = JSON.parse(await fsp.readFile(evidencePath, "utf8"));
+    evidence[0].url = url;
+    await fsp.writeFile(evidencePath, JSON.stringify(evidence));
+
+    await assert.rejects(
+      () => createAtlasStore({ bundleDir: temporaryRoot }).project("alpha"),
+      /invalid_atlas_evidence/,
+      url
+    );
+  }
+});
+
+test("accepts safe public HTTPS evidence URLs in the v2 store loader", async (t) => {
+  const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-safe-evidence-url-"));
+  t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+  await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+  const evidencePath = path.join(temporaryRoot, "projects", "alpha", "evidence.json");
+  const evidence = JSON.parse(await fsp.readFile(evidencePath, "utf8"));
+  evidence[0].url = "https://example.com/report";
+  await fsp.writeFile(evidencePath, JSON.stringify(evidence));
+
+  const project = await createAtlasStore({ bundleDir: temporaryRoot }).project("alpha");
+
+  assert.equal(project.evidence[0].url, "https://example.com/report");
+});
+
 test("loads legacy sections only from an explicit v1 manifest", async (t) => {
   const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-v1-bundle-"));
   t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));

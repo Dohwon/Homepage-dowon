@@ -175,10 +175,12 @@ test("client store normalizes defaults and strips private data recursively", asy
       sessions: [{ id: "session-1" }],
       Sessions: [{ id: "session-2" }],
       source_locator: "/home/dowon/.codex/sessions/private.jsonl",
+      locatorLabel: "Public badge",
+      ui_locator: { label: "Visible marker" },
       nested: {
         provenance: { source: "local" },
         PROVENANCE: { source: "local-variant" },
-        evidence_locator: "session:private",
+        sourceLocator: "session:private",
         title: "Public"
       }
     }
@@ -187,7 +189,12 @@ test("client store normalizes defaults and strips private data recursively", asy
   assert.deepEqual(store.getState(), {
     route: { view: "project", projectId: "alpha", tab: "overview" },
     bootstrap: null,
-    project: { id: "alpha", nested: { title: "Public" } },
+    project: {
+      id: "alpha",
+      locatorLabel: "Public badge",
+      ui_locator: { label: "Visible marker" },
+      nested: { title: "Public" }
+    },
     loading: false,
     error: null
   });

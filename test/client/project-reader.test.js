@@ -14,7 +14,7 @@ async function importRenderModule(t) {
   const clientRoot = path.join(tempRoot, "client");
   await fsp.mkdir(clientRoot, { recursive: true });
 
-  const files = ["router.js", "markdown.js", "graph-view.js", "render.js"];
+  const files = ["router.js", "public-url.js", "markdown.js", "graph-view.js", "render.js"];
   for (const fileName of files) {
     const sourcePath = path.join(WORKTREE_ROOT, "client", fileName);
     let source = await fsp.readFile(sourcePath, "utf8");
@@ -22,7 +22,11 @@ async function importRenderModule(t) {
       source = source
         .replace('./router.js', "./router.mjs")
         .replace('./markdown.js', "./markdown.mjs")
+        .replace('./public-url.js', "./public-url.mjs")
         .replace('./graph-view.js', "./graph-view.mjs");
+    }
+    if (fileName === "markdown.js") {
+      source = source.replace('./public-url.js', "./public-url.mjs");
     }
     await fsp.writeFile(path.join(clientRoot, fileName.replace(/\.js$/, ".mjs")), source, "utf8");
   }
@@ -231,5 +235,5 @@ test("evidence groups public records and drops unsafe urls and private locator f
   assert.match(result.html, /Focused test result/);
   assert.match(result.html, /https:\/\/example\.com\/report/);
   assert.match(result.html, /Private session note/);
-  assert.doesNotMatch(result.html, /javascript:|source_locator|session-123|\/home\/dowon\/\.codex\/sessions/);
+  assert.doesNotMatch(result.html, /javascript:|source_locator|session-123|\/home\/dowon\/\.codex\/sessions|foo\.localhost|127\.0\.0\.1/);
 });

@@ -32,14 +32,14 @@ test("public navigation, search, theme and project tabs work", async ({ page }) 
   await page.locator("[data-theme-toggle]").click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
-  await page.goto("/projects/alpha?tab=build-story");
-  await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveText("Build Story");
-  await expect(page.locator("script[data-injected]")).toHaveCount(0);
+  await page.goto("/projects/alpha?tab=build-timeline");
+  await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveText("Build Timeline");
+  await expect(page.locator('[role="tab"]')).toHaveText(["Decisions", "System Map", "Build Timeline", "Evidence"]);
   await expect(page.locator("[data-project-next]")).toBeVisible();
-  await expect(page.locator("[data-project-toc]")).toContainText("Constraint");
+  await expect(page.locator('[role="tabpanel"]')).toContainText("Published routing record");
 
   await page.goto("/projects/alpha?tab=decisions");
-  await expect(page.locator(".markdown-body")).toContainText("Safe decision");
+  await expect(page.locator(".decision-article")).toContainText("The routing decision is published as a deterministic public contract.");
   await expect(page.locator("script[data-injected], [data-unsafe-image][onerror]")).toHaveCount(0);
   expect(await page.evaluate(() => window.__atlasInjected)).toBeUndefined();
 });
@@ -52,13 +52,25 @@ test("project tab URL survives refresh", async ({ page }) => {
 });
 
 test("arrow-key tab navigation preserves focus and tabpanel relationships", async ({ page }) => {
-  await page.goto("/projects/alpha?tab=build-story");
+  await page.goto("/projects/alpha?tab=build-timeline");
   const selected = page.locator('[role="tab"][aria-selected="true"]');
   await selected.focus();
   await page.keyboard.press("ArrowRight");
 
-  await expect(page).toHaveURL(/tab=decisions$/);
-  await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveText("Decisions");
+  await expect(page).toHaveURL(/tab=evidence$/);
+  await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveText("Evidence");
   await expect(page.locator('[role="tab"][aria-selected="true"]')).toBeFocused();
-  await expect(page.locator('[role="tabpanel"]')).toHaveAttribute("aria-labelledby", /project-tab-decisions/);
+  await expect(page.locator('[role="tabpanel"]')).toHaveAttribute("aria-labelledby", /project-tab-evidence/);
+});
+
+test("pager and graph project routes land on Decisions", async ({ page }) => {
+  await page.goto("/projects/alpha?tab=system-map");
+  await page.locator("[data-project-next]").click();
+  await expect(page).toHaveURL(/\/projects\/beta$/);
+  await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveText("Decisions");
+
+  await page.goto("/graph");
+  await page.locator('#knowledge-graph [data-node-type="Project"]').first().click();
+  await expect(page).toHaveURL(/\/projects\/alpha$/);
+  await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveText("Decisions");
 });

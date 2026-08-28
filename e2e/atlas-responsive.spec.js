@@ -2,11 +2,17 @@ const { test, expect } = require("./fixtures");
 
 for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
   test(`layout is bounded at ${viewport.width}`, async ({ page }) => {
+    await page.route("**/api/atlas/projects/alpha", async (route) => {
+      const response = await route.fetch();
+      const project = await response.json();
+      project.systemMap = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 1h8" /></svg>';
+      await route.fulfill({ response, contentType: "application/json", body: JSON.stringify(project) });
+    });
     await page.setViewportSize(viewport);
     await page.addInitScript(() => localStorage.setItem("atlas-theme", "dark"));
-    await page.goto("/projects/alpha?tab=visual-map");
-    await expect(page.locator("[data-project-map] svg")).toBeVisible();
-    await expect(page.locator("[data-project-map] script, [data-project-map] foreignObject, [data-project-map] [onload]")).toHaveCount(0);
+    await page.goto("/projects/alpha?tab=system-map");
+    await expect(page.locator("[data-system-map] svg")).toBeVisible();
+    await expect(page.locator("[data-system-map] script, [data-system-map] foreignObject, [data-system-map] [onload]")).toHaveCount(0);
     expect(await page.evaluate(() => window.__atlasSvgInjected)).toBeUndefined();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);

@@ -1,14 +1,28 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
+const os = require("node:os");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 
-async function importBrowserModule(relativePath) {
+async function importBrowserModule(t, relativePath) {
   const absolutePath = path.join(__dirname, "../..", relativePath);
-  const source = await fs.readFile(absolutePath, "utf8");
-  const encoded = Buffer.from(`${source}\n//# sourceURL=${pathToFileURL(absolutePath).href}`).toString("base64");
-  return import(`data:text/javascript;base64,${encoded}`);
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "atlas-markdown-"));
+  t.after(() => fs.rm(tempRoot, { recursive: true, force: true }));
+  const clientRoot = path.join(tempRoot, "client");
+  await fs.mkdir(clientRoot, { recursive: true });
+
+  const files = ["public-url.js", "markdown.js"];
+  for (const fileName of files) {
+    const sourcePath = path.join(path.dirname(absolutePath), fileName);
+    let source = await fs.readFile(sourcePath, "utf8");
+    if (fileName === "markdown.js") {
+      source = source.replace('./public-url.js', "./public-url.mjs");
+    }
+    await fs.writeFile(path.join(clientRoot, fileName.replace(/\.js$/, ".mjs")), source, "utf8");
+  }
+
+  return import(pathToFileURL(path.join(clientRoot, path.basename(relativePath).replace(/\.js$/, ".mjs"))).href);
 }
 
 function preserveGlobals() {
@@ -42,7 +56,7 @@ test("markdown output always passes through the strict DOMPurify boundary", asyn
       return html.replace(/<script[\s\S]*?<\/script>/g, "");
     }
   };
-  const { renderMarkdown } = await importBrowserModule("client/markdown.js");
+  const { renderMarkdown } = await importBrowserModule(t, "client/markdown.js");
 
   const result = renderMarkdown("Constraint");
 
@@ -59,7 +73,7 @@ test("markdown rendering fails closed when a browser dependency is unavailable",
   t.after(restore);
   delete globalThis.marked;
   delete globalThis.DOMPurify;
-  const { renderMarkdown } = await importBrowserModule("client/markdown.js");
+  const { renderMarkdown } = await importBrowserModule(t, "client/markdown.js");
 
   assert.throws(() => renderMarkdown("<script>unsafe()</script>"), /markdown_renderer_unavailable/);
 });
@@ -75,7 +89,7 @@ test("markdown rendering coerces missing content to an empty string", async t =>
     }
   };
   globalThis.DOMPurify = { sanitize: html => html };
-  const { renderMarkdown } = await importBrowserModule("client/markdown.js");
+  const { renderMarkdown } = await importBrowserModule(t, "client/markdown.js");
 
   assert.equal(renderMarkdown(null), "");
   assert.equal(receivedSource, "");
@@ -83,27 +97,24 @@ test("markdown rendering coerces missing content to an empty string", async t =>
   assert.equal(receivedSource, "0");
 });
 
-test("markdown rendering strips unsafe urls while preserving safe https links", async t => {
+test("markdown rendering keeps safe public links after DOMPurify sanitization", async t => {
   const restore = preserveGlobals();
   t.after(restore);
   globalThis.marked = {
     parse() {
-      return '<p><a href="javascript:alert(1)">bad</a><a href="https://example.com/doc">good</a></p>';
+      return '<p><a href="https://example.com/doc">good</a><a href="/projects/beta">relative</a><a href="#routing">fragment</a></p>';
     }
   };
   globalThis.DOMPurify = {
-    sanitize(html) {
-      return html
-        .replace(/href="javascript:[^"]*"/g, "")
-        .replace(/href="https?:\/\/(?:10|127|169\.254|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.[^"]*"/g, "");
-    }
+    sanitize(html) { return html; }
   };
-  const { renderMarkdown } = await importBrowserModule("client/markdown.js");
+  const { renderMarkdown } = await importBrowserModule(t, "client/markdown.js");
 
-  const result = renderMarkdown("[bad](javascript:alert(1)) [good](https://example.com/doc)");
+  const result = renderMarkdown("[good](https://example.com/doc)");
 
-  assert.doesNotMatch(result, /javascript:/);
   assert.match(result, /https:\/\/example\.com\/doc/);
+  assert.match(result, /href="\/projects\/beta"/);
+  assert.match(result, /href="#routing"/);
 });
 
 test("svg sanitization uses an independent strict svg policy", async t => {
@@ -120,7 +131,7 @@ test("svg sanitization uses an independent strict svg policy", async t => {
         .replace(/\s(?:onload|onclick|onerror|href|xlink:href)="[^"]*"/g, "");
     }
   };
-  const { sanitizeSvg } = await importBrowserModule("client/markdown.js");
+  const { sanitizeSvg } = await importBrowserModule(t, "client/markdown.js");
 
   const result = sanitizeSvg('<svg xmlns="http://www.w3.org/2000/svg" onload="unsafe()"><script>bad()</script><foreignObject>bad</foreignObject><g href="https://evil.example/track"><path d="M0 0h1" /></g></svg>');
 

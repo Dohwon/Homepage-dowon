@@ -1,5 +1,6 @@
 import { toRouteHref, PROJECT_TABS } from "./router.js";
 import { renderMarkdown, sanitizeSvg } from "./markdown.js";
+import { toSafePublicHref } from "./public-url.js";
 import { createGraphView } from "./graph-view.js";
 
 const TAB_LABELS = {
@@ -47,24 +48,6 @@ function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   }[character]));
-}
-
-function safeHref(value, fallback = "/") {
-  const href = String(value || "").trim();
-  if (href.startsWith("/") && !href.startsWith("//")) return escapeHtml(href);
-  try {
-    const url = new URL(href);
-    const privateIpv4 = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(url.hostname)
-      && ((url.hostname.startsWith("10.") || url.hostname.startsWith("127.") || url.hostname.startsWith("192.168."))
-        || url.hostname.startsWith("169.254.")
-        || /^172\.(1[6-9]|2\d|3[01])\./.test(url.hostname));
-    if (/^https:$/i.test(url.protocol) && !privateIpv4 && url.hostname !== "localhost") {
-      return escapeHtml(url.toString());
-    }
-  } catch {
-    return fallback;
-  }
-  return fallback;
 }
 
 function flattenTags(project) {
@@ -398,7 +381,7 @@ function evidenceItems(records = []) {
 }
 
 function renderEvidenceLink(url) {
-  const href = safeHref(url, "");
+  const href = toSafePublicHref(url);
   return href ? `<a href="${href}" target="_blank" rel="noreferrer noopener">Open source</a>` : "";
 }
 
