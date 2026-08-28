@@ -344,6 +344,28 @@ def test_public_bundle_validation_api_is_read_only(tmp_path):
     assert _tree_bytes(fixture) == before
 
 
+def test_rehashed_duplicate_search_index_fails_validation_and_preserves_last_good_on_promotion(
+    tmp_path,
+):
+    staging = tmp_path / "staging"
+    public_dir = tmp_path / "public-bundle"
+    write_bundle_fixture(staging, version=None, summary="candidate")
+    write_bundle_fixture(public_dir, version=None, summary="last good")
+    search_path = staging / "search-index.json"
+    search_index = json.loads(search_path.read_text(encoding="utf-8"))
+    search_index.append(dict(search_index[0]))
+    search_path.write_text(json.dumps(search_index, sort_keys=True) + "\n", encoding="utf-8")
+    refresh_fixture_manifest(staging, None, ("alpha",))
+    before = _tree_bytes(public_dir)
+
+    with pytest.raises(ValueError, match="search document IDs must be unique"):
+        validate_bundle(staging, PrivacyGate(alias_key=b"key"))
+    with pytest.raises(ValueError, match="search document IDs must be unique"):
+        promote_bundle(staging, public_dir, PrivacyGate(alias_key=b"key"))
+
+    assert _tree_bytes(public_dir) == before
+
+
 def test_validate_bundle_reads_explicit_v1_legacy_contract_for_one_release(tmp_path):
     fixture = tmp_path / "public-bundle"
     write_bundle_fixture(fixture, version=None, summary="safe", format_version=1)

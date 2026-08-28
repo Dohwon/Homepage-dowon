@@ -1059,9 +1059,13 @@ def _validate_changelog(value: object, project_ids: set[str]) -> None:
 
 def _validate_search_index(value: object, project_ids: set[str]) -> None:
     records = _require_record_list(value, "search index")
+    record_ids: set[str] = set()
     for record in records:
         _require_exact_keys(record, {"id", "project_id", "title", "body", "url"}, "search document")
         _require_non_empty_strings(record, ("id", "project_id", "title", "url"), "search document")
+        if record["id"] in record_ids:
+            raise ValueError("search document IDs must be unique")
+        record_ids.add(record["id"])
         if not isinstance(record["body"], str):
             raise ValueError("search document body must be a string")
         if record["project_id"] not in project_ids:
