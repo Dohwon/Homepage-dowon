@@ -131,8 +131,6 @@ def _reviewed_profile(project_id: str, lifecycle: str = "active") -> dict[str, o
 def _write_ready_article(workspace: Path, readiness: str = "ready") -> None:
     source = workspace / "projects" / "alpha" / "project_memory" / "project-atlas"
     source.mkdir(parents=True)
-    (source / "sources").mkdir(exist_ok=True)
-    (source / "sources" / "routing-proof.md").write_text("line 1\nline 2\n", encoding="utf-8")
     (source / "article.yaml").write_text(
         yaml.safe_dump(
             {
@@ -158,7 +156,7 @@ def _write_ready_article(workspace: Path, readiness: str = "ready") -> None:
             "project_id": "alpha",
             "label": "Public routing contract",
             "source_type": "test",
-            "source_locator": "project_memory/project-atlas/sources/routing-proof.md:1",
+            "source_locator": "/private/atlas/test.py:1",
             "observed_at": "2026-08-24T10:00:00Z",
             "privacy_class": "private",
             "content_hash": "a" * 64,

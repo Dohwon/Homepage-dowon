@@ -7,6 +7,7 @@ import pytest
 from atlas_worker.article import load_project_article, load_project_evidence
 from atlas_worker.config import DiscoveryConfig
 from atlas_worker.discovery import discover_projects
+from atlas_worker.fs_safety import read_confined_text
 from atlas_worker.models import DecisionIndexEntry
 from atlas_worker.source_manifest import resolve_git_owner
 from tests.worker.helpers import (
@@ -85,6 +86,20 @@ def test_map_diary_v2_article_preserves_verified_data_lifecycle_decision(map_dia
             "project_memory/project-atlas/sources/verified-v2-design.md:7",
         ),
     ]
+    expected_source_lines = (
+        "근거 1: TMAP 데이터는 24시간을 넘겨 저장하지 않는다.",
+        "근거 2: 영구 방문 기록에는 VWorld Feature ID와 geometry snapshot을 저장한다.",
+        "근거 3: 영구 변환 뒤 TMAP 원본 경로는 폐기하고 방문 기록에 남기지 않는다.",
+    )
+    for record, expected_line in zip(evidence, expected_source_lines, strict=True):
+        relative_path, separator, line_text = record.source_locator.rpartition(":")
+        assert separator and line_text.isdecimal()
+        source = read_confined_text(
+            map_diary_v2_ref.root / relative_path,
+            map_diary_v2_ref.root,
+            atlas_content_gate(),
+        )
+        assert source.splitlines()[int(line_text) - 1] == expected_line
     assert all("source_locator" not in item for item in (record.to_public_dict() for record in evidence))
     diagram = article.sections[0].diagrams[0]
     assert diagram.diagram_id == "tmap-vworld-lifecycle"

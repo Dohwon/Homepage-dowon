@@ -43,7 +43,7 @@ def _evidence(evidence_id: str = "ev-spec") -> dict[str, object]:
         "project_id": "alpha",
         "label": "Curated specification",
         "source_type": "spec",
-        "source_locator": "project_memory/project-atlas/sources/verified-source.md:2",
+        "source_locator": "/private/atlas/spec.md:12",
         "observed_at": "2026-08-27T10:00:00Z",
         "privacy_class": "private",
         "content_hash": "a" * 64,
@@ -77,25 +77,6 @@ def _write_article(root: Path, article: dict[str, object]) -> Path:
 
 
 def _write_evidence(root: Path, records: list[dict[str, object]]) -> Path:
-    for record in records:
-        locator = record.get("source_locator")
-        if not isinstance(locator, str):
-            continue
-        relative_path, separator, line_text = locator.rpartition(":")
-        if not separator or not relative_path or not line_text.isdecimal():
-            continue
-        path = Path(relative_path)
-        if path.is_absolute() or relative_path.startswith("//") or relative_path[:2].endswith(":"):
-            continue
-        target = root / path
-        if target.exists():
-            continue
-        target.parent.mkdir(parents=True, exist_ok=True)
-        lines = max(int(line_text), 1)
-        target.write_text(
-            "".join(f"line {index}\n" for index in range(1, lines + 1)),
-            encoding="utf-8",
-        )
     path = _atlas_dir(root) / "evidence.yaml"
     path.write_text(yaml.safe_dump(records, allow_unicode=True, sort_keys=False), encoding="utf-8")
     return path
@@ -182,24 +163,18 @@ def test_article_requires_evidence_for_references_and_resolves_decisions(tmp_pat
     assert load_project_article(ref, _gate()) is not None
 
 
-def test_evidence_loader_requires_confined_existing_source_locator(tmp_path):
+def test_evidence_loader_preserves_opaque_session_locator_without_dereferencing(tmp_path):
     ref = make_project_ref(tmp_path)
     _write_article(tmp_path, _article())
-    target = _atlas_dir(tmp_path) / "sources" / "verified-source.md"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text("line 1\nline 2\n", encoding="utf-8")
+    session = _evidence()
+    session["source_type"] = "session"
+    session["source_locator"] = "/home/dowon/.codex/sessions/2026/08/27/rollout.jsonl:42"
+    _write_evidence(tmp_path, [session])
 
-    missing_line = _evidence()
-    missing_line["source_locator"] = "project_memory/project-atlas/sources/verified-source.md:9"
-    _write_evidence(tmp_path, [missing_line])
-    with pytest.raises(ValueError, match="line is out of range"):
-        load_project_evidence(ref, _gate())
+    evidence = load_project_evidence(ref, _gate())
 
-    outside = _evidence()
-    outside["source_locator"] = "/private/atlas/spec.md:2"
-    _write_evidence(tmp_path, [outside])
-    with pytest.raises(ValueError, match="confined source"):
-        load_project_evidence(ref, _gate())
+    assert evidence[0].source_locator == session["source_locator"]
+    assert "source_locator" not in evidence[0].to_public_dict()
 
 
 @pytest.mark.parametrize(
@@ -384,7 +359,7 @@ def test_evidence_url_is_rechecked_at_public_projection_and_schema_boundary(tmp_
         project_id="alpha",
         label="Unsafe",
         source_type="spec",
-        source_locator="project_memory/project-atlas/sources/verified-source.md:1",
+        source_locator="/private/evidence",
         observed_at="2026-08-27T10:00:00Z",
         privacy_class="private",
         content_hash="a" * 64,
