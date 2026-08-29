@@ -360,6 +360,44 @@ test("reader restores valid hashes on initial render and hash history changes", 
   assert.equal(fixture.listeners.has("hashchange"), false);
 });
 
+test("reader ignores a delayed observer callback after cleanup", async (t) => {
+  const { bindProjectReader } = await importReaderModule(t);
+  const fixture = readerFixture(["retention", "validation"]);
+  const observer = new FakeIntersectionObserver();
+  const cleanup = bindProjectReader(fixture.root, {
+    ...fixture.dependencies,
+    observerFactory: (callback) => observer.connect(callback)
+  });
+  fixture.nextFrame();
+
+  cleanup();
+  fixture.location.pathname = "/graph";
+  fixture.location.hash = "";
+  observer.emit("validation");
+
+  assert.deepEqual(fixture.history.urls, []);
+  assert.ok(fixture.links.every((link) => link.getAttribute("aria-current") === null));
+});
+
+test("reader ignores a queued hash restoration after cleanup", async (t) => {
+  const { bindProjectReader } = await importReaderModule(t);
+  const fixture = readerFixture(["retention", "validation"], { hash: "#retention" });
+  const observer = new FakeIntersectionObserver();
+  const cleanup = bindProjectReader(fixture.root, {
+    ...fixture.dependencies,
+    observerFactory: (callback) => observer.connect(callback)
+  });
+
+  cleanup();
+  fixture.location.pathname = "/graph";
+  fixture.location.hash = "#validation";
+  fixture.nextFrame();
+
+  assert.deepEqual(fixture.history.urls, []);
+  assert.ok(fixture.links.every((link) => link.getAttribute("aria-current") === null));
+  assert.ok(fixture.sections.every((section) => section.scrollIntoViewCalls === 0));
+});
+
 test("reader fails safely for malformed or unknown hashes", async (t) => {
   const { bindProjectReader, hasValidProjectHash } = await importReaderModule(t);
   for (const hash of ["#%E0%A4%A", "#missing", "#"]) {
@@ -385,6 +423,9 @@ test("rendered TOCs use ordinary same-page anchors and valid hashes suppress top
   const fixture = readerFixture(["retention"], { hash: "#retention" });
 
   assert.equal((html.match(/data-project-toc/g) || []).length, 2);
+  assert.equal((html.match(/<nav\b/g) || []).length, 2);
+  assert.match(html, /<nav class="aside-section project-desktop-toc" data-project-toc aria-label="현재 프로젝트 목차">/);
+  assert.match(html, /<details class="project-mobile-toc">[\s\S]*<nav data-project-toc aria-label="현재 프로젝트 목차">/);
   assert.equal((html.match(/href="#retention"/g) || []).length, 2);
   assert.doesNotMatch(html, /data-route-link/);
   assert.equal(hasValidProjectHash(fixture.root, "#retention"), true);

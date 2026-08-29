@@ -428,9 +428,9 @@ export function renderProjectToc(headings) {
   if (!Array.isArray(headings) || !headings.length) return "";
   const items = tocItems(headings);
   return `
-    <section class="aside-section project-desktop-toc" data-project-toc>
+    <nav class="aside-section project-desktop-toc" data-project-toc aria-label="현재 프로젝트 목차">
       <h2>On this page</h2><ul>${items}</ul>
-    </section>
+    </nav>
     <details class="project-mobile-toc">
       <summary>On this page</summary>
       <nav data-project-toc aria-label="현재 프로젝트 목차"><ul>${items}</ul></nav>

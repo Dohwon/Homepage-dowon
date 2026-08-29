@@ -47,7 +47,9 @@ export function bindProjectReader(root, {
     links.get(id).push(link);
   }
 
+  let disposed = false;
   const activate = (id, { updateHash = true } = {}) => {
+    if (disposed) return;
     for (const [linkId, matchingLinks] of links) {
       for (const link of matchingLinks) {
         if (linkId === id) link.setAttribute("aria-current", "location");
@@ -64,6 +66,7 @@ export function bindProjectReader(root, {
   let preserveInitialHash = hasValidProjectHash(root, location?.hash);
   const restoreHash = () => {
     restoreFrame = 0;
+    if (disposed) return;
     const section = sectionForHash(root, location?.hash);
     if (!section) {
       preserveInitialHash = false;
@@ -74,12 +77,13 @@ export function bindProjectReader(root, {
     preserveInitialHash = false;
   };
   const scheduleHashRestore = () => {
+    if (disposed) return;
     if (restoreFrame) cancelFrame(restoreFrame);
     restoreFrame = requestFrame(restoreHash);
   };
 
   const observer = observerFactory((entries) => {
-    if (preserveInitialHash) return;
+    if (disposed || preserveInitialHash) return;
     const current = entries
       .filter((entry) => entry.isIntersecting && entry.target?.id)
       .sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top)[0];
@@ -92,6 +96,8 @@ export function bindProjectReader(root, {
   scheduleHashRestore();
 
   return () => {
+    if (disposed) return;
+    disposed = true;
     observer.disconnect();
     windowTarget?.removeEventListener?.("hashchange", onHashChange);
     if (restoreFrame) cancelFrame(restoreFrame);
