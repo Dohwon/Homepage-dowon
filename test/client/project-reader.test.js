@@ -422,7 +422,9 @@ test("rendered TOCs use ordinary same-page anchors and valid hashes suppress top
   ]);
   const fixture = readerFixture(["retention"], { hash: "#retention" });
 
-  assert.equal((html.match(/data-project-toc/g) || []).length, 2);
+  assert.equal((html.match(/data-project-toc(?=[\s>])/g) || []).length, 2);
+  assert.equal((html.match(/data-project-toc-desktop/g) || []).length, 1);
+  assert.equal((html.match(/data-project-toc-mobile/g) || []).length, 1);
   assert.equal((html.match(/<nav\b/g) || []).length, 2);
   assert.match(html, /<nav class="aside-section project-desktop-toc" data-project-toc aria-label="현재 프로젝트 목차">/);
   assert.match(html, /<details class="project-mobile-toc">[\s\S]*<nav data-project-toc aria-label="현재 프로젝트 목차">/);

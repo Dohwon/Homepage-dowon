@@ -428,13 +428,17 @@ export function renderProjectToc(headings) {
   if (!Array.isArray(headings) || !headings.length) return "";
   const items = tocItems(headings);
   return `
-    <nav class="aside-section project-desktop-toc" data-project-toc aria-label="현재 프로젝트 목차">
-      <h2>On this page</h2><ul>${items}</ul>
-    </nav>
-    <details class="project-mobile-toc">
-      <summary>On this page</summary>
-      <nav data-project-toc aria-label="현재 프로젝트 목차"><ul>${items}</ul></nav>
-    </details>`;
+    <div class="project-desktop-toc-slot" data-project-toc-desktop>
+      <nav class="aside-section project-desktop-toc" data-project-toc aria-label="현재 프로젝트 목차">
+        <h2>On this page</h2><ul>${items}</ul>
+      </nav>
+    </div>
+    <div class="project-mobile-toc-slot" data-project-toc-mobile>
+      <details class="project-mobile-toc">
+        <summary>On this page</summary>
+        <nav data-project-toc aria-label="현재 프로젝트 목차"><ul>${items}</ul></nav>
+      </details>
+    </div>`;
 }
 
 function renderProject(state) {
@@ -455,8 +459,8 @@ function renderProject(state) {
           <div><p class="eyebrow">${escapeHtml(project.lifecycle)}</p><h1>${escapeHtml(project.name || project.id)}</h1><p class="project-summary">${escapeHtml(project.summary)}</p></div>
         </div>
         <div class="tag-row">${tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div>
-        <nav class="project-tabs" role="tablist" aria-label="프로젝트 문서">${projectTabs(project, route.tab)}</nav>
       </header>
+      <nav class="project-tabs project-tab-rail" data-project-tab-rail role="tablist" aria-label="프로젝트 문서">${projectTabs(project, route.tab)}</nav>
       <div class="project-layout">
         <section id="project-tabpanel" class="project-article" role="tabpanel" aria-labelledby="project-tab-${route.tab}">${content.html}
           <nav class="project-pager" aria-label="이전 및 다음 프로젝트">

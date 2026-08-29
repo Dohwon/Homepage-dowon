@@ -1,6 +1,11 @@
 const { test, expect } = require("./fixtures");
 
-for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 768, height: 1024 },
+  { width: 390, height: 844 },
+  { width: 320, height: 740 }
+]) {
   test(`layout is bounded at ${viewport.width}`, async ({ page }) => {
     await page.route("**/api/atlas/projects/alpha", async (route) => {
       const response = await route.fetch();
@@ -19,6 +24,8 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     const letterSpacing = await page.locator('[role="tab"]').first().evaluate((element) => getComputedStyle(element).letterSpacing);
     expect(["normal", "0px"]).toContain(letterSpacing);
+    const titleSize = Number.parseFloat(await page.locator(".project-title-row h1").evaluate((element) => getComputedStyle(element).fontSize));
+    expect(titleSize).toBeLessThanOrEqual(viewport.width <= 760 ? 30 : 42);
   });
 }
 
