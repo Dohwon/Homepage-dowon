@@ -33,6 +33,12 @@ test("browser strips hostile markdown urls and svg markup without navigation", a
           '<a id="safe-relative" href="/projects/beta">safe relative</a>',
           '<a id="safe-fragment" href="#routing">safe fragment</a>',
           '<a id="safe-public" href="https://example.com/doc">safe public</a>',
+          '<form id="unsafe-action-quoted" action="https://foo.local/private"><button type="button">bad quoted action</button></form>',
+          '<form id="unsafe-action-unquoted" action=https://foo.internal/private><button type="button">bad unquoted action</button></form>',
+          '<form id="unsafe-action-entity" action="https://foo&#46;local/private"><button type="button">bad entity action</button></form>',
+          '<form id="unsafe-action-encoded" action="%68%74%74%70%73://example.com/private"><button type="button">bad encoded action</button></form>',
+          '<form id="safe-action" action="https://example.com/submit"><button type="button">safe action</button></form>',
+          '<button id="unsafe-formaction" formaction="https://foo.local/private">bad formaction</button>',
           '<img id="unsafe-image" src=javascript:window.__atlasImage=1 onerror="window.__atlasImage=1" />'
         ].join("\n")
       }]
@@ -55,15 +61,22 @@ test("browser strips hostile markdown urls and svg markup without navigation", a
   await expect(page.locator("#safe-relative")).toHaveAttribute("href", "/projects/beta");
   await expect(page.locator("#safe-fragment")).toHaveAttribute("href", "#routing");
   await expect(page.locator("#safe-public")).toHaveAttribute("href", "https://example.com/doc");
+  await expect(page.locator("#safe-action")).toHaveAttribute("action", "https://example.com/submit");
 
   for (const selector of ["#unsafe-entity", "#unsafe-unquoted", "#unsafe-encoded", "#unsafe-localhost", "#unsafe-ipv6", "#unsafe-creds"]) {
     await expect(page.locator(selector)).not.toHaveAttribute("href", /.+/);
   }
+  for (const selector of ["#unsafe-action-quoted", "#unsafe-action-unquoted", "#unsafe-action-entity", "#unsafe-action-encoded"]) {
+    await expect(page.locator(selector)).not.toHaveAttribute("action", /.+/);
+  }
+  await expect(page.locator("#unsafe-formaction")).not.toHaveAttribute("formaction", /.+/);
   await expect(page.locator(".decision-article [onerror], .decision-article [onclick], .decision-article [src^=\"javascript:\"], .decision-article [href^=\"javascript:\"]")).toHaveCount(0);
   const before = page.url();
   await page.locator("#unsafe-unquoted").click();
   await expect(page).toHaveURL(before);
   await page.locator("#unsafe-localhost").click();
+  await expect(page).toHaveURL(before);
+  await page.locator("#unsafe-formaction").click();
   await expect(page).toHaveURL(before);
   expect(await page.evaluate(() => ({ injected: window.__atlasInjected, image: window.__atlasImage }))).toEqual({
     injected: undefined,

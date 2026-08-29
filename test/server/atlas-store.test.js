@@ -47,6 +47,8 @@ test("rejects non-public evidence URLs in the v2 store loader", async (t) => {
     "https://user:pass@example.com/doc",
     "https://localhost/doc",
     "https://foo.localhost/doc",
+    "https://foo.local/doc",
+    "https://foo.internal/doc",
     "https://127.0.0.1/doc",
     "https://10.0.0.5/doc",
     "https://169.254.1.2/doc",
@@ -58,7 +60,10 @@ test("rejects non-public evidence URLs in the v2 store loader", async (t) => {
     "https://[::ffff:192.168.0.1]/doc",
     "javascript:alert(1)",
     "javascript&#58;alert(1)",
-    "%6a%61%76%61%73%63%72%69%70%74:alert(1)"
+    "%6a%61%76%61%73%63%72%69%70%74:alert(1)",
+    "https://example.com/&#x110000;",
+    "https://example.com/&#xD800;",
+    "https://example.com/&#x;"
   ];
 
   for (const url of cases) {

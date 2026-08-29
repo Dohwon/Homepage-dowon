@@ -25,6 +25,8 @@ test("browser public URL helper accepts only strict public destinations", async 
     "https://user:pass@example.com/doc",
     "https://localhost/doc",
     "https://foo.localhost/doc",
+    "https://foo.local/doc",
+    "https://foo.internal/doc",
     "https://127.0.0.1/doc",
     "https://10.0.0.5/doc",
     "https://169.254.1.2/doc",
@@ -41,4 +43,24 @@ test("browser public URL helper accepts only strict public destinations", async 
   ]) {
     assert.equal(toSafePublicHref(value, { allowRelative: true, allowFragment: true }), "", value);
   }
+});
+
+test("browser public URL helper never throws for invalid numeric HTML entities", async () => {
+  const { toSafePublicHref } = await importBrowserModule("client/public-url.js");
+  const invalidEntities = [
+    "https://example.com/&#x110000;",
+    "https://example.com/&#xD800;",
+    "https://example.com/&#55296;",
+    "https://example.com/&#9999999999999999999999;",
+    "https://example.com/&#x;"
+  ];
+
+  for (const value of invalidEntities) {
+    assert.doesNotThrow(() => toSafePublicHref(value), value);
+    assert.equal(toSafePublicHref(value), "", value);
+  }
+  assert.equal(
+    toSafePublicHref("https://example.com/&#x10FFFF;"),
+    "https://example.com/&#x10FFFF;"
+  );
 });

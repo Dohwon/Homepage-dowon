@@ -1,8 +1,10 @@
 const CONTROL_OR_SPACE = /[\u0000-\u0020\u007F]/;
 const IPV4_LITERAL = /^(?:\d{1,3}\.){3}\d{1,3}$/;
 const HTML_ENTITY = /&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]+);/gi;
+const NUMERIC_ENTITY_CANDIDATE = /&#(?:x[^;]*|[^;]*);/gi;
 const TAG_WITH_ATTRIBUTES = /<([a-z][a-z0-9:-]*)(\s[^<>]*?)?>/gi;
-const ATTRIBUTE_WITH_URL = /\s(href|src|xlink:href)\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/gi;
+const ATTRIBUTE_WITH_URL = /\s(href|src|xlink:href|action|formaction)\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/gi;
+const URL_ATTRIBUTES = Object.freeze(["href", "src", "xlink:href", "action", "formaction"]);
 const NAMED_ENTITIES = Object.freeze({
   amp: "&",
   apos: "'",
@@ -19,14 +21,31 @@ function decodeHtmlEntities(value) {
     const normalized = String(token).toLowerCase();
     if (normalized.startsWith("#x")) {
       const codePoint = Number.parseInt(normalized.slice(2), 16);
-      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+      return isUnicodeScalar(codePoint) ? String.fromCodePoint(codePoint) : match;
     }
     if (normalized.startsWith("#")) {
       const codePoint = Number.parseInt(normalized.slice(1), 10);
-      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+      return isUnicodeScalar(codePoint) ? String.fromCodePoint(codePoint) : match;
     }
     return Object.hasOwn(NAMED_ENTITIES, normalized) ? NAMED_ENTITIES[normalized] : match;
   });
+}
+
+function isUnicodeScalar(codePoint) {
+  return Number.isInteger(codePoint)
+    && codePoint >= 0
+    && codePoint <= 0x10FFFF
+    && (codePoint < 0xD800 || codePoint > 0xDFFF);
+}
+
+function hasInvalidNumericEntity(value) {
+  return String(value).match(NUMERIC_ENTITY_CANDIDATE)?.some((entity) => {
+    const token = entity.slice(2, -1).toLowerCase();
+    const hexadecimal = token.startsWith("x");
+    const digits = hexadecimal ? token.slice(1) : token;
+    if (!(hexadecimal ? /^[0-9a-f]+$/ : /^\d+$/).test(digits)) return true;
+    return !isUnicodeScalar(Number.parseInt(digits, hexadecimal ? 16 : 10));
+  }) ?? false;
 }
 
 function decodePercent(value) {
@@ -82,7 +101,9 @@ function normalizeHost(hostname) {
 }
 
 function isLocalHostname(hostname) {
-  return hostname === "localhost" || hostname.endsWith(".localhost");
+  return ["localhost", "local", "internal"].some((suffix) => (
+    hostname === suffix || hostname.endsWith(`.${suffix}`)
+  ));
 }
 
 function isIpLiteral(hostname) {
@@ -92,6 +113,7 @@ function isIpLiteral(hostname) {
 export function toSafePublicHref(value, { allowRelative = false, allowFragment = false } = {}) {
   const href = String(value ?? "").trim();
   if (!href || href.includes("\\") || CONTROL_OR_SPACE.test(href)) return "";
+  if (hasInvalidNumericEntity(href)) return "";
   if (revealsObfuscatedScheme(href)) return "";
   if (allowFragment && href.startsWith("#")) return href;
   if (allowRelative && href.startsWith("/") && !href.startsWith("//")) return href;
@@ -122,10 +144,10 @@ function attributePolicy(tagName, attributeName, options) {
 function sanitizeWithDom(html, options) {
   const parser = new DOMParser();
   const document = parser.parseFromString(`<body>${html}</body>`, "text/html");
-  const elements = document.body.querySelectorAll("[href], [src], [xlink\\:href]");
+  const elements = document.body.querySelectorAll("[href], [src], [xlink\\:href], [action], [formaction]");
   for (const element of elements) {
     const tagName = element.tagName.toLowerCase();
-    for (const attributeName of ["href", "src", "xlink:href"]) {
+    for (const attributeName of URL_ATTRIBUTES) {
       if (!element.hasAttribute(attributeName)) continue;
       const safeHref = toSafePublicHref(element.getAttribute(attributeName), attributePolicy(tagName, attributeName, options));
       if (safeHref) element.setAttribute(attributeName, safeHref);

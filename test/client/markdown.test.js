@@ -117,6 +117,32 @@ test("markdown rendering keeps safe public links after DOMPurify sanitization", 
   assert.match(result, /href="#routing"/);
 });
 
+test("markdown rendering filters form destinations after DOMPurify sanitization", async t => {
+  const restore = preserveGlobals();
+  t.after(restore);
+  globalThis.marked = {
+    parse() {
+      return [
+        '<form id="unsafe-action" action="https://foo.local/private"></form>',
+        '<button id="unsafe-formaction" formaction="https://foo.internal/private">bad</button>',
+        '<form id="safe-action" action="https://example.com/submit"></form>',
+        '<button id="safe-formaction" formaction="https://example.com/submit">good</button>'
+      ].join("");
+    }
+  };
+  globalThis.DOMPurify = {
+    sanitize(html) { return html; }
+  };
+  const { renderMarkdown } = await importBrowserModule(t, "client/markdown.js");
+
+  const result = renderMarkdown("form controls");
+
+  assert.match(result, /id="unsafe-action"/);
+  assert.doesNotMatch(result, /foo\.(?:local|internal)/);
+  assert.match(result, /action="https:\/\/example\.com\/submit"/);
+  assert.match(result, /formaction="https:\/\/example\.com\/submit"/);
+});
+
 test("svg sanitization uses an independent strict svg policy", async t => {
   const restore = preserveGlobals();
   t.after(restore);
