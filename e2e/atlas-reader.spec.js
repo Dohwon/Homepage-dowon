@@ -8,7 +8,9 @@ async function installLongDecisionArticle(page) {
     project.visuals["routing-flow"] = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90"><path d="M20 45h120" fill="none" stroke="currentColor" stroke-width="8" /></svg>';
     project.article.sections = Array.from({ length: 8 }, (_, index) => ({
       id: `section-${index + 1}`,
-      title: `Decision section ${index + 1}`,
+      title: index === 0
+        ? "DecisionTitleWithAnIntentionallyLongUnbrokenIdentifierThatMustWrapInsideTheReaderAt320Pixels"
+        : `Decision section ${index + 1}`,
       section_type: "decision",
       body: `${"This section records the public decision context and validation outcome. ".repeat(8)}\n\n\`implementation-contract-with-a-deliberately-long-token-${index + 1}\``,
       evidence_ids: [],
@@ -18,10 +20,22 @@ async function installLongDecisionArticle(page) {
   });
 }
 
+async function scrollInstantly(page, top) {
+  const target = await page.evaluate((requestedTop) => {
+    document.documentElement.style.scrollBehavior = "auto";
+    const maxTop = document.documentElement.scrollHeight - window.innerHeight;
+    const settledTop = Math.max(0, Math.min(requestedTop, maxTop));
+    window.scrollTo({ top: settledTop, left: 0, behavior: "auto" });
+    return settledTop;
+  }, top);
+  await page.waitForFunction((expectedTop) => Math.abs(window.scrollY - expectedTop) <= 1, target);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+}
+
 test("desktop TOC stays left of the article below the sticky rails", async ({ page }) => {
   await installLongDecisionArticle(page);
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/projects/alpha#section-4");
+  await page.goto("/projects/alpha");
 
   const toc = page.locator("[data-project-toc-desktop]");
   const article = page.locator(".project-article");
@@ -29,9 +43,9 @@ test("desktop TOC stays left of the article below the sticky rails", async ({ pa
   await expect(toc).toBeVisible();
   await expect(page.locator("[data-project-toc-mobile]")).toBeHidden();
 
-  await page.evaluate(() => window.scrollTo(0, 900));
+  await scrollInstantly(page, 900);
   const before = await toc.boundingBox();
-  await page.mouse.wheel(0, 500);
+  await scrollInstantly(page, 1400);
   const after = await toc.boundingBox();
   const articleBox = await article.boundingBox();
   const tabBox = await tabs.boundingBox();
@@ -52,6 +66,22 @@ test("reader switches between desktop and compact mobile TOC at the layout bound
   await page.goto("/projects/alpha");
   await expect(page.locator("[data-project-toc-desktop]")).toBeVisible();
   await expect(page.locator("[data-project-toc-mobile]")).toBeHidden();
+  await expect(page.locator(".primary-nav")).toBeHidden();
+  await expect(page.locator("#mobile-nav")).toBeVisible();
+  const visibleGlobalNavs = await page.locator(".primary-nav, #mobile-nav").evaluateAll((elements) => elements.filter((element) => {
+    const style = getComputedStyle(element);
+    return style.display !== "none" && style.visibility !== "hidden";
+  }).length);
+  expect(visibleGlobalNavs).toBe(1);
+  const mobileNavHeight = await page.locator("#mobile-nav").evaluate((element) => element.getBoundingClientRect().height);
+  const bodyBottomClearance = await page.locator("body").evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingBottom));
+  expect(bodyBottomClearance).toBeGreaterThanOrEqual(mobileNavHeight);
+  await scrollInstantly(page, 1_000_000);
+  const pagerBox = await page.locator(".project-pager").boundingBox();
+  const mobileNavBox = await page.locator("#mobile-nav").boundingBox();
+  expect(pagerBox).not.toBeNull();
+  expect(mobileNavBox).not.toBeNull();
+  expect(pagerBox.y + pagerBox.height).toBeLessThanOrEqual(mobileNavBox.y + 1);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator("[data-project-toc-desktop]")).toBeHidden();
@@ -70,6 +100,16 @@ test("320px dark reader keeps tabs, prose and figures inside the viewport", asyn
   await expect(page.locator("[data-project-toc-desktop]")).toBeHidden();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
+
+  const longHeading = page.locator("#section-1 > h2");
+  await expect(longHeading).toBeVisible();
+  const headingGeometry = await longHeading.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    overflowWrap: getComputedStyle(element).overflowWrap
+  }));
+  expect(headingGeometry.scrollWidth).toBeLessThanOrEqual(headingGeometry.clientWidth + 1);
+  expect(headingGeometry.overflowWrap).toBe("anywhere");
 
   const tabs = page.locator("[data-project-tab-rail]");
   const tabGeometry = await tabs.evaluate((element) => ({
