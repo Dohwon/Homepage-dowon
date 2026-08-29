@@ -9,8 +9,8 @@ Project Atlas worker가 만든 검증된 `public-bundle/`만 공개 API로 읽�
 
 - `/`: 최근 프로젝트와 주제 중심 홈
 - `/projects`: 상태·도메인 필터가 있는 전체 프로젝트 목록
-- `/projects/{id}`: Overview, Build Story, Decisions, Rollbacks, Visual Map,
-  Artifacts 탭
+- `/projects/{id}`: Decisions, System Map, Build Timeline, Evidence 탭과 본문 기준
+  읽기 진행률
 - `/topics`, `/graph`, `/changelog`: 주제, 관계 그래프, 변경 기록
 - `Cmd/Ctrl+K`: 전체 공개 번들 검색
 - `/admin.html`: 기존 Google 로그인 기반 CMS
@@ -20,6 +20,11 @@ Project Atlas worker가 만든 검증된 `public-bundle/`만 공개 API로 읽�
 
 공개 Atlas API는 raw session, 로컬 경로, provenance를 제공하지 않는다. CMS override도
 허용된 표시 필드만 병합하며 개인정보·비밀정보 패턴은 거부한다.
+
+프로젝트 상세 화면은 공개할 실제 내용이 없는 탭과 절을 빈 칸이나 추정 문장으로
+채우지 않는다. 각 프로젝트 폴더는 독립 프로젝트로 유지하며 이름이 비슷하거나
+버전 이력이 이어져도 하나의 프로젝트 family로 병합하지 않는다. 앞선 이력은 필요한
+경우 해당 프로젝트의 Decisions 본문에서만 맥락으로 설명한다.
 
 ## 파일 구조
 

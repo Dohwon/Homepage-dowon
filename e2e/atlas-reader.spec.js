@@ -1,4 +1,23 @@
 const { test, expect } = require("./fixtures");
+const { PNG } = require("pngjs");
+
+function nonDominantPixelCount(png) {
+  const counts = new Map();
+  for (let index = 0; index < png.data.length; index += 4) {
+    const key = `${png.data[index]}:${png.data[index + 1]}:${png.data[index + 2]}:${png.data[index + 3]}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  const dominant = Math.max(...counts.values());
+  return { colorCount: counts.size, pixels: (png.width * png.height) - dominant };
+}
+
+async function readProgressScale(page) {
+  return page.locator("#reading-progress").evaluate((element) => {
+    const transform = getComputedStyle(element).transform;
+    if (transform === "none") return 0;
+    return new DOMMatrixReadOnly(transform).a;
+  });
+}
 
 async function installLongDecisionArticle(page) {
   await page.route("**/api/atlas/projects/alpha", async (route) => {
@@ -139,4 +158,59 @@ test("320px dark reader keeps tabs, prose and figures inside the viewport", asyn
   });
   expect(figureColors.foreground).not.toBe(figureColors.background);
   expect(figureColors.stroke).toBe(figureColors.foreground);
+});
+
+test("reader figure pixels are nonblank and article progress stays bounded", async ({ page }) => {
+  await installLongDecisionArticle(page);
+  await page.goto("/projects/alpha");
+
+  const svg = page.locator("[data-article-figure] svg").first();
+  await expect(svg).toBeVisible();
+  const png = PNG.sync.read(await svg.screenshot());
+  const ink = nonDominantPixelCount(png);
+  expect(ink.colorCount).toBeGreaterThan(1);
+  expect(ink.pixels).toBeGreaterThan(Math.max(64, png.width * png.height * 0.002));
+
+  const progress = page.locator("#reading-progress");
+  await expect(progress).toHaveAttribute("data-active", "");
+  const samples = [await readProgressScale(page)];
+  expect(samples[0]).toBeLessThanOrEqual(0.02);
+
+  const article = page.locator("[data-project-reader]");
+  const articleEnd = await article.evaluate((element) => element.offsetTop + element.offsetHeight);
+  await scrollInstantly(page, articleEnd);
+  await expect.poll(() => readProgressScale(page)).toBeGreaterThanOrEqual(0.98);
+  samples.push(await readProgressScale(page));
+
+  for (const value of samples) {
+    expect(Number.isFinite(value)).toBeTruthy();
+    expect(value).toBeGreaterThanOrEqual(0);
+    expect(value).toBeLessThanOrEqual(1);
+  }
+});
+
+test("project tabs and visible TOC preserve keyboard focus and section hash", async ({ page }) => {
+  await installLongDecisionArticle(page);
+  await page.goto("/projects/alpha");
+
+  const decisions = page.locator("#project-tab-decisions");
+  await decisions.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.locator("#project-tab-system-map")).toBeFocused();
+  await expect(page).toHaveURL(/\?tab=system-map$/);
+
+  await page.keyboard.press("Home");
+  await expect(page.locator("#project-tab-decisions")).toBeFocused();
+  await expect(page).toHaveURL(/\/projects\/alpha$/);
+
+  const mobileToc = page.locator("[data-project-toc-mobile]");
+  if (await mobileToc.isVisible()) {
+    await mobileToc.locator("summary").click();
+  }
+  const tocLink = page.locator("[data-project-toc]:visible a[href='#section-2']");
+  await tocLink.focus();
+  await expect(tocLink).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/projects\/alpha#section-2$/);
+  await expect(tocLink).toHaveAttribute("aria-current", "location");
 });
