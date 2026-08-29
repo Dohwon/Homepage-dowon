@@ -51,6 +51,30 @@ test("project tab URL survives refresh", async ({ page }) => {
   await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveText("Decisions");
 });
 
+test("decision section hashes survive reload, back and forward navigation", async ({ page }) => {
+  await page.goto("/projects/alpha#routing");
+  await expect(page.locator('[data-project-toc] a[href="#routing"]')).toHaveAttribute("aria-current", "location");
+  await expect(page).toHaveURL(/\/projects\/alpha#routing$/);
+
+  await page.reload();
+  await expect(page.locator('[data-project-toc] a[href="#routing"]')).toHaveAttribute("aria-current", "location");
+
+  await page.getByRole("tab", { name: "Evidence" }).click();
+  await expect(page).toHaveURL(/\?tab=evidence$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/#routing$/);
+  await expect(page.locator('[data-project-toc] a[href="#routing"]')).toHaveAttribute("aria-current", "location");
+  await page.goForward();
+  await expect(page).toHaveURL(/\?tab=evidence$/);
+  await expect(page.getByRole("tab", { name: "Evidence" })).toHaveAttribute("aria-selected", "true");
+});
+
+test("malformed decision hashes fail safely", async ({ page }) => {
+  await page.goto("/projects/alpha#%E0%A4%A");
+  await expect(page.locator("[data-project-reader]")).toBeVisible();
+  await expect(page.locator('[data-project-toc] [aria-current="location"]')).toHaveCount(0);
+});
+
 test("arrow-key tab navigation preserves focus and tabpanel relationships", async ({ page }) => {
   await page.goto("/projects/alpha?tab=build-timeline");
   const selected = page.locator('[role="tab"][aria-selected="true"]');

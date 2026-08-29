@@ -5,6 +5,7 @@ import { renderError, renderRoute } from "./render.js";
 import { bindSearchDialog } from "./search-dialog.js";
 import { bindTheme } from "./theme.js";
 import { createProgressLifecycle } from "./progress.js";
+import { bindProjectReader, shouldResetProjectScroll } from "./project-reader.js";
 
 const api = createAtlasApi();
 const root = document.querySelector("#atlas-main");
@@ -12,6 +13,7 @@ const progressElement = document.querySelector("#reading-progress");
 const progressLifecycle = createProgressLifecycle(progressElement);
 const store = createStore({ route: parseRoute(new URL(window.location.href)) });
 let navigationId = 0;
+let projectReaderCleanup = () => {};
 
 function normalizeDestination(destination) {
   if (destination instanceof URL) return destination;
@@ -23,9 +25,13 @@ async function navigate(destination, { replace = false, focus = true } = {}) {
   const url = normalizeDestination(destination);
   const route = parseRoute(url);
   const currentId = ++navigationId;
+  projectReaderCleanup();
+  projectReaderCleanup = () => {};
   progressLifecycle.begin(currentId);
-  if (replace) history.replaceState({}, "", `${url.pathname}${url.search}`);
-  else if (`${location.pathname}${location.search}` !== `${url.pathname}${url.search}`) history.pushState({}, "", `${url.pathname}${url.search}`);
+  const destinationHref = `${url.pathname}${url.search}${url.hash}`;
+  const currentHref = `${location.pathname}${location.search}${location.hash}`;
+  if (replace) history.replaceState({}, "", destinationHref);
+  else if (currentHref !== destinationHref) history.pushState({}, "", destinationHref);
 
   const patch = { route, loading: true, error: null };
   if (route.view !== "project") patch.project = null;
@@ -38,8 +44,11 @@ async function navigate(destination, { replace = false, focus = true } = {}) {
     if (currentId !== navigationId) return;
     store.setState({ ...patch, loading: false });
     renderRoute(store.getState(), root, { navigate });
+    projectReaderCleanup = bindProjectReader(root);
     if (focus) {
-      window.scrollTo({ top: 0, behavior: "instant" });
+      if (shouldResetProjectScroll(root, url.hash)) {
+        window.scrollTo({ top: 0, behavior: "instant" });
+      }
       root.focus({ preventScroll: true });
     }
     progressLifecycle.commit(currentId, route, root);

@@ -420,6 +420,23 @@ function projectContent(project, tab) {
   return renderProjectContent(project, tab);
 }
 
+function tocItems(headings) {
+  return headings.map((heading) => `<li><a href="#${encodeURIComponent(heading.id)}">${escapeHtml(heading.label)}</a></li>`).join("");
+}
+
+export function renderProjectToc(headings) {
+  if (!Array.isArray(headings) || !headings.length) return "";
+  const items = tocItems(headings);
+  return `
+    <section class="aside-section project-desktop-toc" data-project-toc>
+      <h2>On this page</h2><ul>${items}</ul>
+    </section>
+    <details class="project-mobile-toc">
+      <summary>On this page</summary>
+      <nav data-project-toc aria-label="현재 프로젝트 목차"><ul>${items}</ul></nav>
+    </details>`;
+}
+
 function renderProject(state) {
   const project = state.project;
   if (!project) return `<div class="content-shell"><div class="error-state"><h1>프로젝트를 찾지 못했습니다.</h1><p>공개 목록에서 제거됐거나 주소가 변경됐습니다.</p></div></div>`;
@@ -449,7 +466,7 @@ function renderProject(state) {
         </section>
         <aside class="project-aside"><div class="project-aside-inner">
           <section class="aside-section"><h2>Project ID</h2><code>${escapeHtml(project.id)}</code></section>
-          ${content.headings.length ? `<section class="aside-section" data-project-toc><h2>On this page</h2><ul>${content.headings.map((heading) => `<li><a href="#${heading.id}">${escapeHtml(heading.label)}</a></li>`).join("")}</ul></section>` : ""}
+          ${renderProjectToc(content.headings)}
         </div></aside>
       </div>
     </div>`;

@@ -34,6 +34,88 @@ async function importRenderModule(t) {
   return import(pathToFileURL(path.join(clientRoot, "render.mjs")).href);
 }
 
+async function importReaderModule(t) {
+  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-project-reader-"));
+  t.after(() => fsp.rm(tempRoot, { recursive: true, force: true }));
+  const source = await fsp.readFile(path.join(WORKTREE_ROOT, "client/project-reader.js"), "utf8");
+  const modulePath = path.join(tempRoot, "project-reader.mjs");
+  await fsp.writeFile(modulePath, source, "utf8");
+  return import(pathToFileURL(modulePath).href);
+}
+
+function readerFixture(ids, { hash = "", pathname = "/projects/alpha", search = "" } = {}) {
+  const links = ids.flatMap((id) => ["desktop", "mobile"].map((variant) => ({
+    id,
+    variant,
+    attributes: new Map([["href", `#${id}`]]),
+    getAttribute(name) { return this.attributes.get(name) ?? null; },
+    setAttribute(name, value) { this.attributes.set(name, String(value)); },
+    removeAttribute(name) { this.attributes.delete(name); }
+  })));
+  const sections = ids.map((id) => ({
+    id,
+    scrollIntoViewCalls: 0,
+    scrollIntoView() { this.scrollIntoViewCalls += 1; }
+  }));
+  const frames = [];
+  const listeners = new Map();
+  const location = { hash, pathname, search };
+  const history = {
+    state: { route: "alpha" },
+    urls: [],
+    replaceState(_state, _title, url) {
+      this.urls.push(url);
+      const nextHash = String(url).includes("#") ? `#${String(url).split("#")[1]}` : "";
+      location.hash = nextHash;
+    }
+  };
+  const root = {
+    querySelectorAll(selector) {
+      if (selector === "[data-article-section]") return sections;
+      if (selector === "[data-project-toc] a[href^='#']") return links;
+      return [];
+    }
+  };
+  const windowTarget = {
+    addEventListener(type, listener) { listeners.set(type, listener); },
+    removeEventListener(type, listener) {
+      if (listeners.get(type) === listener) listeners.delete(type);
+    }
+  };
+  return {
+    root,
+    links,
+    sections,
+    history,
+    location,
+    listeners,
+    dependencies: {
+      history,
+      location,
+      windowTarget,
+      requestFrame(callback) { frames.push(callback); return frames.length; },
+      cancelFrame() {}
+    },
+    nextFrame() { frames.shift()?.(); }
+  };
+}
+
+class FakeIntersectionObserver {
+  constructor() {
+    this.callback = null;
+    this.observed = [];
+    this.disconnected = false;
+  }
+
+  connect(callback) { this.callback = callback; return this; }
+  observe(section) { this.observed.push(section); }
+  disconnect() { this.disconnected = true; }
+  emit(id, isIntersecting = true, top = 0) {
+    const target = this.observed.find((section) => section.id === id);
+    this.callback([{ target, isIntersecting, boundingClientRect: { top } }]);
+  }
+}
+
 function preserveGlobals() {
   const marked = globalThis.marked;
   const DOMPurify = globalThis.DOMPurify;
@@ -236,4 +318,76 @@ test("evidence groups public records and drops unsafe urls and private locator f
   assert.match(result.html, /https:\/\/example\.com\/report/);
   assert.match(result.html, /Private session note/);
   assert.doesNotMatch(result.html, /javascript:|source_locator|session-123|\/home\/dowon\/\.codex\/sessions|foo\.localhost|127\.0\.0\.1/);
+});
+
+test("reader marks the intersecting section in both TOCs and replaces the hash", async (t) => {
+  const { bindProjectReader } = await importReaderModule(t);
+  const fixture = readerFixture(["retention", "validation"]);
+  const observer = new FakeIntersectionObserver();
+  const cleanup = bindProjectReader(fixture.root, {
+    ...fixture.dependencies,
+    observerFactory: (callback) => observer.connect(callback)
+  });
+
+  observer.emit("validation");
+
+  const validationLinks = fixture.links.filter((link) => link.id === "validation");
+  const retentionLinks = fixture.links.filter((link) => link.id === "retention");
+  assert.ok(validationLinks.every((link) => link.getAttribute("aria-current") === "location"));
+  assert.ok(retentionLinks.every((link) => link.getAttribute("aria-current") === null));
+  assert.equal(fixture.history.urls.at(-1), "/projects/alpha#validation");
+  cleanup();
+});
+
+test("reader restores valid hashes on initial render and hash history changes", async (t) => {
+  const { bindProjectReader } = await importReaderModule(t);
+  const fixture = readerFixture(["retention", "validation"], { hash: "#retention" });
+  const observer = new FakeIntersectionObserver();
+  const cleanup = bindProjectReader(fixture.root, {
+    ...fixture.dependencies,
+    observerFactory: (callback) => observer.connect(callback)
+  });
+
+  fixture.nextFrame();
+  assert.equal(fixture.sections[0].scrollIntoViewCalls, 1);
+  fixture.location.hash = "#validation";
+  fixture.listeners.get("hashchange")();
+  fixture.nextFrame();
+  assert.equal(fixture.sections[1].scrollIntoViewCalls, 1);
+
+  cleanup();
+  assert.equal(observer.disconnected, true);
+  assert.equal(fixture.listeners.has("hashchange"), false);
+});
+
+test("reader fails safely for malformed or unknown hashes", async (t) => {
+  const { bindProjectReader, hasValidProjectHash } = await importReaderModule(t);
+  for (const hash of ["#%E0%A4%A", "#missing", "#"]) {
+    const fixture = readerFixture(["retention"], { hash });
+    assert.equal(hasValidProjectHash(fixture.root, hash), false);
+    assert.doesNotThrow(() => bindProjectReader(fixture.root, {
+      ...fixture.dependencies,
+      observerFactory: (callback) => new FakeIntersectionObserver().connect(callback)
+    }));
+    fixture.nextFrame();
+    assert.equal(fixture.sections[0].scrollIntoViewCalls, 0);
+  }
+});
+
+test("rendered TOCs use ordinary same-page anchors and valid hashes suppress top reset", async (t) => {
+  installSanitizers(t);
+  const { renderProjectToc } = await importRenderModule(t);
+  const { hasValidProjectHash, shouldResetProjectScroll } = await importReaderModule(t);
+  const html = renderProjectToc([
+    { id: "retention", label: "Retention" },
+    { id: "validation", label: "Validation" }
+  ]);
+  const fixture = readerFixture(["retention"], { hash: "#retention" });
+
+  assert.equal((html.match(/data-project-toc/g) || []).length, 2);
+  assert.equal((html.match(/href="#retention"/g) || []).length, 2);
+  assert.doesNotMatch(html, /data-route-link/);
+  assert.equal(hasValidProjectHash(fixture.root, "#retention"), true);
+  assert.equal(shouldResetProjectScroll(fixture.root, "#retention"), false);
+  assert.equal(shouldResetProjectScroll(fixture.root, "#missing"), true);
 });
