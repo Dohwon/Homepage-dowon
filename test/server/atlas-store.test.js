@@ -255,6 +255,9 @@ test("rejects unsafe KG evidence links and labels", async (t) => {
     ["evidence label absolute path", "edges.json", (records) => {
       records[0].evidence_links[0].label = "/etc/atlas/private.txt";
     }, /invalid_atlas_graph_edge/],
+    ["evidence label Windows drive path", "edges.json", (records) => {
+      records[0].evidence_links[0].label = "C:\\atlas\\private.txt";
+    }, /invalid_atlas_graph_edge/],
     ["node label", "nodes.json", (records) => {
       records[0].label = "/home/dowon/private";
     }, /unsafe_public_content/]
