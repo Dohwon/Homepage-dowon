@@ -510,7 +510,7 @@ tags: []
         KnowledgeTaxonomy.from_file(taxonomy_path)
 
 
-def test_duplicate_public_evidence_ids_are_rejected(projects, taxonomy):
+def test_public_evidence_ids_are_namespaced_by_project(projects, taxonomy):
     evidence = {
         "left": (public_evidence("left", "same"),),
         "right": (public_evidence("right", "same"),),
@@ -520,8 +520,80 @@ def test_duplicate_public_evidence_ids_are_rejected(projects, taxonomy):
         "right": public_article("right"),
     }
 
-    with pytest.raises(ValueError, match="graph-evidence-duplicate-id"):
-        build_knowledge_graph(projects, articles, evidence, {}, taxonomy)
+    graph = build_knowledge_graph(projects, articles, evidence, {}, taxonomy)
+
+    assert {
+        node.node_id for node in graph.nodes if node.kind == "Artifact"
+    } == {"artifact:left:same", "artifact:right:same"}
+
+
+def test_curated_relation_uses_source_namespace_when_endpoint_ids_collide(projects, taxonomy):
+    evidence = {
+        "left": (replace(public_evidence("left", "same"), label="Left proof"),),
+        "right": (replace(public_evidence("right", "same"), label="Right proof"),),
+    }
+    articles = {
+        "left": public_article("left"),
+        "right": public_article("right"),
+    }
+    relations = {
+        "left": [{"type": "EVOLVED_FROM", "target": "right", "evidence_ids": ["same"]}]
+    }
+
+    graph = build_knowledge_graph(projects, articles, evidence, relations, taxonomy)
+    relation = next(edge for edge in graph.edges if edge.kind == "EVOLVED_FROM")
+
+    assert relation.evidence_links == (
+        {"label": "Left proof", "url": "/projects/left?tab=evidence"},
+    )
+
+
+def test_curated_relation_can_use_public_ready_target_evidence(projects, taxonomy):
+    relations = {
+        "left": [
+            {
+                "type": "EVOLVED_FROM",
+                "target": "right",
+                "evidence_ids": ["target-proof"],
+            }
+        ]
+    }
+
+    graph = build_knowledge_graph(
+        projects,
+        {"right": public_article("right")},
+        {"right": (replace(public_evidence("right", "target-proof"), label="Right proof"),)},
+        relations,
+        taxonomy,
+    )
+    relation = next(edge for edge in graph.edges if edge.kind == "EVOLVED_FROM")
+
+    assert relation.evidence_links == (
+        {"label": "Right proof", "url": "/projects/right?tab=evidence"},
+    )
+
+
+def test_curated_relation_rejects_evidence_owned_by_a_third_project(project_factory, taxonomy):
+    projects = tuple(project_factory(project_id) for project_id in ("left", "right", "third"))
+    evidence = {"third": (public_evidence("third", "third-proof"),)}
+    relations = {
+        "left": [
+            {
+                "type": "EVOLVED_FROM",
+                "target": "right",
+                "evidence_ids": ["third-proof"],
+            }
+        ]
+    }
+
+    with pytest.raises(ValueError, match="graph-relation-evidence"):
+        build_knowledge_graph(
+            projects,
+            {"third": public_article("third")},
+            evidence,
+            relations,
+            taxonomy,
+        )
 
 
 @pytest.mark.parametrize(

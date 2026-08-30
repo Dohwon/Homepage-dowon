@@ -8,8 +8,6 @@ const PROJECT_EXPANSION = new Set([
   "REUSES_COMPONENT",
 ]);
 
-const FOCUS_EXPANSION = new Set(["FOCUS_HAS_TAG", "HAS_SUBTAG"]);
-
 function rejectReadonlyMutation() {
   throw new TypeError("read-only graph collection");
 }
@@ -147,17 +145,34 @@ export function expandNode(state, nodeId, index) {
   const node = index.nodes.get(nodeId);
   const allowedKinds = node?.kind === "Project"
     ? PROJECT_EXPANSION
-    : node?.kind === "KnowledgeFocus"
-      ? FOCUS_EXPANSION
-      : new Set();
+    : new Set();
   const visibleNodeIds = new Set(state.visibleNodeIds);
   const visibleEdgeIds = new Set(state.visibleEdgeIds);
 
-  for (const edge of index.adjacency.get(nodeId) || []) {
-    if (!allowedKinds.has(edge.kind)) continue;
-    visibleNodeIds.add(edge.source);
-    visibleNodeIds.add(edge.target);
-    visibleEdgeIds.add(edge.id);
+  if (node?.kind === "KnowledgeFocus") {
+    const queue = [];
+    for (const edge of index.adjacency.get(nodeId) || []) {
+      if (edge.kind !== "FOCUS_HAS_TAG" || edge.source !== nodeId) continue;
+      visibleNodeIds.add(edge.target);
+      visibleEdgeIds.add(edge.id);
+      queue.push(edge.target);
+    }
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const parentId = queue[cursor];
+      for (const edge of index.adjacency.get(parentId) || []) {
+        if (edge.kind !== "HAS_SUBTAG" || edge.source !== parentId) continue;
+        visibleNodeIds.add(edge.target);
+        visibleEdgeIds.add(edge.id);
+        queue.push(edge.target);
+      }
+    }
+  } else {
+    for (const edge of index.adjacency.get(nodeId) || []) {
+      if (!allowedKinds.has(edge.kind)) continue;
+      visibleNodeIds.add(edge.source);
+      visibleNodeIds.add(edge.target);
+      visibleEdgeIds.add(edge.id);
+    }
   }
 
   return freezeGraphState({

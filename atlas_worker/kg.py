@@ -426,8 +426,8 @@ def _public_articles(articles: Mapping[str, object]) -> set[str]:
 def _public_evidence(
     evidence: Mapping[str, Sequence[object]],
     article_projects: set[str],
-) -> dict[str, tuple[str, dict[str, str]]]:
-    result: dict[str, tuple[str, dict[str, str]]] = {}
+) -> dict[tuple[str, str], dict[str, str]]:
+    result: dict[tuple[str, str], dict[str, str]] = {}
     for project_id in sorted(evidence):
         if evidence[project_id] and project_id not in article_projects:
             raise ValueError("graph-evidence-article")
@@ -436,12 +436,13 @@ def _public_evidence(
                 raise ValueError("graph-evidence-project")
             evidence_id = _evidence_value(record, "id", "evidence_id")
             label = _evidence_value(record, "label")
-            if evidence_id in result:
+            identity = (project_id, evidence_id)
+            if identity in result:
                 raise ValueError("graph-evidence-duplicate-id")
-            result[evidence_id] = (
-                project_id,
-                {"label": label, "url": f"/projects/{quote(project_id, safe='')}?tab=evidence"},
-            )
+            result[identity] = {
+                "label": label,
+                "url": f"/projects/{quote(project_id, safe='')}?tab=evidence",
+            }
     return result
 
 
@@ -525,7 +526,7 @@ def _add_curated_relations(
     edges: dict[tuple[str, str, str], GraphEdge],
     relations: Mapping[str, Sequence[Mapping[str, object]]],
     project_ids: set[str],
-    evidence: Mapping[str, tuple[str, dict[str, str]]],
+    evidence: Mapping[tuple[str, str], dict[str, str]],
 ) -> None:
     seen: set[tuple[str, str, str]] = set()
     for source_id in sorted(relations):
@@ -549,13 +550,17 @@ def _add_curated_relations(
                 raise ValueError("graph-relation-evidence")
             if any(not isinstance(item, str) for item in evidence_ids) or len(evidence_ids) != len(set(evidence_ids)):
                 raise ValueError("graph-relation-evidence")
-            try:
-                links = tuple(evidence[item][1] for item in sorted(evidence_ids))
-            except KeyError:
-                raise ValueError("graph-relation-evidence") from None
+            links = []
+            for evidence_id in sorted(evidence_ids):
+                link = evidence.get((source_id, evidence_id))
+                if link is None:
+                    link = evidence.get((target_id, evidence_id))
+                if link is None:
+                    raise ValueError("graph-relation-evidence")
+                links.append(link)
             _add_edge(
                 edges,
-                GraphEdge(_project_node_id(source_id), _project_node_id(target_id), kind, 1, links),
+                GraphEdge(_project_node_id(source_id), _project_node_id(target_id), kind, 1, tuple(links)),
             )
 
 

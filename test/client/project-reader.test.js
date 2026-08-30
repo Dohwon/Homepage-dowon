@@ -258,6 +258,87 @@ test("error rendering clears active route resources before replacing the DOM", a
   assert.match(root.html, /Atlas를 불러오지 못했습니다/);
 });
 
+test("runtime renderer failure switches the bound graph to its accessible fallback", async (t) => {
+  const { bindGraph } = await importRenderModule(t);
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  t.after(() => {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+  });
+  globalThis.window = { lucide: { createIcons() {} } };
+  globalThis.document = {};
+
+  const listeners = new Map();
+  const container = {};
+  const shell = { dataset: {} };
+  const stage = { hidden: false };
+  const fallback = { hidden: true, querySelectorAll() { return []; }, querySelector() { return null; } };
+  const detail = { innerHTML: "" };
+  const nodeCount = { textContent: "" };
+  const status = { setAttribute() {} };
+  const graphSearch = { value: "", setAttribute() {} };
+  const graphSearchResults = { innerHTML: "", hidden: true };
+  const fallbackSearch = {};
+  const relationCount = { textContent: "" };
+  const elements = new Map([
+    ["#knowledge-graph", container],
+    ["[data-graph-shell]", shell],
+    ["[data-graph-stage]", stage],
+    ["[data-graph-fallback]", fallback],
+    ["[data-graph-detail-content]", detail],
+    ["[data-graph-node-count]", nodeCount],
+    ["[data-graph-status]", status],
+    ["[data-graph-search]", graphSearch],
+    ["[data-graph-search-results]", graphSearchResults],
+    ["[data-graph-fallback-search]", fallbackSearch],
+    ["[data-graph-relation-count]", relationCount],
+  ]);
+  const root = {
+    dataset: { reducedMotion: "false" },
+    querySelector(selector) { return elements.get(selector) || null; },
+    querySelectorAll() { return []; },
+    addEventListener(type, listener) { listeners.set(type, listener); },
+    removeEventListener(type, listener) {
+      if (listeners.get(type) === listener) listeners.delete(type);
+    },
+  };
+  let failureHandler;
+  let destroyCalls = 0;
+  const cleanup = bindGraph(root, {
+    graph: {
+      nodes: [
+        { id: "focus:delivery", kind: "KnowledgeFocus", label: "Delivery" },
+        { id: "project:alpha", kind: "Project", label: "Alpha" },
+      ],
+      edges: [
+        { id: "has-focus", source: "project:alpha", target: "focus:delivery", kind: "HAS_FOCUS", weight: 1, evidence_links: [] },
+      ],
+    },
+  }, {
+    hasWebGL: () => true,
+    createView(_container, _graph, options) {
+      failureHandler = options.onFailure;
+      return {
+        update() {},
+        destroy() { destroyCalls += 1; },
+      };
+    },
+  });
+
+  failureHandler(new Error("runtime graph update failed"));
+
+  assert.equal(stage.hidden, true);
+  assert.equal(fallback.hidden, false);
+  assert.equal(shell.dataset.graphMode, "fallback");
+  assert.equal(destroyCalls, 1);
+  cleanup();
+  assert.equal(destroyCalls, 1);
+  assert.equal(listeners.size, 0);
+});
+
 test("insufficient and review-required articles render factual empty states without legacy filler", async (t) => {
   installSanitizers(t);
   const { renderProjectContent } = await importRenderModule(t);

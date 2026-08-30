@@ -32,6 +32,7 @@ function expandedGraph() {
 
 function container(width = 960, height = 620) {
   const state = { width, height, replacements: 0 };
+  const listeners = new Map();
   return {
     state,
     style: {},
@@ -40,6 +41,19 @@ function container(width = 960, height = 620) {
     },
     replaceChildren() {
       state.replacements += 1;
+    },
+    addEventListener(type, listener, options) {
+      listeners.set(type, { listener, options });
+    },
+    removeEventListener(type, listener, options) {
+      const registered = listeners.get(type);
+      if (registered?.listener === listener && registered.options === options) listeners.delete(type);
+    },
+    emit(type, event = {}) {
+      listeners.get(type)?.listener(event);
+    },
+    hasListener(type) {
+      return listeners.has(type);
     },
   };
 }
@@ -423,6 +437,76 @@ test("force graph factory injection fails with a closed adapter error", async ()
     () => createGraphView(container(), fixtureGraph(), { forceGraphFactory: null, reducedMotion: false }),
     /force_graph_3d_unavailable/,
   );
+});
+
+test("partial renderer construction tears down the allocated instance", async () => {
+  const { createGraphView } = await importGraphModule();
+  const fake = fakeForceGraph();
+  const element = container();
+  fake.instance.linkTarget = () => { throw new Error("configuration failed"); };
+
+  assert.throws(
+    () => createGraphView(element, fixtureGraph(), { forceGraphFactory: fake.factory }),
+    /configuration failed/,
+  );
+  assert.equal(fake.calls.pauseAnimation, 1);
+  assert.equal(fake.calls.destructor, 1);
+  assert.equal(element.state.replacements, 1);
+  assert.equal(element.hasListener("webglcontextlost"), false);
+});
+
+test("runtime update failure tears down once and requests accessible fallback", async () => {
+  const resize = installResizeObserver();
+  try {
+    const { createGraphView } = await importGraphModule();
+    const fake = fakeForceGraph();
+    const element = container();
+    const failures = [];
+    const view = createGraphView(element, fixtureGraph(), {
+      forceGraphFactory: fake.factory,
+      onFailure: error => failures.push(error.message),
+    });
+    fake.instance.graphData = () => { throw new Error("runtime graph update failed"); };
+
+    view.update(expandedGraph());
+
+    assert.deepEqual(failures, ["runtime graph update failed"]);
+    assert.equal(fake.calls.pauseAnimation, 1);
+    assert.equal(fake.calls.destructor, 1);
+    assert.equal(resize.observers[0].disconnectCalls, 1);
+    assert.equal(fake.hasControlListener("change"), false);
+    assert.equal(element.hasListener("webglcontextlost"), false);
+    view.destroy();
+    assert.equal(fake.calls.destructor, 1);
+  } finally {
+    resize.restore();
+  }
+});
+
+test("WebGL context loss prevents default and cleans every renderer listener", async () => {
+  const resize = installResizeObserver();
+  try {
+    const { createGraphView } = await importGraphModule();
+    const fake = fakeForceGraph();
+    const element = container();
+    const failures = [];
+    let prevented = 0;
+    createGraphView(element, fixtureGraph(), {
+      forceGraphFactory: fake.factory,
+      onFailure: error => failures.push(error.message),
+    });
+
+    assert.equal(element.hasListener("webglcontextlost"), true);
+    element.emit("webglcontextlost", { preventDefault() { prevented += 1; } });
+
+    assert.equal(prevented, 1);
+    assert.deepEqual(failures, ["webgl_context_lost"]);
+    assert.equal(fake.calls.destructor, 1);
+    assert.equal(fake.hasControlListener("change"), false);
+    assert.equal(element.hasListener("webglcontextlost"), false);
+  } finally {
+    resize.restore();
+  }
 });
 
 test("WebGL capability check fails closed", async () => {

@@ -376,6 +376,28 @@ test("hidden project artifacts require a visible owner even through a shared tag
   assert.equal(graph.edges.some((edge) => edge.source.includes("alpha") || edge.target.includes("alpha")), false);
 });
 
+test("hidden evidence owners cannot remain on relations between visible projects", async (t) => {
+  const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-hidden-evidence-owner-"));
+  t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+  await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+  const edgesPath = path.join(temporaryRoot, "graph", "edges.json");
+  const edges = JSON.parse(await fsp.readFile(edgesPath, "utf8"));
+  edges[0].evidence_links = [
+    { label: "Third private project proof", url: "/projects/third?tab=evidence" }
+  ];
+  await fsp.writeFile(edgesPath, JSON.stringify(edges));
+  const store = createAtlasStore({
+    bundleDir: temporaryRoot,
+    loadCmsContent: async () => ({ meta: { hiddenProjectIds: ["third"] } })
+  });
+
+  const graph = await store.graph();
+
+  assert.equal(graph.edges.some((edge) => edge.id === edges[0].id), false);
+  assert.equal(JSON.stringify(graph).includes("third"), false);
+  assert.equal(JSON.stringify(graph).includes("Third private project proof"), false);
+});
+
 test("unsafe CMS presentation fields cannot override a public project", async () => {
   const store = createStore({
     meta: { hiddenProjectIds: [] },

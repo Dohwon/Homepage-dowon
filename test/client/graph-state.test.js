@@ -38,7 +38,7 @@ function fixtureGraph() {
       edge("focus-domain", "focus:delivery", "domain:routing", "FOCUS_HAS_TAG"),
       edge("has-tag:alpha", "project:alpha", "tag:routing", "HAS_TAG"),
       edge("has-focus:alpha", "project:alpha", "focus:delivery", "HAS_FOCUS"),
-      edge("focus-subtag", "focus:delivery", "tag:routing", "HAS_SUBTAG"),
+      edge("domain-subtag", "domain:routing", "tag:routing", "HAS_SUBTAG"),
       edge("produces:alpha", "project:alpha", "artifact:alpha:report", "PRODUCES_ARTIFACT"),
       edge("disallowed-project-edge", "project:alpha", "domain:disallowed", "FOCUS_HAS_TAG"),
     ],
@@ -97,7 +97,7 @@ test("project expansion adds only its exact allowed one-hop neighbors", async ()
   assert.equal(state.selectedId, "project:alpha");
 });
 
-test("focus expansion adds only focus tag and subtag neighbors", async () => {
+test("focus expansion follows projector topology to reveal domains and their tags", async () => {
   const { createGraphIndex, initialGraphState, expandNode, visibleGraph } = await importGraphStateModule();
   const index = createGraphIndex(fixtureGraph());
   const state = expandNode(initialGraphState(index), "focus:delivery", index);
@@ -105,6 +105,10 @@ test("focus expansion adds only focus tag and subtag neighbors", async () => {
   assert.deepEqual(
     visibleGraph(state, index).nodes.map((item) => item.id).sort(),
     ["domain:routing", "focus:delivery", "project:alpha", "project:beta", "tag:routing"],
+  );
+  assert.deepEqual(
+    visibleGraph(state, index).links.map((item) => item.id).sort(),
+    ["domain-subtag", "focus-domain", "has-focus:alpha", "has-focus:beta"],
   );
 });
 

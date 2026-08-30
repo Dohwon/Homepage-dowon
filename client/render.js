@@ -416,7 +416,10 @@ function renderGraph(state) {
     </div>`;
 }
 
-function bindGraph(root, state) {
+export function bindGraph(root, state, {
+  createView = createGraphView,
+  hasWebGL = supportsWebGL,
+} = {}) {
   const container = root.querySelector("#knowledge-graph");
   if (!container || !state.graph) return () => {};
   const index = createGraphIndex(state.graph);
@@ -494,6 +497,9 @@ function bindGraph(root, state) {
   };
 
   const activateFallback = () => {
+    const failedView = view;
+    view = null;
+    failedView?.destroy();
     stage.hidden = true;
     fallback.hidden = false;
     shell.dataset.graphMode = "fallback";
@@ -502,12 +508,13 @@ function bindGraph(root, state) {
     view?.setReducedMotion(Boolean(event.detail));
   };
 
-  if (supportsWebGL(document)) {
+  if (hasWebGL(document)) {
     try {
-      view = createGraphView(container, visibleGraph(graphState, index), {
+      view = createView(container, visibleGraph(graphState, index), {
         onSelect(node) {
           selectNode(node.id, node);
         },
+        onFailure: activateFallback,
         reducedMotion: root.dataset.reducedMotion === "true",
       });
     } catch {
