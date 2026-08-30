@@ -1,0 +1,14 @@
+[Unit]
+Description=Validate and publish Project Atlas content
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/dowon/securedir/git/codex/portfolio-homepage
+ExecStart=/usr/bin/env OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/nice -n 10 /usr/bin/prlimit --as=2147483648 --cpu=1800 -- /home/dowon/securedir/git/codex/portfolio-homepage/.venv/bin/python scripts/project_atlas.py publish --workspace /home/dowon/securedir/git/codex --changed-only --push
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/dowon/securedir/git/codex /home/dowon/.config/project-atlas
+

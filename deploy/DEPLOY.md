@@ -72,3 +72,22 @@ The process remains single-process and file-backed. `public-bundle/` is read-onl
 at runtime; CMS writes remain in `PORTFOLIO_DATA_DIR` (default `data/`). Keep both
 paths on persistent storage when deploying with Railway or another ephemeral
 container platform.
+
+## 5. Project Atlas Publisher Timer
+
+The user timer runs the locked `publish --changed-only --push` pipeline every 15 minutes. The command first requires the exact 33-project catalog audit, builds and validates a complete candidate, promotes it atomically, and stages only `public-bundle/`. Pre-existing staged work defers publication.
+
+Check the repository-owned unit definitions without installing them:
+
+```bash
+bash scripts/install_project_atlas_timer.sh --check
+```
+
+Install or remove the two user units only after local tests, branch integration, remote push, and Railway parity have been approved:
+
+```bash
+bash scripts/install_project_atlas_timer.sh
+bash scripts/install_project_atlas_timer.sh --remove
+```
+
+The installer manages only `project-atlas.service` and `project-atlas.timer` under the user systemd directory. It does not modify the system-wide service.

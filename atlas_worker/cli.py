@@ -55,11 +55,13 @@ from .models import (
     ProjectEvent,
     ProjectMemory,
     ProjectRef,
+    PromotionResult,
     PublicProject,
     TagSet,
     validate_schema,
 )
 from .privacy import MIN_ALIAS_KEY_BYTES, PrivacyGate, PrivacyViolation
+from .publish import publish_bundle
 from .runtime_state import RuntimeState
 from .session_index import index_session, map_session_trace, merge_child_evidence
 from .source_manifest import SubprocessGitRunner, build_source_manifest, resolve_git_owner
@@ -164,6 +166,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--dry-run", action="store_true")
     run.add_argument("--changed-only", action="store_true")
 
+    publish = commands.add_parser("publish")
+    _add_workspace(publish)
+    _add_format(publish)
+    publish.add_argument("--changed-only", action="store_true")
+    publish.add_argument("--push", action="store_true")
+
     audit = commands.add_parser("audit-content")
     _add_workspace(audit)
     _add_format(audit)
@@ -204,6 +212,8 @@ def dispatch(args: argparse.Namespace) -> dict[str, object]:
         return _command_validate(args)
     if args.command == "run":
         return _command_run(args)
+    if args.command == "publish":
+        return _command_publish(args)
     if args.command == "audit-content":
         return _command_audit_content(args)
     raise ConfigError("/command")
@@ -370,6 +380,48 @@ def _command_audit_content(args: argparse.Namespace) -> dict[str, object]:
         if project.publication == "public" and project.project_id not in ambiguous_ids
     ]
     return {"projects": projects}
+
+
+def _command_publish(args: argparse.Namespace) -> dict[str, object]:
+    workspace = _workspace(args.workspace)
+    config = _load_runtime_config(workspace)
+    runtime_state = RuntimeState.open(workspace)
+    with runtime_state.lock():
+        from scripts.audit_public_atlas_catalog import audit_public_catalog
+
+        catalog = audit_public_catalog(workspace)
+        if not catalog.ready:
+            raise ConfigError("/catalog-audit")
+        gate = _privacy_gate(workspace, config, ephemeral=False)
+        discovery = _discover(workspace, config, source_gate=gate)
+        build = _execute_build(
+            workspace,
+            config,
+            discovery,
+            gate,
+            dry_run=False,
+            runtime_state=runtime_state,
+            changed_only=bool(args.changed_only),
+        )
+        promotion = PromotionResult(
+            changed=bool(build["changed"]),
+            changed_projects=tuple(str(item) for item in build["changed_projects"]),
+        )
+        publication = publish_bundle(
+            _service_root(workspace, config),
+            promotion,
+            push=bool(args.push),
+        )
+    return {
+        "build": build,
+        "catalog": {"project_count": len(catalog.project_ids), "ready": catalog.ready},
+        "publication": {
+            "committed": publication.committed,
+            "deferred": publication.deferred,
+            "pushed": publication.pushed,
+            "staged_paths": list(publication.staged_paths),
+        },
+    }
 
 
 def _audit_content_item(
