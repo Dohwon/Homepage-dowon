@@ -15,8 +15,27 @@ from jsonschema.exceptions import ValidationError
 Lifecycle = Literal["active", "finished"]
 Publication = Literal["public", "private", "excluded"]
 TagKind = Literal["domain", "problem", "pattern", "technology", "outcome"]
-GraphNodeKind = Literal["project", "domain", "problem", "pattern", "technology", "outcome"]
-GraphEdgeKind = Literal["tag-membership", "project-similarity"]
+GraphNodeKind = Literal[
+    "KnowledgeFocus",
+    "KnowledgeDomain",
+    "KnowledgeTag",
+    "Project",
+    "Technology",
+    "Artifact",
+]
+GraphEdgeKind = Literal[
+    "HAS_FOCUS",
+    "FOCUS_HAS_TAG",
+    "HAS_SUBTAG",
+    "HAS_TAG",
+    "USES_TECH",
+    "PRODUCES_ARTIFACT",
+    "ARTIFACT_HAS_TAG",
+    "EVOLVED_FROM",
+    "VALIDATES",
+    "DEPLOYS",
+    "REUSES_COMPONENT",
+]
 ArticleSectionType = Literal["planning", "decision", "implementation", "validation", "result"]
 DecisionStatus = Literal["adopted", "revised", "rolled-back", "unresolved"]
 EvidenceSourceType = Literal["session", "spec", "code", "test", "git", "project_memory"]
@@ -33,8 +52,26 @@ SessionMappingReason = Literal[
     "unmapped",
 ]
 
-GRAPH_NODE_KINDS = frozenset({"project", "domain", "problem", "pattern", "technology", "outcome"})
-GRAPH_EDGE_KINDS = frozenset({"tag-membership", "project-similarity"})
+GRAPH_NODE_KINDS = frozenset(
+    {"KnowledgeFocus", "KnowledgeDomain", "KnowledgeTag", "Project", "Technology", "Artifact"}
+)
+GRAPH_EDGE_KINDS = frozenset(
+    {
+        "HAS_FOCUS",
+        "FOCUS_HAS_TAG",
+        "HAS_SUBTAG",
+        "HAS_TAG",
+        "USES_TECH",
+        "PRODUCES_ARTIFACT",
+        "ARTIFACT_HAS_TAG",
+        "EVOLVED_FROM",
+        "VALIDATES",
+        "DEPLOYS",
+        "REUSES_COMPONENT",
+    }
+)
+LEGACY_GRAPH_NODE_KINDS = frozenset({"project", "domain", "problem", "pattern", "technology", "outcome"})
+LEGACY_GRAPH_EDGE_KINDS = frozenset({"tag-membership", "project-similarity"})
 
 TAG_LIMITS = {
     "domain": (1, 2),
@@ -399,6 +436,19 @@ class GraphNode:
     node_id: str
     label: str
     kind: GraphNodeKind
+    url: str = ""
+    summary: str = ""
+
+    def to_public_dict(self) -> dict[str, object]:
+        if self.kind not in GRAPH_NODE_KINDS:
+            raise ValueError(f"Unknown public graph node kind: {self.kind}")
+        return {
+            "id": self.node_id,
+            "label": self.label,
+            "kind": self.kind,
+            "url": self.url,
+            "summary": self.summary,
+        }
 
 
 @dataclass(frozen=True)
@@ -406,8 +456,31 @@ class GraphEdge:
     source_id: str
     target_id: str
     kind: GraphEdgeKind
-    weight: int
-    reasons: tuple[str, ...] = ()
+    weight: int = 1
+    evidence_links: tuple[dict[str, str], ...] = ()
+
+    @property
+    def edge_id(self) -> str:
+        return f"{self.kind.lower()}:{quote(self.source_id, safe='')}:{quote(self.target_id, safe='')}"
+
+    @property
+    def reasons(self) -> tuple[str, ...]:
+        """Expose legacy similarity reasons until the old graph API is retired."""
+        if all(isinstance(item, str) for item in self.evidence_links):
+            return self.evidence_links  # type: ignore[return-value]
+        return ()
+
+    def to_public_dict(self) -> dict[str, object]:
+        if self.kind not in GRAPH_EDGE_KINDS:
+            raise ValueError(f"Unknown public graph edge kind: {self.kind}")
+        return {
+            "id": self.edge_id,
+            "source": self.source_id,
+            "target": self.target_id,
+            "kind": self.kind,
+            "weight": self.weight,
+            "evidence_links": list(self.evidence_links),
+        }
 
 
 @dataclass(frozen=True)
@@ -417,10 +490,10 @@ class GraphData:
 
     def __post_init__(self) -> None:
         for node in self.nodes:
-            if node.kind not in GRAPH_NODE_KINDS:
+            if node.kind not in GRAPH_NODE_KINDS and node.kind not in LEGACY_GRAPH_NODE_KINDS:
                 raise ValueError(f"Unknown graph node kind: {node.kind}")
         for edge in self.edges:
-            if edge.kind not in GRAPH_EDGE_KINDS:
+            if edge.kind not in GRAPH_EDGE_KINDS and edge.kind not in LEGACY_GRAPH_EDGE_KINDS:
                 raise ValueError(f"Unknown graph edge kind: {edge.kind}")
 
     def project_neighbors(self, project_id: str) -> tuple[GraphEdge, ...]:
@@ -443,6 +516,12 @@ class GraphData:
                 ),
             )[:5]
         )
+
+    def to_public_dict(self) -> dict[str, object]:
+        return {
+            "nodes": [node.to_public_dict() for node in self.nodes],
+            "edges": [edge.to_public_dict() for edge in self.edges],
+        }
 
 
 @dataclass(frozen=True)

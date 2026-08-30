@@ -1,0 +1,315 @@
+focuses:
+  - id: product-delivery
+    label: Product Delivery
+    aliases: [Product UX Prototypes]
+  - id: ai-quality
+    label: AI Quality
+    aliases: [Agent Routing & Evaluation]
+  - id: knowledge-systems-rag
+    label: Knowledge Systems & RAG
+  - id: learning-systems
+    label: Learning Systems
+  - id: operations-analytics
+    label: Operations Analytics
+  - id: personalized-conversation-systems
+    label: Personalized Conversation Systems
+  - id: prompt-productization
+    label: Prompt Productization
+  - id: semantic-verb-modeling
+    label: Semantic Verb Modeling
+
+domains:
+  - id: agent-systems
+    label: Agent Systems
+    focus_id: ai-quality
+    aliases: [Agent Operations, Agent Orchestration]
+  - id: automation
+    label: Automation
+    focus_id: product-delivery
+    aliases: [Developer Tools, ML Assets]
+  - id: data
+    label: Data
+    focus_id: operations-analytics
+    aliases: [Data Design, Data Quality, Information Visualization]
+  - id: evaluation
+    label: Evaluation
+    focus_id: ai-quality
+    aliases: [LLM 평가, Quality Assurance, 제품 분석]
+  - id: learning-systems
+    label: Learning Systems
+    focus_id: learning-systems
+    aliases: [EdTech, Language Learning, Technical Education]
+  - id: model-operations
+    label: Model Operations
+    focus_id: ai-quality
+    aliases: [AI Operations]
+  - id: operations-analytics
+    label: Operations Analytics
+    focus_id: operations-analytics
+  - id: personalization
+    label: Personalization
+    focus_id: personalized-conversation-systems
+    aliases: [Consumer AI, Relationship AI, 웰빙]
+  - id: product-ux
+    label: Product UX
+    focus_id: product-delivery
+    aliases:
+      - Consumer Utility
+      - Conversational UX
+      - Creative Coding
+      - Desktop App
+      - Editorial UX
+      - Frontend
+      - Interaction Prototype
+      - Mapping
+      - Mobile App
+      - Mobility
+      - Music Interaction
+      - Navigation UX
+      - News
+      - Personal Finance
+      - Product Management
+      - Writing Tools
+      - 개인 생산성
+      - 대화형 AI
+  - id: prompt-engineering
+    label: Prompt Engineering
+    focus_id: prompt-productization
+  - id: rag
+    label: RAG
+    focus_id: knowledge-systems-rag
+    aliases: [Knowledge Management, Personal Knowledge]
+  - id: safety
+    label: Safety
+    focus_id: ai-quality
+  - id: semantic-modeling
+    label: Semantic Modeling
+    focus_id: semantic-verb-modeling
+    aliases: [NLU, Semantic Analysis, Voice AI]
+
+tags:
+  - id: agent-systems-routing-policy
+    label: Agent Systems / Routing Policy
+    domain_id: agent-systems
+    aliases:
+      - 2단계 라우팅
+      - 계층형 라우팅
+      - 라우팅 경계
+      - 라우팅 책임 분리
+      - 라우팅 회귀
+      - 상태 머신
+  - id: agent-systems-tool-orchestration
+    label: Agent Systems / Tool Orchestration
+    domain_id: agent-systems
+    aliases:
+      - API Proxy
+      - handoff 손실
+      - handoff-first
+      - 도구 간 handoff 손실
+      - 도구 분산
+      - 승인 중심 업무 흐름
+  - id: automation-deployment-pipeline
+    label: Automation / Deployment Pipeline
+    domain_id: automation
+    aliases:
+      - Snapshot 저장
+      - 공용 API
+      - 네이티브 플러그인
+      - 로컬 마이그레이션
+      - 로컬 우선
+      - 레거시 전환
+      - 백그라운드 작업
+      - 자산 경계 혼선
+      - 자산 분리
+      - 점진적 전환
+      - Windows 실행 배포
+      - 기존 기록 모델 보존
+      - 소유 경계 분리
+      - 재분석 파이프라인
+      - 재사용 가능한 운영 템플릿
+      - 호환 전환 경로
+  - id: automation-evaluation-harness
+    label: Automation / Evaluation Harness
+    domain_id: automation
+    aliases:
+      - 구조화된 평가
+      - 실행 증빙 누락
+      - 시나리오 실행
+      - 테스트 자산 관리
+      - 실행 증빙 기반 종료
+  - id: data-log-analysis
+    label: Data / Log Analysis
+    domain_id: data
+    aliases:
+      - 구조화 로그
+      - 로그 순서 오류
+      - 운영 분석 리포트
+  - id: data-structured-extraction
+    label: Data / Structured Extraction
+    domain_id: data
+    aliases:
+      - 데이터 품질
+      - 도구 중립 문서
+      - 라벨 인식 오류
+      - 리뷰 가능한 명세
+      - 명세 가독성
+      - 방어적 파싱
+      - 시간대 정규화
+      - 정본 관리
+      - 정본과 adapter
+  - id: evaluation-benchmarking
+    label: Evaluation / Benchmarking
+    domain_id: evaluation
+    aliases:
+      - 경로 정확도
+      - 도로 기록 정확성
+      - 멀티턴 재현성
+      - 벤치마크 게이트
+      - 프롬프트 품질 비교
+      - 회귀 검증
+      - 기준셋 운영 규칙
+      - 라우팅 평가 체계
+      - 멀티턴 테스트 스캐폴드
+      - 반복 평가 체계
+      - 테스트 템플릿 정규화
+  - id: evaluation-llm-judge
+    label: Evaluation / LLM Judge
+    domain_id: evaluation
+    aliases: [독립 judge, 정답 표현 다양성, 비교 리포트]
+  - id: learning-systems-quiz-mastery
+    label: Learning Systems / Quiz and Mastery
+    domain_id: learning-systems
+    aliases: [시나리오 학습, 복습 중심 학습 세션, 실무 기술 커리큘럼]
+  - id: learning-systems-spaced-repetition
+    label: Learning Systems / Spaced Repetition
+    domain_id: learning-systems
+    aliases: [간격 반복]
+  - id: learning-systems-vocabulary-deck
+    label: Learning Systems / Vocabulary Deck
+    domain_id: learning-systems
+    aliases: [학습 자산 분리]
+  - id: model-operations-response-handling
+    label: Model Operations / Model Response Handling
+    domain_id: model-operations
+    aliases:
+      - Chunked Processing
+      - 계산 상태와 시각 상태 일치
+      - 로직 분리
+      - 비동기 실패 전파
+      - 스트리밍 처리
+      - 응답 스키마 제약
+  - id: model-operations-token-api-usage
+    label: Model Operations / Token and API Usage
+    domain_id: model-operations
+    aliases: [예산 실행 관리]
+  - id: operations-analytics-failure-taxonomy
+    label: Operations Analytics / Failure Taxonomy
+    domain_id: operations-analytics
+    aliases: [세션 오분류, 실패 원인 분류]
+  - id: operations-analytics-unmet-demand-mining
+    label: Operations Analytics / Unmet Demand Mining
+    domain_id: operations-analytics
+    aliases: [이슈 클러스터]
+  - id: personalization-emotional-memory
+    label: Personalization / Emotional Memory
+    domain_id: personalization
+    aliases: [망각 관리]
+  - id: personalization-user-profile-memory
+    label: Personalization / User Profile Memory
+    domain_id: personalization
+    aliases:
+      - 메모리 포맷 단절
+      - 선호 표현의 구조화
+      - 도구 간 메모리 동기화
+      - 선호 분석 패킷
+  - id: product-ux-app-surface
+    label: Product UX / App Surface
+    domain_id: product-ux
+    aliases:
+      - Feature 선택
+      - Web-first Desktop
+      - 계획 경로와 방문 기록 혼동
+      - 고정 달력 그리드
+      - 기록 마찰
+      - 단계형 선택
+      - 데스크톱 접근성
+      - 모드 제어
+      - 멀티클라이언트 동기화
+      - 백그라운드 GPS
+      - 복잡한 교차로
+      - 비자연스러운 키보드 음계
+      - 상태 기반 UI
+      - 시스템 이해 격차
+      - 안내 화면 안정성
+      - 알림 시간
+      - 인체공학적 키맵
+      - 일정과 체크리스트 분산
+      - 작업 가시성
+      - 컬렉션 정리
+      - Windows MVP
+      - iOS 주행 기록
+      - 계산기 프로토타입
+      - 검증 중심 뉴스 이해
+      - 라벨에서 셀러 카드까지
+      - 웹-모바일 연계
+      - 웹-위젯 동기화
+      - 재현 가능한 도로 기록
+      - 전체 키보드 연주 매핑
+      - 주행 안내 프로토타입
+  - id: product-ux-conversational-interface
+    label: Product UX / Conversational Interface
+    domain_id: product-ux
+    aliases: [대화 무결성 강화]
+  - id: prompt-engineering-few-shot
+    label: Prompt Engineering / Few-shot Prompting
+    domain_id: prompt-engineering
+  - id: prompt-engineering-persona
+    label: Prompt Engineering / Persona Prompt
+    domain_id: prompt-engineering
+    aliases: [발신 전 톤 조정, 상황 기반 재작성, 페르소나 붕괴, 상황별 메시지 재작성]
+  - id: prompt-engineering-system
+    label: Prompt Engineering / System Prompt
+    domain_id: prompt-engineering
+    aliases: [단일 프롬프트 과부하]
+  - id: rag-knowledge-graph
+    label: RAG / Knowledge Graph
+    domain_id: rag
+    aliases: [시스템 경계 지도]
+  - id: rag-retrieval-context
+    label: RAG / Retrieval Context
+    domain_id: rag
+    aliases: [Hybrid Retrieval, 검색 재순위화, 맥락 단절, 의미 유사도]
+  - id: safety-qa-guardrails
+    label: Safety / QA Guardrails
+    domain_id: safety
+    aliases:
+      - Bounded Depth
+      - Human-in-the-loop
+      - Preview-only Layer
+      - Safety Gate
+      - 개인정보 고지
+      - 데이터 검증
+      - 민감 기록의 안전한 탐색
+      - 비공개 기본값
+      - 사용자 검토
+      - 사실 신뢰성
+      - 서버 검증
+      - 승인 통제
+      - 안전한 fallback
+      - 운전자 시야 방해
+      - 위치 프라이버시
+      - 이중 QA
+      - 인증 경계
+      - 공개 코드와 비공개 데이터 분리
+  - id: semantic-modeling-function-call-dataset
+    label: Semantic Modeling / Function Call Dataset
+    domain_id: semantic-modeling
+    aliases: [구조화 출력, 스키마 기반 생성, 슬롯 일관성]
+  - id: semantic-modeling-morphological-tagging
+    label: Semantic Modeling / Morphological Tagging
+    domain_id: semantic-modeling
+    aliases: [형태소 태깅]
+  - id: semantic-modeling-verb-schema
+    label: Semantic Modeling / Verb Schema
+    domain_id: semantic-modeling
+    aliases: [동사 정규화, 동사 중심 자산 정리]

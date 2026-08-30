@@ -3,9 +3,46 @@ from dataclasses import replace
 import pytest
 
 from atlas_worker.graph import build_graph, similarity
-from atlas_worker.models import TagCandidate, TagSet
+from atlas_worker.models import (
+    GRAPH_EDGE_KINDS,
+    GRAPH_NODE_KINDS,
+    GraphEdge,
+    TagCandidate,
+    TagSet,
+)
 from atlas_worker.taxonomy import select_tags
 from tests.worker.helpers import make_public_project
+
+
+def test_public_graph_contract_uses_evidence_backed_kinds():
+    assert GRAPH_NODE_KINDS == frozenset(
+        {
+            "KnowledgeFocus",
+            "KnowledgeDomain",
+            "KnowledgeTag",
+            "Project",
+            "Technology",
+            "Artifact",
+        }
+    )
+    assert GRAPH_EDGE_KINDS == frozenset(
+        {
+            "HAS_FOCUS",
+            "FOCUS_HAS_TAG",
+            "HAS_SUBTAG",
+            "HAS_TAG",
+            "USES_TECH",
+            "PRODUCES_ARTIFACT",
+            "ARTIFACT_HAS_TAG",
+            "EVOLVED_FROM",
+            "VALIDATES",
+            "DEPLOYS",
+            "REUSES_COMPONENT",
+        }
+    )
+    edge = GraphEdge("project:left", "project:right", "EVOLVED_FROM")
+
+    assert edge.edge_id == "evolved_from:project%3Aleft:project%3Aright"
 
 
 def test_inferred_semantic_tag_requires_two_source_classes():

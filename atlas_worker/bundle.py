@@ -25,8 +25,8 @@ from .manifest import (
     tree_hash,
 )
 from .models import (
-    GRAPH_EDGE_KINDS,
-    GRAPH_NODE_KINDS,
+    LEGACY_GRAPH_EDGE_KINDS as GRAPH_EDGE_KINDS,
+    LEGACY_GRAPH_NODE_KINDS as GRAPH_NODE_KINDS,
     BundleManifest,
     EvidenceRecord,
     GraphData,

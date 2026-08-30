@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["nodes", "edges"],
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/node"}
+    },
+    "edges": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/edge"}
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "kind", "url", "summary"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "label": {"type": "string", "minLength": 1},
+        "kind": {
+          "enum": [
+            "KnowledgeFocus",
+            "KnowledgeDomain",
+            "KnowledgeTag",
+            "Project",
+            "Technology",
+            "Artifact"
+          ]
+        },
+        "url": {"type": "string"},
+        "summary": {"type": "string"}
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source", "target", "kind", "weight", "evidence_links"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "source": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "kind": {
+          "enum": [
+            "HAS_FOCUS",
+            "FOCUS_HAS_TAG",
+            "HAS_SUBTAG",
+            "HAS_TAG",
+            "USES_TECH",
+            "PRODUCES_ARTIFACT",
+            "ARTIFACT_HAS_TAG",
+            "EVOLVED_FROM",
+            "VALIDATES",
+            "DEPLOYS",
+            "REUSES_COMPONENT"
+          ]
+        },
+        "weight": {"type": "integer", "minimum": 1},
+        "evidence_links": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/evidenceLink"}
+        }
+      }
+    },
+    "evidenceLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "url"],
+      "properties": {
+        "label": {"type": "string", "minLength": 1},
+        "url": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
