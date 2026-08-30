@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">채팅 저장과 기억 추출의 실패 경계</title>
+  <desc id="desc">사용자 메시지는 채팅 답변을 생성하고 데이터베이스에 저장된 뒤 먼저 반환된다. 기억 추출은 별도 비동기 경로에서 실행되며 실패해도 저장된 대화는 유지된다.</desc>
+  <rect x="0" y="0" width="1200" height="520" fill="#f7f8fa"/>
+  <text x="70" y="62" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#172033">즉시 대화 경로</text>
+  <rect x="70" y="100" width="230" height="100" rx="6" fill="#e8f1fb" stroke="#4776a8" stroke-width="2"/>
+  <text x="185" y="144" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17324d">사용자 메시지</text>
+  <text x="185" y="173" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#38526a">conversation input</text>
+  <path d="M 300 150 H 390" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 390 150 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="410" y="100" width="230" height="100" rx="6" fill="#fff7df" stroke="#a97816" stroke-width="2"/>
+  <text x="525" y="144" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#523b0b">채팅 생성</text>
+  <text x="525" y="173" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#69551f">persona와 context</text>
+  <path d="M 640 150 H 730" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 730 150 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="750" y="100" width="230" height="100" rx="6" fill="#e9f3ee" stroke="#387052" stroke-width="2"/>
+  <text x="865" y="144" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#234b38">답변 저장</text>
+  <text x="865" y="173" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#3d6451">먼저 영속화</text>
+  <path d="M 980 150 H 1070" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 1070 150 l -14 -8 v 16 z" fill="#59697a"/>
+  <text x="1100" y="144" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#234b38">반환</text>
+  <path d="M 865 200 V 280" fill="none" stroke="#4776a8" stroke-width="3" stroke-dasharray="9 7"/>
+  <path d="M 865 280 l -8 -14 h 16 z" fill="#4776a8"/>
+  <text x="70" y="318" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#172033">후속 기억 경로</text>
+  <rect x="410" y="350" width="260" height="100" rx="6" fill="#e8f1fb" stroke="#4776a8" stroke-width="2"/>
+  <text x="540" y="393" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17324d">비동기 기억 추출</text>
+  <text x="540" y="422" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#38526a">in-process 작업</text>
+  <path d="M 670 400 H 750" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 750 400 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="770" y="350" width="170" height="100" rx="6" fill="#e9f3ee" stroke="#387052" stroke-width="2"/>
+  <text x="855" y="393" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#234b38">성공</text>
+  <text x="855" y="422" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#3d6451">기억 저장</text>
+  <path d="M 540 450 V 486 H 980" fill="none" stroke="#9a4f4f" stroke-width="3" stroke-dasharray="9 7"/>
+  <text x="1035" y="445" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#743838">실패</text>
+  <text x="1035" y="473" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#743838">대화 유지</text>
+</svg>

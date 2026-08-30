@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">TMAP 입력과 VWorld 영구 기록의 의도와 현재 구현</title>
+  <desc id="desc">설계 의도는 TMAP 경로를 24시간 안의 세션 입력으로만 쓰고 폐기한 뒤 VWorld Feature snapshot만 영구 저장하는 것이다. 현재 구현은 TMAP route path에서 만든 displayGeometry를 localStorage record에 넣고 TTL을 적용하지 않는다.</desc>
+  <rect x="0" y="0" width="1200" height="720" fill="#f7f8fa"/>
+  <text x="70" y="62" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#172033">의도한 데이터 수명</text>
+  <rect x="70" y="92" width="250" height="108" rx="6" fill="#e8f1fb" stroke="#4776a8" stroke-width="2"/>
+  <text x="195" y="132" text-anchor="middle" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#17324d">TMAP 계획 입력</text>
+  <text x="195" y="164" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#38526a">장소 · route geometry</text>
+  <text x="195" y="188" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#38526a">24시간 안의 세션</text>
+  <path d="M 320 146 H 430" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 430 146 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="450" y="92" width="290" height="108" rx="6" fill="#fff7df" stroke="#a97816" stroke-width="2"/>
+  <text x="595" y="132" text-anchor="middle" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#523b0b">사용자 확인과 변환</text>
+  <text x="595" y="164" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#69551f">VWorld Feature 매칭</text>
+  <text x="595" y="188" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#69551f">TMAP 원본 폐기</text>
+  <path d="M 740 146 H 850" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 850 146 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="870" y="92" width="260" height="108" rx="6" fill="#e9f5ec" stroke="#3f7a4b" stroke-width="2"/>
+  <text x="1000" y="132" text-anchor="middle" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#214b2a">영구 방문 기록</text>
+  <text x="1000" y="164" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#3c6344">VWorld Feature ID</text>
+  <text x="1000" y="188" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#3c6344">geometry snapshot</text>
+  <line x1="70" y1="264" x2="1130" y2="264" stroke="#c8ced6" stroke-width="2"/>
+  <text x="70" y="322" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#172033">현재 구현의 미해결 경로</text>
+  <rect x="70" y="352" width="250" height="108" rx="6" fill="#e8f1fb" stroke="#4776a8" stroke-width="2"/>
+  <text x="195" y="394" text-anchor="middle" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#17324d">TMAP route path</text>
+  <text x="195" y="428" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#38526a">preview 입력</text>
+  <path d="M 320 406 H 430" fill="none" stroke="#a4382f" stroke-width="3"/>
+  <path d="M 430 406 l -14 -8 v 16 z" fill="#a4382f"/>
+  <rect x="450" y="352" width="290" height="108" rx="6" fill="#fdebea" stroke="#a4382f" stroke-width="3"/>
+  <text x="595" y="394" text-anchor="middle" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#6e211b">displayGeometry 생성</text>
+  <text x="595" y="428" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#7b3530">VWorld snapshot보다 우선 표시</text>
+  <path d="M 740 406 H 850" fill="none" stroke="#a4382f" stroke-width="3"/>
+  <path d="M 850 406 l -14 -8 v 16 z" fill="#a4382f"/>
+  <rect x="870" y="352" width="260" height="108" rx="6" fill="#fdebea" stroke="#a4382f" stroke-width="3"/>
+  <text x="1000" y="394" text-anchor="middle" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#6e211b">localStorage record</text>
+  <text x="1000" y="428" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#7b3530">TTL · 만료 삭제 없음</text>
+  <rect x="70" y="518" width="1060" height="126" rx="6" fill="#ffffff" stroke="#8f98a4" stroke-width="2"/>
+  <text x="100" y="560" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#172033">unresolved decision</text>
+  <text x="100" y="596" font-family="Arial, sans-serif" font-size="17" fill="#384554">displayGeometry를 VWorld snapshot에서만 재구성하고 기존 파생 geometry의 migration 또는 삭제 정책을 정해야 한다.</text>
+  <text x="100" y="626" font-family="Arial, sans-serif" font-size="17" fill="#384554">그 전까지 24시간 제한과 VWorld-only 영구 저장은 구현 완료로 볼 수 없다.</text>
+</svg>

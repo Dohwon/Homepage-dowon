@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" role="img" aria-labelledby="title desc">
+  <title id="title">미확정 gap의 수동 도로 연결</title>
+  <desc id="desc">완전 분석 결과 후보가 없는 gap을 needsManualJoin으로 분류하고, 사용자가 endpoint를 지정한 뒤 서버가 VWorld와 ITS 후보를 검증한다. 사용자의 명시적 선택과 revision CAS 성공 후에만 resolution이 저장된다.</desc>
+  <rect x="0" y="0" width="1200" height="660" fill="#f7f8fa"/>
+  <text x="70" y="60" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#172033">complete-zero gap을 닫는 순서</text>
+  <rect x="60" y="120" width="190" height="138" rx="6" fill="#fdebea" stroke="#a4382f" stroke-width="2"/>
+  <text x="155" y="163" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#6e211b">needsManualJoin</text>
+  <text x="155" y="198" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#7b3530">분석 완료</text>
+  <text x="155" y="224" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#7b3530">안전 후보 0개</text>
+  <path d="M 250 189 H 292" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 292 189 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="310" y="120" width="190" height="138" rx="6" fill="#fff7df" stroke="#a97816" stroke-width="2"/>
+  <text x="405" y="163" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#523b0b">endpoint 선택</text>
+  <text x="405" y="198" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#69551f">진입 → 이탈</text>
+  <text x="405" y="224" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#69551f">순서 명시</text>
+  <path d="M 500 189 H 542" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 542 189 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="560" y="120" width="240" height="138" rx="6" fill="#e8f1fb" stroke="#4776a8" stroke-width="2"/>
+  <text x="680" y="163" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17324d">도로 후보 검증</text>
+  <text x="680" y="198" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#38526a">VWorld · ITS</text>
+  <text x="680" y="224" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#38526a">coverage · 방향 · topology</text>
+  <path d="M 800 189 H 842" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 842 189 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="860" y="120" width="280" height="138" rx="6" fill="#fff7df" stroke="#a97816" stroke-width="2"/>
+  <text x="1000" y="163" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#523b0b">사용자 명시적 확정</text>
+  <text x="1000" y="198" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#69551f">preview 확인</text>
+  <text x="1000" y="224" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#69551f">이 경로로 잇기</text>
+  <path d="M 1000 258 V 326 H 790" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 790 326 l 14 -8 v 16 z" fill="#59697a"/>
+  <rect x="560" y="304" width="230" height="138" rx="6" fill="#e9f3ee" stroke="#387052" stroke-width="2"/>
+  <text x="675" y="347" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#234b38">revision CAS</text>
+  <text x="675" y="382" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#3d6451">session · span · revision</text>
+  <text x="675" y="408" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#3d6451">최신 상태만 반영</text>
+  <path d="M 560 373 H 498" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 498 373 l 14 -8 v 16 z" fill="#59697a"/>
+  <rect x="210" y="304" width="288" height="138" rx="6" fill="#edf5ea" stroke="#4f7f45" stroke-width="2"/>
+  <text x="354" y="347" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#2f5528">confirmed resolution</text>
+  <text x="354" y="382" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#4b6b45">검증 snapshot만 저장</text>
+  <text x="354" y="408" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#4b6b45">raw path · 직선 제외</text>
+  <rect x="70" y="506" width="1060" height="92" rx="6" fill="#ffffff" stroke="#8f98a4" stroke-width="2"/>
+  <text x="100" y="545" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#172033">저장 조건</text>
+  <text x="100" y="575" font-family="Arial, sans-serif" font-size="16" fill="#384554">모든 span이 confirmed 또는 excluded이고, confirmed span이 최소 하나일 때만 최종 저장을 허용한다.</text>
+</svg>

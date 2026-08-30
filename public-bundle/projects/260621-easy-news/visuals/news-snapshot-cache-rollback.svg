@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+  <title id="title">뉴스 스냅샷과 캐시 롤백 경계</title>
+  <desc id="desc">RSS 입력은 결정론적 클러스터와 스키마 검증을 거쳐 임시 파일에 쓰인다. 성공하면 rename으로 현재 스냅샷을 바꾸고 실패하면 이전 정상본을 유지하며 앱은 요청 시 동적으로 읽는다.</desc>
+  <rect x="0" y="0" width="1200" height="560" fill="#f7f8fa"/>
+  <text x="70" y="62" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#172033">갱신 경로</text>
+  <rect x="70" y="100" width="190" height="104" rx="6" fill="#e8f1fb" stroke="#4776a8" stroke-width="2"/>
+  <text x="165" y="145" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17324d">RSS 입력</text>
+  <text x="165" y="175" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#38526a">source items</text>
+  <path d="M 260 152 H 330" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 330 152 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="350" y="100" width="210" height="104" rx="6" fill="#fff7df" stroke="#a97816" stroke-width="2"/>
+  <text x="455" y="145" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#523b0b">이슈 클러스터</text>
+  <text x="455" y="175" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#69551f">결정론적 builder</text>
+  <path d="M 560 152 H 630" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 630 152 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="650" y="100" width="210" height="104" rx="6" fill="#fff7df" stroke="#a97816" stroke-width="2"/>
+  <text x="755" y="145" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#523b0b">스키마 검증</text>
+  <text x="755" y="175" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#69551f">완전한 후보만 통과</text>
+  <path d="M 860 152 H 930" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 930 152 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="950" y="100" width="180" height="104" rx="6" fill="#e8f1fb" stroke="#4776a8" stroke-width="2"/>
+  <text x="1040" y="145" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17324d">임시 파일</text>
+  <text x="1040" y="175" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#38526a">candidate</text>
+  <path d="M 1040 204 V 280 H 855" fill="none" stroke="#387052" stroke-width="3"/>
+  <path d="M 855 280 l 14 -8 v 16 z" fill="#387052"/>
+  <rect x="620" y="246" width="215" height="104" rx="6" fill="#e9f3ee" stroke="#387052" stroke-width="2"/>
+  <text x="727" y="290" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#234b38">현재 스냅샷</text>
+  <text x="727" y="320" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#3d6451">rename 원자 교체</text>
+  <path d="M 650 204 V 228 H 480 V 246" fill="none" stroke="#9a4f4f" stroke-width="3" stroke-dasharray="9 7"/>
+  <rect x="350" y="246" width="220" height="104" rx="6" fill="#f7eaea" stroke="#9a4f4f" stroke-width="2"/>
+  <text x="460" y="290" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#743838">갱신 실패</text>
+  <text x="460" y="320" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#743838">이전 정상본 유지</text>
+  <line x1="70" y1="402" x2="1130" y2="402" stroke="#c8ced6" stroke-width="2"/>
+  <text x="70" y="452" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#172033">노출 경로</text>
+  <rect x="350" y="474" width="220" height="62" rx="6" fill="#e8f1fb" stroke="#4776a8" stroke-width="2"/>
+  <text x="460" y="512" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#17324d">요청 시 파일 읽기</text>
+  <path d="M 570 505 H 650" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 650 505 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="670" y="474" width="220" height="62" rx="6" fill="#e9f3ee" stroke="#387052" stroke-width="2"/>
+  <text x="780" y="512" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#234b38">network-first 화면</text>
+</svg>

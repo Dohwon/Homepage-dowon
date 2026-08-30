@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+  <title id="title">가계부 로컬 기록 이관과 복귀 경계</title>
+  <desc id="desc">Electron은 첫 실행에 기존 로컬 JSON을 원격 상태 API로 한 번 전송한다. 성공하면 원격 화면을 사용하고 실패하면 사용자 데이터 위치의 로컬 서버와 JSON으로 돌아간다. 두 상태를 병합하지는 않는다.</desc>
+  <rect x="0" y="0" width="1200" height="560" fill="#f7f8fa"/>
+  <text x="70" y="62" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#172033">첫 실행 이관</text>
+  <rect x="70" y="105" width="240" height="108" rx="6" fill="#e8f1fb" stroke="#4776a8" stroke-width="2"/>
+  <text x="190" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17324d">기존 로컬 JSON</text>
+  <text x="190" y="180" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#38526a">사용자 작성 상태</text>
+  <path d="M 310 159 H 410" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 410 159 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="430" y="105" width="240" height="108" rx="6" fill="#fff7df" stroke="#a97816" stroke-width="2"/>
+  <text x="550" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#523b0b">Electron 이관</text>
+  <text x="550" y="180" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#69551f">1회 PUT</text>
+  <path d="M 670 159 H 770" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 770 159 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="790" y="105" width="340" height="108" rx="6" fill="#e9f3ee" stroke="#387052" stroke-width="2"/>
+  <text x="960" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#234b38">원격 상태 API</text>
+  <text x="960" y="180" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#3d6451">성공하면 원격 화면 사용</text>
+  <path d="M 550 213 V 314 H 360" fill="none" stroke="#9a4f4f" stroke-width="3" stroke-dasharray="9 7"/>
+  <path d="M 360 314 l 14 -8 v 16 z" fill="#9a4f4f"/>
+  <text x="520" y="270" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#743838">이관 또는 연결 실패</text>
+  <rect x="70" y="280" width="270" height="112" rx="6" fill="#f7eaea" stroke="#9a4f4f" stroke-width="2"/>
+  <text x="205" y="326" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#743838">로컬 서버</text>
+  <text x="205" y="356" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#743838">사용자 데이터 위치</text>
+  <path d="M 340 336 H 430" fill="none" stroke="#59697a" stroke-width="3"/>
+  <path d="M 430 336 l -14 -8 v 16 z" fill="#59697a"/>
+  <rect x="450" y="280" width="270" height="112" rx="6" fill="#e8f1fb" stroke="#4776a8" stroke-width="2"/>
+  <text x="585" y="326" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17324d">로컬 가계부 화면</text>
+  <text x="585" y="356" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#38526a">기존 기록 유지</text>
+  <line x1="70" y1="444" x2="1130" y2="444" stroke="#c8ced6" stroke-width="2"/>
+  <rect x="70" y="476" width="1060" height="56" rx="6" fill="#ffffff" stroke="#8f98a4" stroke-width="2"/>
+  <text x="600" y="511" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" fill="#384554">이 경계는 가용성 fallback이다. 원격과 로컬의 충돌 병합이나 사용자 격리를 제공하지 않는다.</text>
+</svg>
