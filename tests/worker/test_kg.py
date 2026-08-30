@@ -3,7 +3,15 @@ from dataclasses import replace
 import pytest
 
 from atlas_worker.kg import KnowledgeTaxonomy, build_knowledge_graph, load_knowledge_taxonomy
-from atlas_worker.models import GRAPH_EDGE_KINDS, TagSet, validate_schema
+from atlas_worker.models import (
+    GRAPH_EDGE_KINDS,
+    EvidenceRecord,
+    GraphEdge,
+    GraphNode,
+    ProjectArticle,
+    TagSet,
+    validate_schema,
+)
 from tests.worker.helpers import make_public_project
 
 
@@ -73,6 +81,29 @@ def project_factory():
 @pytest.fixture
 def projects(project_factory):
     return (project_factory("left"), project_factory("right", domain=("Evaluation",)))
+
+
+def public_article(project_id):
+    return ProjectArticle(
+        project_id=project_id,
+        title=f"{project_id} article",
+        summary=f"{project_id} public article",
+        sections=(),
+        readiness="ready",
+    )
+
+
+def public_evidence(project_id, evidence_id="routing-spec"):
+    return EvidenceRecord(
+        evidence_id=evidence_id,
+        project_id=project_id,
+        label="Routing spec",
+        source_type="spec",
+        source_locator="private/session/locator.jsonl:7",
+        observed_at="2026-08-27T10:00:00Z",
+        privacy_class="public-safe",
+        content_hash="a" * 64,
+    )
 
 
 def test_kg_uses_six_node_types_and_no_similarity_edges(projects, taxonomy):
@@ -156,6 +187,7 @@ def test_public_artifacts_and_relations_include_safe_evidence_links(projects, ta
         "left": (
             {
                 "id": "routing-spec",
+                "project_id": "left",
                 "label": "Routing spec",
                 "source_type": "spec",
                 "observed_at": "2026-08-27T10:00:00Z",
@@ -172,7 +204,13 @@ def test_public_artifacts_and_relations_include_safe_evidence_links(projects, ta
         ]
     }
 
-    graph = build_knowledge_graph(projects, {}, evidence, relations, taxonomy)
+    graph = build_knowledge_graph(
+        projects,
+        {"left": public_article("left")},
+        evidence,
+        relations,
+        taxonomy,
+    )
     artifact = next(node for node in graph.nodes if node.kind == "Artifact")
     relation = next(edge for edge in graph.edges if edge.kind == "EVOLVED_FROM")
 
@@ -182,6 +220,129 @@ def test_public_artifacts_and_relations_include_safe_evidence_links(projects, ta
         {"label": "Routing spec", "url": "/projects/left?tab=evidence"},
     )
     validate_schema(graph.to_public_dict(), "public-graph")
+
+
+@pytest.mark.parametrize(
+    "url",
+    (
+        "/home/dowon/private/session.jsonl",
+        "session:019fca18-private-locator",
+        "file:///home/dowon/private/evidence",
+        "/projects/../../private",
+    ),
+)
+def test_graph_node_projection_rejects_private_locator_urls(url):
+    node = GraphNode("project:alpha", "Alpha", "Project", url, "Alpha project")
+
+    with pytest.raises(ValueError, match="graph-node-url"):
+        node.to_public_dict()
+
+
+@pytest.mark.parametrize(
+    "url",
+    (
+        "/home/dowon/.codex/sessions/private.jsonl:12",
+        "session:private-evidence",
+        "file:///tmp/evidence",
+        "/projects/../private?tab=evidence",
+    ),
+)
+def test_graph_evidence_link_projection_rejects_private_locator_urls(url):
+    edge = GraphEdge(
+        "project:left",
+        "project:right",
+        "EVOLVED_FROM",
+        evidence_links=({"label": "Private locator", "url": url},),
+    )
+
+    with pytest.raises(ValueError, match="graph-evidence-link-url"):
+        edge.to_public_dict()
+
+
+def test_public_graph_schema_rejects_private_locator_urls():
+    payload = {
+        "nodes": [
+            {
+                "id": "project:alpha",
+                "label": "Alpha",
+                "kind": "Project",
+                "url": "/home/dowon/private/session.jsonl",
+                "summary": "Alpha project",
+            }
+        ],
+        "edges": [
+            {
+                "id": "evolved_from:project%3Aalpha:project%3Abeta",
+                "source": "project:alpha",
+                "target": "project:beta",
+                "kind": "EVOLVED_FROM",
+                "weight": 1,
+                "evidence_links": [
+                    {
+                        "label": "Private evidence",
+                        "url": "session:private-evidence",
+                    }
+                ],
+            }
+        ],
+    }
+
+    with pytest.raises(ValueError):
+        validate_schema(payload, "public-graph")
+
+
+@pytest.mark.parametrize(
+    "url",
+    (
+        "/projects/alpha",
+        "/projects/alpha%2Fbeta?tab=evidence",
+        "https://example.com/public/evidence",
+    ),
+)
+def test_graph_projection_accepts_internal_project_routes_and_safe_https(url):
+    node = GraphNode("project:alpha", "Alpha", "Project", url, "Alpha project")
+    edge = GraphEdge(
+        "project:left",
+        "project:right",
+        "EVOLVED_FROM",
+        evidence_links=({"label": "Public evidence", "url": url},),
+    )
+
+    assert node.to_public_dict()["url"] == url
+    assert edge.to_public_dict()["evidence_links"] == [{"label": "Public evidence", "url": url}]
+
+
+def test_public_evidence_requires_a_matching_article(projects, taxonomy):
+    evidence = {"left": (public_evidence("left"),)}
+
+    with pytest.raises(ValueError, match="graph-evidence-article"):
+        build_knowledge_graph(projects, {}, evidence, {}, taxonomy)
+
+
+def test_public_evidence_project_id_must_match_mapping_key(projects, taxonomy):
+    evidence = {"left": (public_evidence("right"),)}
+
+    with pytest.raises(ValueError, match="graph-evidence-project"):
+        build_knowledge_graph(
+            projects,
+            {"left": public_article("left")},
+            evidence,
+            {},
+            taxonomy,
+        )
+
+
+def test_public_article_project_id_must_match_mapping_key(projects, taxonomy):
+    evidence = {"left": (public_evidence("left"),)}
+
+    with pytest.raises(ValueError, match="graph-article-project"):
+        build_knowledge_graph(
+            projects,
+            {"left": public_article("right")},
+            evidence,
+            {},
+            taxonomy,
+        )
 
 
 def test_unknown_project_taxonomy_label_enters_review(project_factory, taxonomy):
@@ -200,17 +361,54 @@ def test_duplicate_taxonomy_ids_are_rejected(taxonomy_data):
         KnowledgeTaxonomy.from_mapping(taxonomy_data)
 
 
+def test_taxonomy_file_loader_rejects_duplicate_mapping_keys(tmp_path):
+    taxonomy_path = tmp_path / "duplicate-key.yaml"
+    taxonomy_path.write_text(
+        """focuses:
+  - id: first
+    id: overwritten
+    label: Focus
+domains: []
+tags: []
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="graph-taxonomy-yaml-key"):
+        KnowledgeTaxonomy.from_file(taxonomy_path)
+
+
+def test_taxonomy_file_loader_rejects_merge_keys(tmp_path):
+    taxonomy_path = tmp_path / "merge-key.yaml"
+    taxonomy_path.write_text(
+        """focuses:
+  - &focus
+    id: first
+    label: Focus
+  - <<: *focus
+    id: second
+domains: []
+tags: []
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="graph-taxonomy-yaml-merge"):
+        KnowledgeTaxonomy.from_file(taxonomy_path)
+
+
 def test_duplicate_public_evidence_ids_are_rejected(projects, taxonomy):
-    duplicate = {
-        "id": "same",
-        "label": "Same evidence",
-        "source_type": "test",
-        "observed_at": "2026-08-27T10:00:00Z",
+    evidence = {
+        "left": (public_evidence("left", "same"),),
+        "right": (public_evidence("right", "same"),),
     }
-    evidence = {"left": (duplicate,), "right": (duplicate,)}
+    articles = {
+        "left": public_article("left"),
+        "right": public_article("right"),
+    }
 
     with pytest.raises(ValueError, match="graph-evidence-duplicate-id"):
-        build_knowledge_graph(projects, {}, evidence, {}, taxonomy)
+        build_knowledge_graph(projects, articles, evidence, {}, taxonomy)
 
 
 @pytest.mark.parametrize(

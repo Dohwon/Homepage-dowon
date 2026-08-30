@@ -26,6 +26,34 @@ _RELATION_KINDS = frozenset({"EVOLVED_FROM", "VALIDATES", "DEPLOYS", "REUSES_COM
 _TAXONOMY_KEYS = frozenset({"focuses", "domains", "tags"})
 
 
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """Safe taxonomy loader that keeps reviewed mappings explicit."""
+
+
+def _construct_mapping(
+    loader: _UniqueKeyLoader,
+    node: yaml.MappingNode,
+    deep: bool = False,
+) -> dict[str, object]:
+    values: dict[str, object] = {}
+    for key_node, value_node in node.value:
+        if key_node.tag == "tag:yaml.org,2002:merge":
+            raise ValueError("graph-taxonomy-yaml-merge")
+        key = loader.construct_object(key_node, deep=deep)
+        if not isinstance(key, str):
+            raise ValueError("graph-taxonomy-yaml-key")
+        if key in values:
+            raise ValueError("graph-taxonomy-yaml-key")
+        values[key] = loader.construct_object(value_node, deep=deep)
+    return values
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_mapping,
+)
+
+
 @dataclass(frozen=True)
 class _Focus:
     item_id: str
@@ -96,7 +124,10 @@ class KnowledgeTaxonomy:
 
     @classmethod
     def from_file(cls, path: str | Path) -> "KnowledgeTaxonomy":
-        value = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+        try:
+            value = yaml.load(Path(path).read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
+        except yaml.YAMLError:
+            raise ValueError("graph-taxonomy-yaml") from None
         if not isinstance(value, Mapping):
             raise ValueError("graph-taxonomy-shape")
         return cls.from_mapping(value)
@@ -149,7 +180,8 @@ def build_knowledge_graph(
     _require_known_mapping_keys(articles, project_ids, "graph-article-endpoint")
     _require_known_mapping_keys(evidence, project_ids, "graph-evidence-endpoint")
     _require_known_mapping_keys(relations, project_ids, "graph-relation-endpoint")
-    public_evidence = _public_evidence(evidence)
+    public_articles = _public_articles(articles)
+    public_evidence = _public_evidence(evidence, public_articles)
 
     nodes: dict[str, GraphNode] = {}
     edges: dict[tuple[str, str, str], GraphEdge] = {}
@@ -303,10 +335,26 @@ def _require_known_mapping_keys(values: Mapping[str, object], project_ids: set[s
         raise ValueError(error)
 
 
-def _public_evidence(evidence: Mapping[str, Sequence[object]]) -> dict[str, tuple[str, dict[str, str]]]:
+def _public_articles(articles: Mapping[str, object]) -> set[str]:
+    result: set[str] = set()
+    for project_id, article in articles.items():
+        if _project_id_value(article) != project_id:
+            raise ValueError("graph-article-project")
+        result.add(project_id)
+    return result
+
+
+def _public_evidence(
+    evidence: Mapping[str, Sequence[object]],
+    article_projects: set[str],
+) -> dict[str, tuple[str, dict[str, str]]]:
     result: dict[str, tuple[str, dict[str, str]]] = {}
     for project_id in sorted(evidence):
+        if evidence[project_id] and project_id not in article_projects:
+            raise ValueError("graph-evidence-article")
         for record in evidence[project_id]:
+            if _project_id_value(record) != project_id:
+                raise ValueError("graph-evidence-project")
             evidence_id = _evidence_value(record, "id", "evidence_id")
             label = _evidence_value(record, "label")
             if evidence_id in result:
@@ -316,6 +364,12 @@ def _public_evidence(evidence: Mapping[str, Sequence[object]]) -> dict[str, tupl
                 {"label": label, "url": f"/projects/{quote(project_id, safe='')}?tab=evidence"},
             )
     return result
+
+
+def _project_id_value(record: object) -> object:
+    if isinstance(record, Mapping):
+        return record.get("project_id")
+    return getattr(record, "project_id", None)
 
 
 def _evidence_value(record: object, key: str, attribute: str | None = None) -> str:

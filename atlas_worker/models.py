@@ -88,6 +88,7 @@ _DATE_TIME_VALUE = re.compile(
 )
 _MALFORMED_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 _DNS_LABEL = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
+_PUBLIC_PROJECT_TABS = frozenset({"decisions", "system-map", "build-timeline", "evidence"})
 
 
 @_SCHEMA_FORMAT_CHECKER.checks("date")
@@ -242,6 +243,49 @@ def validate_public_evidence_url(value: str) -> str:
     return value
 
 
+def validate_public_graph_url(value: str, *, allow_empty: bool = False) -> str:
+    """Accept only canonical project routes or public HTTPS URLs."""
+    if allow_empty and value == "":
+        return value
+    if not isinstance(value, str):
+        raise ValueError("graph URL must be a public project route or HTTPS URL")
+    if value.startswith("https://"):
+        try:
+            return validate_public_evidence_url(value)
+        except ValueError:
+            raise ValueError("graph URL must be a public project route or HTTPS URL") from None
+    try:
+        return _validate_public_project_route(value)
+    except ValueError:
+        raise ValueError("graph URL must be a public project route or HTTPS URL") from None
+
+
+def _validate_public_project_route(value: str) -> str:
+    _require_safe_url_text(value)
+    _require_well_formed_percent_escapes(value)
+    parsed = urlsplit(value)
+    if parsed.scheme or parsed.netloc or parsed.fragment:
+        raise ValueError("invalid public project route")
+    prefix = "/projects/"
+    if not parsed.path.startswith(prefix):
+        raise ValueError("invalid public project route")
+    encoded_id = parsed.path.removeprefix(prefix)
+    if not encoded_id or "/" in encoded_id:
+        raise ValueError("invalid public project route")
+    decoded_id = unquote(encoded_id)
+    if (
+        quote(decoded_id, safe="") != encoded_id
+        or decoded_id in {".", ".."}
+        or decoded_id.startswith(("/", "\\"))
+    ):
+        raise ValueError("invalid public project route")
+    if parsed.query:
+        key, separator, tab = parsed.query.partition("=")
+        if key != "tab" or separator != "=" or tab not in _PUBLIC_PROJECT_TABS:
+            raise ValueError("invalid public project route")
+    return value
+
+
 def _require_safe_url_text(value: str) -> None:
     if any(character.isspace() or ord(character) < 32 or ord(character) == 127 for character in value):
         raise ValueError("evidence url must be an absolute HTTPS URL")
@@ -286,6 +330,24 @@ def _validate_explicit_port(netloc: str, port: int | None) -> None:
 def _is_valid_atlas_https_url(value: object) -> bool:
     try:
         validate_public_evidence_url(value)  # type: ignore[arg-type]
+    except ValueError:
+        return False
+    return True
+
+
+@_SCHEMA_FORMAT_CHECKER.checks("atlas-public-graph-url")
+def _is_valid_public_graph_url(value: object) -> bool:
+    try:
+        validate_public_graph_url(value)  # type: ignore[arg-type]
+    except ValueError:
+        return False
+    return True
+
+
+@_SCHEMA_FORMAT_CHECKER.checks("atlas-public-graph-node-url")
+def _is_valid_public_graph_node_url(value: object) -> bool:
+    try:
+        validate_public_graph_url(value, allow_empty=True)  # type: ignore[arg-type]
     except ValueError:
         return False
     return True
@@ -442,11 +504,15 @@ class GraphNode:
     def to_public_dict(self) -> dict[str, object]:
         if self.kind not in GRAPH_NODE_KINDS:
             raise ValueError(f"Unknown public graph node kind: {self.kind}")
+        try:
+            url = validate_public_graph_url(self.url, allow_empty=True)
+        except ValueError:
+            raise ValueError("graph-node-url") from None
         return {
             "id": self.node_id,
             "label": self.label,
             "kind": self.kind,
-            "url": self.url,
+            "url": url,
             "summary": self.summary,
         }
 
@@ -473,13 +539,27 @@ class GraphEdge:
     def to_public_dict(self) -> dict[str, object]:
         if self.kind not in GRAPH_EDGE_KINDS:
             raise ValueError(f"Unknown public graph edge kind: {self.kind}")
+        evidence_links = []
+        for link in self.evidence_links:
+            if (
+                not isinstance(link, dict)
+                or frozenset(link) != frozenset({"label", "url"})
+                or not isinstance(link["label"], str)
+                or not link["label"].strip()
+            ):
+                raise ValueError("graph-evidence-link")
+            try:
+                url = validate_public_graph_url(link["url"])
+            except (KeyError, TypeError, ValueError):
+                raise ValueError("graph-evidence-link-url") from None
+            evidence_links.append({"label": link["label"], "url": url})
         return {
             "id": self.edge_id,
             "source": self.source_id,
             "target": self.target_id,
             "kind": self.kind,
             "weight": self.weight,
-            "evidence_links": list(self.evidence_links),
+            "evidence_links": evidence_links,
         }
 
 

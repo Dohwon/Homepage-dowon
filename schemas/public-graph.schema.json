@@ -31,7 +31,7 @@
             "Artifact"
           ]
         },
-        "url": {"type": "string"},
+        "url": {"type": "string", "format": "atlas-public-graph-node-url"},
         "summary": {"type": "string"}
       }
     },
@@ -71,7 +71,11 @@
       "required": ["label", "url"],
       "properties": {
         "label": {"type": "string", "minLength": 1},
-        "url": {"type": "string", "minLength": 1}
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "format": "atlas-public-graph-url"
+        }
       }
     }
   }
