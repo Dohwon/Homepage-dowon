@@ -43,7 +43,7 @@ from .fs_safety import (
     read_confined_text,
     require_write_destination,
 )
-from .kg import build_knowledge_graph, load_knowledge_taxonomy
+from .kg import build_knowledge_graph, load_knowledge_taxonomy, load_project_relations
 from .memory import load_project_memory
 from .memory_writer import plan_project_memory_writes
 from .models import (
@@ -919,6 +919,7 @@ def _bundle_context(
     memories: dict[str, ProjectMemory] = {}
     articles = {}
     evidence_by_project = {}
+    relations_by_project = {}
     system_maps = {}
     source_hashes: dict[str, str] = {}
     for ref in discovery.projects:
@@ -952,6 +953,9 @@ def _bundle_context(
         if not ref.standalone_asset:
             article = load_project_article(ref, gate)
             evidence = load_project_evidence(ref, gate)
+            relations = load_project_relations(ref.root, gate)
+            if relations:
+                relations_by_project[ref.project_id] = relations
         if article is not None:
             audit = audit_curated_project_content(
                 ref,
@@ -972,6 +976,7 @@ def _bundle_context(
             evidence,
             memory.events,
             system_maps.get(ref.project_id),
+            relations_by_project.get(ref.project_id, ()),
         )
 
     ordered = tuple(sorted(projects, key=lambda project: project.project_id))
@@ -979,7 +984,7 @@ def _bundle_context(
         ordered,
         articles,
         evidence_by_project,
-        {},
+        relations_by_project,
         load_knowledge_taxonomy(),
     )
     search_documents = tuple(
@@ -1039,6 +1044,7 @@ def _curated_source_hash(
     evidence: tuple[EvidenceRecord, ...],
     events: tuple[ProjectEvent, ...],
     system_map: str | None,
+    relations: Sequence[Mapping[str, object]],
 ) -> str:
     payload = {
         "article": article.to_public_dict() if article is not None else None,
@@ -1056,6 +1062,7 @@ def _curated_source_hash(
             for event in events
         ],
         "project": project.to_dict(),
+        "relations": list(relations),
         "system_map": system_map,
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))

@@ -200,6 +200,54 @@ def test_build_publishes_audited_structured_article_and_section_search(tmp_path,
     assert "/private/atlas" not in json.dumps({"article": article, "evidence": evidence, "search": search})
 
 
+def test_build_loads_evidence_backed_curated_relations(tmp_path, monkeypatch):
+    workspace = make_workspace_fixture(tmp_path)
+    _write_ready_article(workspace, project_id="alpha", evidence_id="alpha-proof")
+    relations_path = (
+        workspace
+        / "projects"
+        / "alpha"
+        / "project_memory"
+        / "project-atlas"
+        / "relations.yaml"
+    )
+    relations_path.write_text(
+        yaml.safe_dump(
+            {
+                "relations": [
+                    {
+                        "type": "EVOLVED_FROM",
+                        "target": "beta",
+                        "evidence_ids": ["alpha-proof"],
+                    }
+                ]
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+
+    output = invoke_cli_json(["build", "--workspace", str(workspace)])
+
+    edges = json.loads(
+        (
+            workspace
+            / "portfolio-homepage"
+            / "public-bundle"
+            / "graph"
+            / "edges.json"
+        ).read_text(encoding="utf-8")
+    )
+    relation = next(edge for edge in edges if edge["kind"] == "EVOLVED_FROM")
+    assert output["validated"]
+    assert relation["source"] == "project:alpha"
+    assert relation["target"] == "project:beta"
+    assert relation["evidence_links"] == [
+        {"label": "Public routing contract", "url": "/projects/alpha?tab=evidence"}
+    ]
+
+
 def test_build_rejects_curated_article_that_is_not_ready_before_promotion(tmp_path, monkeypatch, capsys):
     workspace = make_workspace_fixture(tmp_path)
     _write_ready_article(workspace, readiness="review-required")

@@ -10,6 +10,7 @@ from urllib.parse import quote
 
 import yaml
 
+from .fs_safety import read_confined_text
 from .models import (
     GRAPH_EDGE_KINDS,
     GRAPH_NODE_KINDS,
@@ -20,12 +21,16 @@ from .models import (
     PublicProject,
     validate_schema,
 )
+from .privacy import PrivacyGate
 from .taxonomy import display_tag_label, normalize_tag_label
 
 
 _STABLE_ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _RELATION_KINDS = frozenset({"EVOLVED_FROM", "VALIDATES", "DEPLOYS", "REUSES_COMPONENT"})
+_RELATIONS_DOCUMENT_KEYS = frozenset({"relations", "predecessor_ids", "predecessors"})
+_RELATION_FIELDS = frozenset({"type", "target", "evidence_ids"})
 _TAXONOMY_KEYS = frozenset({"focuses", "domains", "tags"})
+_MAX_RELATIONS_BYTES = 256 * 1024
 
 
 class _UniqueKeyLoader(yaml.SafeLoader):
@@ -166,6 +171,66 @@ class KnowledgeTaxonomy:
 def load_knowledge_taxonomy(path: str | Path | None = None) -> KnowledgeTaxonomy:
     source = path or Path(__file__).parent.parent / "data" / "knowledge-taxonomy.yaml"
     return KnowledgeTaxonomy.from_file(source)
+
+
+def load_project_relations(
+    root: str | Path,
+    gate: PrivacyGate,
+) -> tuple[dict[str, object], ...]:
+    """Load one project's reviewed direct relations from its confined Atlas memory."""
+    project_root = Path(root)
+    source = project_root / "project_memory" / "project-atlas" / "relations.yaml"
+    try:
+        text = read_confined_text(
+            source,
+            project_root,
+            gate,
+            max_bytes=_MAX_RELATIONS_BYTES,
+        )
+    except FileNotFoundError:
+        return ()
+    try:
+        value = yaml.load(text, Loader=_UniqueKeyLoader)
+    except yaml.YAMLError:
+        raise ValueError("graph-relations-yaml") from None
+    if value is None:
+        return ()
+    if (
+        not isinstance(value, Mapping)
+        or any(not isinstance(key, str) for key in value)
+        or frozenset(value) - _RELATIONS_DOCUMENT_KEYS
+    ):
+        raise ValueError("graph-relations-shape")
+    records = value.get("relations", [])
+    if not isinstance(records, list):
+        raise ValueError("graph-relations-shape")
+
+    result = []
+    for record in records:
+        if not isinstance(record, Mapping) or frozenset(record) != _RELATION_FIELDS:
+            raise ValueError("graph-relation-shape")
+        kind = record["type"]
+        target = record["target"]
+        evidence_ids = record["evidence_ids"]
+        if kind not in _RELATION_KINDS:
+            raise ValueError("graph-edge-kind")
+        if not isinstance(target, str) or not target:
+            raise ValueError("graph-relation-endpoint")
+        if (
+            not isinstance(evidence_ids, list)
+            or not evidence_ids
+            or any(not isinstance(item, str) or not item for item in evidence_ids)
+            or len(evidence_ids) != len(set(evidence_ids))
+        ):
+            raise ValueError("graph-relation-evidence")
+        result.append(
+            {
+                "type": kind,
+                "target": target,
+                "evidence_ids": list(evidence_ids),
+            }
+        )
+    return tuple(result)
 
 
 def build_knowledge_graph(

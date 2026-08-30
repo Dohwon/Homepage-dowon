@@ -466,16 +466,37 @@ def test_rehashed_duplicate_search_index_fails_validation_and_preserves_last_goo
     assert _tree_bytes(public_dir) == before
 
 
-def test_validate_bundle_reads_explicit_v1_legacy_contract_for_one_release(tmp_path):
+def test_validate_bundle_accepts_actual_legacy_v1_graph_records(tmp_path):
     fixture = tmp_path / "public-bundle"
-    write_bundle_fixture(fixture, version=None, summary="safe", format_version=1)
+    project_ids = ("alpha", "beta")
+    write_bundle_fixture(
+        fixture,
+        version=None,
+        summary="safe",
+        project_ids=project_ids,
+        format_version=1,
+    )
+    nodes = json.loads((fixture / "graph/nodes.json").read_text(encoding="utf-8"))
+    edges = json.loads((fixture / "graph/edges.json").read_text(encoding="utf-8"))
     legacy = fixture / "projects" / "alpha" / "decisions.md"
     legacy.write_text("# Decisions\n\n- Preserve v1 reads\n", encoding="utf-8")
-    refresh_fixture_manifest(fixture, None, ("alpha",), format_version=1)
+    refresh_fixture_manifest(fixture, None, project_ids, format_version=1)
 
     manifest = validate_bundle(fixture, PrivacyGate(alias_key=b"key"))
 
+    assert all(set(node) == {"id", "label", "kind"} for node in nodes)
+    assert all(set(edge) == {"source", "target", "kind", "weight", "reasons"} for edge in edges)
+    assert any(edge["kind"] == "project-similarity" for edge in edges)
     assert manifest.format_version == 1
+
+
+def test_validate_bundle_v2_rejects_legacy_graph_records(tmp_path):
+    fixture = tmp_path / "public-bundle"
+    write_bundle_fixture(fixture, version=None, summary="safe", format_version=1)
+    refresh_fixture_manifest(fixture, None, ("alpha",), format_version=2)
+
+    with pytest.raises(ValueError, match="graph node"):
+        validate_bundle(fixture, PrivacyGate(alias_key=b"key"))
 
 
 def test_validate_bundle_rejects_missing_format_version(tmp_path):

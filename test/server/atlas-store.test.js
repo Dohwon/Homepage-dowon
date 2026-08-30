@@ -97,7 +97,7 @@ test("accepts safe public HTTPS evidence URLs in the v2 store loader", async (t)
   assert.equal(project.evidence[0].url, "https://example.com/report");
 });
 
-test("loads legacy sections only from an explicit v1 manifest", async (t) => {
+test("loads actual legacy graph records and sections only from an explicit v1 manifest", async (t) => {
   const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-v1-bundle-"));
   t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
   await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
@@ -105,12 +105,40 @@ test("loads legacy sections only from an explicit v1 manifest", async (t) => {
   const manifest = JSON.parse(await fsp.readFile(manifestPath, "utf8"));
   manifest.format_version = 1;
   await fsp.writeFile(manifestPath, JSON.stringify(manifest));
+  await fsp.writeFile(path.join(temporaryRoot, "graph", "nodes.json"), JSON.stringify([
+    { id: "project:alpha", label: "Alpha Project", kind: "project" },
+    { id: "project:beta", label: "Beta Project", kind: "project" },
+    { id: "domain:data%20quality", label: "Data Quality", kind: "domain" }
+  ]));
+  await fsp.writeFile(path.join(temporaryRoot, "graph", "edges.json"), JSON.stringify([
+    { source: "project:beta", target: "domain:data%20quality", kind: "tag-membership", weight: 1, reasons: [] },
+    { source: "project:alpha", target: "project:beta", kind: "project-similarity", weight: 4, reasons: ["domain:Data Quality"] }
+  ]));
   await fsp.writeFile(path.join(temporaryRoot, "projects", "alpha", "decisions.md"), "# Decisions\n");
 
   const project = await createAtlasStore({ bundleDir: temporaryRoot }).project("alpha");
+  const graph = await createAtlasStore({ bundleDir: temporaryRoot }).graph();
 
   assert.equal(project.decisions, "# Decisions\n");
   assert.equal(project.article, undefined);
+  assert.deepEqual(graph.nodes.map((node) => node.kind), ["project", "project", "domain"]);
+  assert.equal(graph.edges[0].kind, "tag-membership");
+  assert.equal(graph.edges[1].kind, "project-similarity");
+});
+
+test("v2 rejects legacy graph record shapes", async (t) => {
+  const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-v2-legacy-graph-"));
+  t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+  await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+  await fsp.writeFile(path.join(temporaryRoot, "graph", "nodes.json"), JSON.stringify([
+    { id: "project:alpha", label: "Alpha Project", kind: "project" }
+  ]));
+  await fsp.writeFile(path.join(temporaryRoot, "graph", "edges.json"), "[]");
+
+  await assert.rejects(
+    () => createAtlasStore({ bundleDir: temporaryRoot }).graph(),
+    /invalid_atlas_graph_node/
+  );
 });
 
 test("rejects a manifest without an explicit migration version", async (t) => {
@@ -224,6 +252,9 @@ test("rejects unsafe KG evidence links and labels", async (t) => {
     ["evidence link", "edges.json", (records) => {
       records[0].evidence_links[0].url = "javascript:alert(1)";
     }, /invalid_atlas_graph_edge/],
+    ["evidence label absolute path", "edges.json", (records) => {
+      records[0].evidence_links[0].label = "/etc/atlas/private.txt";
+    }, /invalid_atlas_graph_edge/],
     ["node label", "nodes.json", (records) => {
       records[0].label = "/home/dowon/private";
     }, /unsafe_public_content/]
@@ -301,7 +332,7 @@ test("hidden generated projects are omitted from every public collection", async
   assert.deepEqual(await store.search("routing"), []);
 });
 
-test("hidden projects remove disconnected artifact, technology, and tag components", async (t) => {
+test("hidden project artifacts require a visible owner even through a shared tag", async (t) => {
   const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-hidden-graph-"));
   t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
   await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
@@ -312,12 +343,18 @@ test("hidden projects remove disconnected artifact, technology, and tag componen
   nodes.push(
     { id: "technology:node", label: "Node.js", kind: "Technology", url: "", summary: "" },
     { id: "artifact:alpha:routing", label: "Routing proof", kind: "Artifact", url: "/projects/alpha?tab=evidence", summary: "Routing proof" },
-    { id: "tag:routing", label: "Routing", kind: "KnowledgeTag", url: "", summary: "" }
+    { id: "tag:routing", label: "Routing", kind: "KnowledgeTag", url: "", summary: "" },
+    { id: "tag:artifact-parent", label: "Artifact Parent", kind: "KnowledgeTag", url: "", summary: "" },
+    { id: "tag:artifact-only", label: "Artifact Only", kind: "KnowledgeTag", url: "", summary: "" }
   );
   edges.push(
     { id: "uses_tech:project%3Aalpha:technology%3Anode", source: "project:alpha", target: "technology:node", kind: "USES_TECH", weight: 1, evidence_links: [] },
     { id: "produces_artifact:project%3Aalpha:artifact%3Aalpha%3Arouting", source: "project:alpha", target: "artifact:alpha:routing", kind: "PRODUCES_ARTIFACT", weight: 1, evidence_links: [] },
-    { id: "artifact_has_tag:artifact%3Aalpha%3Arouting:tag%3Arouting", source: "artifact:alpha:routing", target: "tag:routing", kind: "ARTIFACT_HAS_TAG", weight: 1, evidence_links: [] }
+    { id: "artifact_has_tag:artifact%3Aalpha%3Arouting:tag%3Arouting", source: "artifact:alpha:routing", target: "tag:routing", kind: "ARTIFACT_HAS_TAG", weight: 1, evidence_links: [] },
+    { id: "has_tag:project%3Abeta:tag%3Arouting", source: "project:beta", target: "tag:routing", kind: "HAS_TAG", weight: 1, evidence_links: [] },
+    { id: "has_subtag:domain%3Arouting:tag%3Aartifact-parent", source: "domain:routing", target: "tag:artifact-parent", kind: "HAS_SUBTAG", weight: 1, evidence_links: [] },
+    { id: "has_subtag:tag%3Aartifact-parent:tag%3Aartifact-only", source: "tag:artifact-parent", target: "tag:artifact-only", kind: "HAS_SUBTAG", weight: 1, evidence_links: [] },
+    { id: "artifact_has_tag:artifact%3Aalpha%3Arouting:tag%3Aartifact-only", source: "artifact:alpha:routing", target: "tag:artifact-only", kind: "ARTIFACT_HAS_TAG", weight: 1, evidence_links: [] }
   );
   await fsp.writeFile(nodesPath, JSON.stringify(nodes));
   await fsp.writeFile(edgesPath, JSON.stringify(edges));
@@ -327,7 +364,12 @@ test("hidden projects remove disconnected artifact, technology, and tag componen
     loadCmsContent: async () => ({ meta: { hiddenProjectIds: ["alpha"] } })
   }).graph();
 
-  assert.equal(graph.nodes.some((node) => ["Artifact", "Technology", "KnowledgeTag"].includes(node.kind)), false);
+  assert.equal(graph.nodes.some((node) => node.kind === "Artifact"), false);
+  assert.equal(graph.nodes.some((node) => node.kind === "Technology"), false);
+  assert.equal(graph.nodes.some((node) => node.id === "tag:routing"), true);
+  assert.equal(graph.nodes.some((node) => node.id === "tag:artifact-parent"), false);
+  assert.equal(graph.nodes.some((node) => node.id === "tag:artifact-only"), false);
+  assert.equal(graph.edges.some((edge) => edge.source === "artifact:alpha:routing"), false);
   assert.equal(graph.edges.some((edge) => edge.source.includes("alpha") || edge.target.includes("alpha")), false);
 });
 

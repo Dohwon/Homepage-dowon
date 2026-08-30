@@ -1,8 +1,14 @@
 from dataclasses import replace
 
 import pytest
+import yaml
 
-from atlas_worker.kg import KnowledgeTaxonomy, build_knowledge_graph, load_knowledge_taxonomy
+from atlas_worker.kg import (
+    KnowledgeTaxonomy,
+    build_knowledge_graph,
+    load_knowledge_taxonomy,
+    load_project_relations,
+)
 from atlas_worker.models import (
     GRAPH_EDGE_KINDS,
     EvidenceRecord,
@@ -12,6 +18,7 @@ from atlas_worker.models import (
     TagSet,
     validate_schema,
 )
+from atlas_worker.privacy import PrivacyGate
 from tests.worker.helpers import make_public_project
 
 
@@ -224,6 +231,40 @@ def test_public_artifacts_and_relations_include_safe_evidence_links(projects, ta
         {"label": "Routing spec", "url": "/projects/left?tab=evidence"},
     )
     validate_schema(graph.to_public_dict(), "public-graph")
+
+
+@pytest.mark.parametrize(
+    ("relation", "message"),
+    (
+        (
+            {"type": "project-similarity", "target": "right", "evidence_ids": ["proof"]},
+            "graph-edge-kind",
+        ),
+        (
+            {"type": "EVOLVED_FROM", "target": "right", "evidence_ids": []},
+            "graph-relation-evidence",
+        ),
+        (
+            {
+                "type": "EVOLVED_FROM",
+                "target": "right",
+                "evidence_ids": ["proof"],
+                "label": "unreviewed",
+            },
+            "graph-relation-shape",
+        ),
+    ),
+)
+def test_project_relations_loader_is_strict_and_evidence_backed(tmp_path, relation, message):
+    source = tmp_path / "project_memory" / "project-atlas" / "relations.yaml"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        yaml.safe_dump({"relations": [relation]}, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=message):
+        load_project_relations(tmp_path, PrivacyGate(alias_key=b"unit-test-key"))
 
 
 @pytest.mark.parametrize(
