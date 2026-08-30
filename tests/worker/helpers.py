@@ -42,6 +42,9 @@ class StaticGitRunner:
             return self.heads.get(cwd, "")
         return ""
 
+    def is_ignored(self, cwd: Path, path: Path) -> bool:
+        return False
+
 
 def atlas_content_gate() -> PrivacyGate:
     return PrivacyGate(alias_key=b"atlas-content-acceptance-key")

@@ -40,6 +40,9 @@ class GitRunner(Protocol):
     def run(self, cwd: Path, *args: str) -> str:
         """Return stripped command output or an empty string when Git has no value."""
 
+    def is_ignored(self, cwd: Path, path: Path) -> bool:
+        """Return whether Git explicitly ignores the relative project path."""
+
 
 class SubprocessGitRunner:
     """GitRunner implementation for local, read-only Git metadata queries."""
@@ -56,6 +59,19 @@ class SubprocessGitRunner:
         except OSError:
             return ""
         return completed.stdout.strip() if completed.returncode == 0 else ""
+
+    def is_ignored(self, cwd: Path, path: Path) -> bool:
+        try:
+            completed = subprocess.run(
+                ("git", "check-ignore", "--quiet", "--", path.as_posix()),
+                cwd=cwd,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except OSError:
+            return False
+        return completed.returncode == 0
 
 
 @dataclass(frozen=True)
@@ -96,7 +112,7 @@ def build_source_manifest(project: ProjectRef, runner: GitRunner) -> SourceManif
             source_class=_source_class(relative_path),
             project_id=project.project_id,
         )
-        for relative_path, path in _project_files(root, project.standalone_asset)
+        for relative_path, path in _project_files(root, project.standalone_asset, runner)
     )
     return SourceManifest(
         project_id=project.project_id,
@@ -126,7 +142,11 @@ def resolve_git_owner(
     return next(iter(owners)) if len(owners) == 1 else None
 
 
-def _project_files(root: Path, standalone_asset: bool) -> Iterator[tuple[str, Path]]:
+def _project_files(
+    root: Path,
+    standalone_asset: bool,
+    runner: GitRunner,
+) -> Iterator[tuple[str, Path]]:
     if standalone_asset:
         if not root.exists():
             return
@@ -137,20 +157,26 @@ def _project_files(root: Path, standalone_asset: bool) -> Iterator[tuple[str, Pa
     if not root.exists():
         return
     require_confined_directory(root, root)
-    yield from _walk_project_files(root, root)
+    yield from _walk_project_files(root, root, runner)
 
 
-def _walk_project_files(root: Path, directory: Path) -> Iterator[tuple[str, Path]]:
+def _walk_project_files(
+    root: Path,
+    directory: Path,
+    runner: GitRunner,
+) -> Iterator[tuple[str, Path]]:
     for entry in sorted(os.scandir(directory), key=lambda item: item.name):
         path = Path(entry.path)
         if entry.name == ".git":
             continue
         mode = entry.stat(follow_symlinks=False).st_mode
         if stat.S_ISLNK(mode):
+            if runner.is_ignored(root, path.relative_to(root)):
+                continue
             raise ValueError("source manifest contains symlink")
         if stat.S_ISDIR(mode):
             if entry.name not in _SKIPPED_DIRECTORIES:
-                yield from _walk_project_files(root, path)
+                yield from _walk_project_files(root, path, runner)
             continue
         if not stat.S_ISREG(mode):
             raise ValueError("source manifest contains unsupported file")

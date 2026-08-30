@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import subprocess
 
 import pytest
 
 import atlas_worker.fs_safety as fs_safety_module
 from atlas_worker.models import ProjectRef
-from atlas_worker.source_manifest import build_source_manifest, resolve_git_owner
+from atlas_worker.source_manifest import (
+    SubprocessGitRunner,
+    build_source_manifest,
+    resolve_git_owner,
+)
 
 
 class FakeGitRunner:
@@ -26,6 +31,9 @@ class FakeGitRunner:
         if args == ("rev-parse", "HEAD"):
             return self.heads.get(cwd, "")
         raise AssertionError(f"unexpected Git arguments: {args}")
+
+    def is_ignored(self, cwd: Path, path: Path) -> bool:
+        return False
 
 
 def project_ref(root: Path, project_id: str) -> ProjectRef:
@@ -114,6 +122,41 @@ def test_manifest_rejects_symlinked_source_file(tmp_path):
 
     with pytest.raises(ValueError, match="symlink"):
         build_source_manifest(project_ref(root, "alpha"), FakeGitRunner())
+
+
+def test_manifest_skips_git_ignored_symlink(tmp_path):
+    root = tmp_path / "projects/alpha"
+    root.mkdir(parents=True)
+    subprocess.run(("git", "init", "--quiet"), cwd=root, check=True)
+    (root / ".gitignore").write_text("local-tool\n", encoding="utf-8")
+    (root / "main.py").write_text("print('kept')\n", encoding="utf-8")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (root / "local-tool").symlink_to(outside, target_is_directory=True)
+
+    manifest = build_source_manifest(
+        project_ref(root, "alpha"),
+        SubprocessGitRunner(),
+    )
+
+    assert [item.relative_path for item in manifest.files] == [
+        ".gitignore",
+        "main.py",
+    ]
+
+
+def test_manifest_non_git_root_still_rejects_symlink(tmp_path):
+    root = tmp_path / "projects/alpha"
+    root.mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (root / "local-tool").symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="symlink"):
+        build_source_manifest(
+            project_ref(root, "alpha"),
+            SubprocessGitRunner(),
+        )
 
 
 def test_linked_worktree_git_files_are_excluded_from_manifest_and_aggregate_hash(tmp_path):
