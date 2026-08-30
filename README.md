@@ -173,6 +173,18 @@ export PROJECT_ATLAS_HMAC_KEY_PATH="$HOME/.config/project-atlas/alias-hmac.key"
 
 `PROJECT_ATLAS_HMAC_KEY` 환경변수도 지원하지만 process environment에 남으므로 file 방식이 우선이다. `.knowledge-worker/config.yaml`의 `hmac_key_path`/`alias_key_file`은 절대 경로 또는 workspace 상대 경로를 받으며, key file 끝의 CR/LF만 제거한다. Runtime config의 `sessions_root`는 `backfill`과 `run`의 기본 session source다.
 
+### 33개 공개 카탈로그 감사
+
+공개 후보를 만들기 전에 정확한 33개 ID, 프로젝트별 readiness, 원본 근거 locator/hash, SVG 참조, 직접 관계와 Map Diary 소유 경계를 한 번에 검사한다. 프로젝트 수만 맞춘 대체 ID, Atlas가 스스로 만든 재서술 근거, generic decision 문서, 유사도 기반 project relation은 실패한다.
+
+```bash
+.venv/bin/python scripts/audit_public_atlas_catalog.py \
+  --workspace /home/dowon/securedir/git/codex \
+  --output /home/dowon/securedir/git/codex/.knowledge-worker/catalog-audit.json
+```
+
+성공 조건은 `project_count=33`, `ready=true`, 나머지 finding 배열이 모두 비어 있는 것이다. 출력은 프로젝트 ID와 비가역 finding code만 포함하며 source locator나 로컬 절대 경로를 노출하지 않는다.
+
 ### Dry Run과 Exit Code
 
 `bootstrap-profiles`, `backfill`, `build`, `run`은 `--dry-run`을 지원한다. Dry-run은 profile, project memory, session cursor, manifest state, `public-bundle/`을 쓰지 않는다. Bundle 후보는 service directory와 same filesystem에 있는 자동 정리 temporary staging에서만 생성되고 promotion되지 않는다. 원자적 rename을 위해 staging과 `public-bundle/` parent의 device ID가 같아야 하며 아래처럼 확인할 수 있다.
