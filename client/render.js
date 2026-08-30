@@ -383,7 +383,7 @@ function renderGraph(state) {
       ${pageHeading("지식 그래프", "", "프로젝트와 공통 주제의 근거 있는 연결을 단계별로 살펴봅니다.")}
       <div class="graph-shell" data-graph-shell>
         <section class="graph-stage" data-graph-stage aria-label="3D 지식 그래프">
-          <div id="knowledge-graph" role="group" aria-label="프로젝트 지식 그래프"></div>
+          <div id="knowledge-graph" role="group" aria-label="프로젝트 지식 그래프" data-graph-canvas></div>
           <div class="graph-toolbar" aria-label="그래프 도구">
             <div class="graph-search-wrap">
               <label class="graph-search">

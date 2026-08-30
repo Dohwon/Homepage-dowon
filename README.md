@@ -74,6 +74,7 @@ ATLAS_BUNDLE_DIR=/absolute/path/to/public-bundle PORT=4173 node server.js
 .venv/bin/python -m pytest tests/worker -q
 npm test
 npm run test:ui
+npm run test:ui -- e2e/atlas-graph.spec.js
 node --check server.js
 node --check admin.js
 ```
@@ -122,6 +123,21 @@ python3 -m venv .venv
 ```
 
 `discover`는 read-only다. `validate`도 bundle의 privacy, schema, hash, exact-tree contract만 읽어 검사하며 promotion을 호출하지 않는다. `backfill --dry-run`은 `--sessions-root`가 없고 `.knowledge-worker/config.yaml`에도 session root가 없으면 정상적인 zero-session 결과를 반환한다.
+
+### Legacy LLM Wiki Graph Audit
+
+기존 LLM Wiki CSV는 아래 audit-only importer로 검토한다. 이 명령은 six node/seven base
+edge type을 정규화하고 name-derived relation, unknown project, missing endpoint, raw
+locator를 거부한 deterministic JSON count와 taxonomy alias 제안만 stdout에 출력한다.
+`nodes.csv`, `edges.csv`, reviewed taxonomy, `public-bundle/`을 수정하거나 migration
+artifact를 생성하지 않으며 alias 제안을 자동 적용하지 않는다.
+
+```bash
+.venv/bin/python scripts/import_llm_wiki_graph.py \
+  --source /home/dowon/securedir/git/codex/projects/llm_wiki \
+  --taxonomy data/knowledge-taxonomy.yaml \
+  --format json
+```
 
 ### Reviewed Apply
 
