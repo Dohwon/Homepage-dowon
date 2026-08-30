@@ -16,7 +16,6 @@ from atlas_worker.bundle import (
     promote_bundle,
     validate_bundle,
 )
-from atlas_worker.graph import build_graph
 from atlas_worker.manifest import content_version, tree_hash
 from atlas_worker.models import (
     ArticleSection,
@@ -138,12 +137,113 @@ def _context(
         projects=projects,
         project_memories=memories,
         project_events=events,
-        graph=build_graph(projects),
+        graph=_public_graph(projects),
         search_documents=search_documents,
         source_hashes=source_hashes or {"alpha": "a" * 64},
         previous_manifest=previous_manifest,
         privacy_gate=gate or PrivacyGate(alias_key=b"unit-test-key"),
     )
+
+
+def _public_graph(projects: tuple[PublicProject, ...]) -> GraphData:
+    project_nodes = tuple(
+        GraphNode(
+            f"project:{project.project_id}",
+            project.display_name,
+            "Project",
+            f"/projects/{project.project_id}",
+            project.summary,
+        )
+        for project in projects
+    )
+    edges = (
+        GraphEdge("focus:delivery", "domain:ai", "FOCUS_HAS_TAG"),
+        *(GraphEdge(f"project:{project.project_id}", "focus:delivery", "HAS_FOCUS") for project in projects),
+        *(GraphEdge(f"project:{project.project_id}", "domain:ai", "HAS_TAG") for project in projects),
+    )
+    if len(projects) > 1:
+        edges += (
+            GraphEdge(
+                f"project:{projects[0].project_id}",
+                f"project:{projects[1].project_id}",
+                "EVOLVED_FROM",
+                evidence_links=(
+                    {
+                        "label": "Routing spec",
+                        "url": f"/projects/{projects[0].project_id}?tab=evidence",
+                    },
+                ),
+            ),
+        )
+    return GraphData(
+        nodes=(
+            GraphNode("focus:delivery", "Delivery", "KnowledgeFocus"),
+            GraphNode("domain:ai", "AI", "KnowledgeDomain"),
+            *project_nodes,
+        ),
+        edges=edges,
+    )
+
+
+def test_candidate_bundle_projects_exact_public_kg_records_and_evidence_links(tmp_path):
+    projects = (make_public_project("alpha"), make_public_project("beta"))
+    context = replace(_context(projects=projects), graph=_public_graph(projects))
+
+    build_candidate_bundle(context, tmp_path / "candidate")
+
+    nodes = json.loads((tmp_path / "candidate/graph/nodes.json").read_text(encoding="utf-8"))
+    edges = json.loads((tmp_path / "candidate/graph/edges.json").read_text(encoding="utf-8"))
+    assert all(set(node) == {"id", "label", "kind", "url", "summary"} for node in nodes)
+    assert all(
+        set(edge) == {"id", "source", "target", "kind", "weight", "evidence_links"}
+        for edge in edges
+    )
+    relation = next(edge for edge in edges if edge["kind"] == "EVOLVED_FROM")
+    assert relation["evidence_links"] == [
+        {"label": "Routing spec", "url": "/projects/alpha?tab=evidence"}
+    ]
+
+
+def test_bundle_rejects_every_similarity_edge_even_when_rehashed(tmp_path):
+    bundle = tmp_path / "candidate"
+    project_ids = ("left", "right")
+    write_bundle_fixture(bundle, None, "safe", project_ids=project_ids)
+    edge_path = bundle / "graph/edges.json"
+    edges = json.loads(edge_path.read_text(encoding="utf-8"))
+    edges.append(
+        {
+            "id": "similarity:left:right",
+            "source": "project:left",
+            "target": "project:right",
+            "kind": "project-similarity",
+            "weight": 1,
+            "evidence_links": [],
+        }
+    )
+    edge_path.write_text(
+        json.dumps(edges, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    refresh_fixture_manifest(bundle, None, project_ids)
+
+    with pytest.raises(ValueError, match="graph-edge-kind"):
+        validate_bundle(bundle, PrivacyGate(alias_key=b"unit-test-key"))
+
+
+def test_bundle_rejects_rehashed_private_graph_label(tmp_path):
+    bundle = tmp_path / "candidate"
+    write_bundle_fixture(bundle, None, "safe")
+    node_path = bundle / "graph/nodes.json"
+    nodes = json.loads(node_path.read_text(encoding="utf-8"))
+    nodes[0]["label"] = "/home/dowon/private"
+    node_path.write_text(
+        json.dumps(nodes, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    refresh_fixture_manifest(bundle, None, ("alpha",))
+
+    with pytest.raises(PrivacyViolation, match="absolute_path"):
+        validate_bundle(bundle, PrivacyGate(alias_key=b"unit-test-key"))
 
 
 def _article(project_id: str = "alpha") -> ProjectArticle:
@@ -1426,44 +1526,23 @@ def _malform_graph(root: Path, mutation: str) -> None:
     edges = json.loads(edges_path.read_text(encoding="utf-8"))
     project_ids = json.loads((root / "manifest.json").read_text(encoding="utf-8"))["projects"]
 
-    if mutation == "dangling-endpoint":
+    if mutation == "similarity-edge":
         edges.append(
             {
-                "kind": "project-similarity",
-                "reasons": ["domain:AI"],
+                "id": "similarity:left:right",
                 "source": f"project:{project_ids[0]}",
-                "target": "project:missing",
-                "weight": 4,
+                "target": f"project:{project_ids[1]}",
+                "kind": "project-similarity",
+                "weight": 1,
+                "evidence_links": [],
             }
         )
-    elif mutation == "six-neighbors":
-        edges = [edge for edge in edges if edge["kind"] != "project-similarity"]
-        edges.extend(
-            {
-                "kind": "project-similarity",
-                "reasons": [
-                    "domain:AI",
-                    "outcome:Tool",
-                    "pattern:Evaluation",
-                    "problem:Routing",
-                    "technology:Python",
-                ],
-                "source": f"project:{project_ids[0]}",
-                "target": f"project:{project_id}",
-                "weight": 20,
-            }
-            for project_id in project_ids[1:7]
-        )
+    elif mutation == "dangling-endpoint":
+        edges[0]["target"] = "domain:missing"
     elif mutation == "duplicate-node-id":
         nodes.append(dict(nodes[0]))
     elif mutation == "duplicate-edge-pair":
         edges.append(dict(edges[0]))
-    elif mutation == "wrong-direction":
-        membership = next(edge for edge in edges if edge["kind"] == "tag-membership")
-        membership["source"], membership["target"] = membership["target"], membership["source"]
-    elif mutation == "wrong-tag-kind":
-        tag_node = next(node for node in nodes if node["kind"] == "domain")
-        tag_node["kind"] = "problem"
     elif mutation == "noncanonical-project-id":
         node = next(node for node in nodes if node["id"] == f"project:{project_ids[0]}")
         replacement = f"project:{project_ids[0]}%41"
@@ -1474,14 +1553,15 @@ def _malform_graph(root: Path, mutation: str) -> None:
                 edge["source"] = replacement
             if edge["target"] == original:
                 edge["target"] = replacement
-    elif mutation == "unstable-reasons":
-        similarity = next(edge for edge in edges if edge["kind"] == "project-similarity")
-        similarity["reasons"] = list(reversed(similarity["reasons"])) + [
-            similarity["reasons"][0]
+    elif mutation == "unsafe-evidence-link":
+        edges[0]["evidence_links"] = [
+            {"label": "Private", "url": "javascript:alert(1)"}
         ]
-    elif mutation == "missing-similarity":
-        similarity = next(edge for edge in edges if edge["kind"] == "project-similarity")
-        edges.remove(similarity)
+    elif mutation == "invalid-edge-id":
+        edges[0]["id"] = "not-canonical"
+    elif mutation == "project-metadata":
+        project = next(node for node in nodes if node["kind"] == "Project")
+        project["summary"] = "mismatched summary"
     else:
         raise AssertionError(f"unknown mutation: {mutation}")
 
@@ -1500,14 +1580,13 @@ def _malform_graph(root: Path, mutation: str) -> None:
     "mutation",
     (
         "dangling-endpoint",
-        "six-neighbors",
+        "similarity-edge",
         "duplicate-node-id",
         "duplicate-edge-pair",
-        "wrong-direction",
-        "wrong-tag-kind",
         "noncanonical-project-id",
-        "unstable-reasons",
-        "missing-similarity",
+        "unsafe-evidence-link",
+        "invalid-edge-id",
+        "project-metadata",
     ),
 )
 def test_rehashed_malformed_graph_fails_validation_and_preserves_last_good_on_promotion(
@@ -1529,10 +1608,10 @@ def test_rehashed_malformed_graph_fails_validation_and_preserves_last_good_on_pr
     assert _tree_bytes(public) == before
 
 
-@pytest.mark.parametrize("malformation", ("dangling", "degree"))
+@pytest.mark.parametrize("malformation", ("dangling", "project-metadata"))
 def test_candidate_build_cross_validates_graph_against_projects(tmp_path, malformation):
     projects = tuple(make_public_project(f"project-{index}") for index in range(7))
-    graph = build_graph(projects)
+    graph = _public_graph(projects)
     if malformation == "dangling":
         graph = GraphData(
             nodes=graph.nodes,
@@ -1541,33 +1620,20 @@ def test_candidate_build_cross_validates_graph_against_projects(tmp_path, malfor
                 GraphEdge(
                     "project:project-0",
                     "project:missing",
-                    "project-similarity",
-                    4,
-                    ("domain:AI",),
+                    "EVOLVED_FROM",
                 ),
             ),
         )
     else:
-        membership = tuple(edge for edge in graph.edges if edge.kind == "tag-membership")
+        nodes = tuple(
+            replace(node, summary="mismatched summary")
+            if node.node_id == "project:project-0"
+            else node
+            for node in graph.nodes
+        )
         graph = GraphData(
-            nodes=graph.nodes,
-            edges=membership
-            + tuple(
-                GraphEdge(
-                    "project:project-0",
-                    f"project:project-{index}",
-                    "project-similarity",
-                    20,
-                    (
-                        "domain:AI",
-                        "outcome:Tool",
-                        "pattern:Evaluation",
-                        "problem:Routing",
-                        "technology:Python",
-                    ),
-                )
-                for index in range(1, 7)
-            ),
+            nodes=nodes,
+            edges=graph.edges,
         )
 
     with pytest.raises(ValueError, match="graph"):

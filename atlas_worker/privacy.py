@@ -48,6 +48,8 @@ DENIED_SOURCE_PARTS = {".codex/sessions", "logs", "raw-logs", "private-data"}
 NON_STRING_KEY_POINTER = "<non-string-key>"
 URL_BEARING_ATTRIBUTES = frozenset({"href", "src", "action"})
 SEARCH_DOCUMENT_KEYS = frozenset({"id", "project_id", "title", "body", "url"})
+GRAPH_NODE_KEYS = frozenset({"id", "label", "kind", "url", "summary"})
+GRAPH_EVIDENCE_LINK_KEYS = frozenset({"label", "url"})
 PUBLIC_ROUTE_EXACT_PATHS = frozenset({"/", "/projects", "/topics", "/graph", "/changelog", "/search"})
 PUBLIC_ROUTE_DESCENDANT_PREFIXES = ("/projects/", "/topics/")
 PUBLIC_ASSET_PREFIX = "/assets/"
@@ -104,6 +106,7 @@ class PrivacyGate:
             findings,
             allow_approved_value=True,
             allow_public_route=False,
+            allow_spaced_slash=False,
         )
         return PrivacyReport(findings=tuple(findings))
 
@@ -125,6 +128,7 @@ class PrivacyGate:
         *,
         allow_approved_value: bool,
         allow_public_route: bool,
+        allow_spaced_slash: bool,
     ) -> None:
         if isinstance(value, str):
             self._scan_text(
@@ -133,6 +137,7 @@ class PrivacyGate:
                 findings,
                 allow_approved_value=allow_approved_value,
                 allow_public_route=allow_public_route,
+                allow_spaced_slash=allow_spaced_slash,
             )
             return
         if value is None or isinstance(value, (bool, int, float)):
@@ -152,6 +157,7 @@ class PrivacyGate:
                     findings,
                     allow_approved_value=True,
                     allow_public_route=False,
+                    allow_spaced_slash=False,
                 )
             return
 
@@ -163,7 +169,8 @@ class PrivacyGate:
         pointer: str,
         findings: list[PrivacyFinding],
     ) -> None:
-        route_url_allowed = _is_search_document(items)
+        route_url_allowed = _is_public_url_record(items)
+        graph_label_allowed = _is_graph_node(items)
         for key, nested_value in items:
             if not isinstance(key, str):
                 findings.append(PrivacyFinding("unsupported_value", pointer))
@@ -173,6 +180,7 @@ class PrivacyGate:
                     findings,
                     allow_approved_value=True,
                     allow_public_route=False,
+                    allow_spaced_slash=False,
                 )
                 continue
             sensitive_key = self._scan_text(
@@ -181,6 +189,7 @@ class PrivacyGate:
                 findings,
                 allow_approved_value=False,
                 allow_public_route=False,
+                allow_spaced_slash=False,
             )
             child_pointer = pointer if sensitive_key else _json_pointer_child(pointer, key)
             self._scan_value(
@@ -189,6 +198,7 @@ class PrivacyGate:
                 findings,
                 allow_approved_value=True,
                 allow_public_route=route_url_allowed and key == "url",
+                allow_spaced_slash=graph_label_allowed and key == "label",
             )
 
     def _scan_text(
@@ -199,6 +209,7 @@ class PrivacyGate:
         *,
         allow_approved_value: bool,
         allow_public_route: bool,
+        allow_spaced_slash: bool,
     ) -> bool:
         if any(variant in value for variant in self._forbidden_alias_key_variants):
             findings.append(PrivacyFinding("alias_key", pointer))
@@ -206,7 +217,11 @@ class PrivacyGate:
         if allow_approved_value and value in self._approved_public_values:
             return False
 
-        categories = _matching_categories(value, allow_public_route=allow_public_route)
+        categories = _matching_categories(
+            value,
+            allow_public_route=allow_public_route,
+            allow_spaced_slash=allow_spaced_slash,
+        )
         findings.extend(PrivacyFinding(category, pointer) for category in categories)
         return bool(categories)
 
@@ -219,19 +234,37 @@ def _json_object_pairs(value: object) -> tuple[tuple[object, object], ...] | Non
     return tuple((item[0], item[1]) for item in value)
 
 
-def _is_search_document(items: tuple[tuple[object, object], ...]) -> bool:
+def _is_public_url_record(items: tuple[tuple[object, object], ...]) -> bool:
+    if not all(isinstance(key, str) for key, _ in items):
+        return False
+    keys = frozenset(key for key, _ in items)
+    return keys in {SEARCH_DOCUMENT_KEYS, GRAPH_NODE_KEYS, GRAPH_EVIDENCE_LINK_KEYS}
+
+
+def _is_graph_node(items: tuple[tuple[object, object], ...]) -> bool:
     return (
-        len(items) == len(SEARCH_DOCUMENT_KEYS)
-        and all(isinstance(key, str) for key, _ in items)
-        and frozenset(key for key, _ in items) == SEARCH_DOCUMENT_KEYS
+        all(isinstance(key, str) for key, _ in items)
+        and frozenset(key for key, _ in items) == GRAPH_NODE_KEYS
     )
 
 
-def _matching_categories(value: str, *, allow_public_route: bool = False) -> tuple[str, ...]:
+def _matching_categories(
+    value: str,
+    *,
+    allow_public_route: bool = False,
+    allow_spaced_slash: bool = False,
+) -> tuple[str, ...]:
     categories: list[str] = []
     if any(pattern.search(value) for pattern in SECRET_PATTERNS.values()):
         categories.append("secret")
-    if _contains_absolute_path(value, allow_public_route=allow_public_route):
+    contains_path = _contains_absolute_path(value, allow_public_route=allow_public_route)
+    if contains_path and allow_spaced_slash:
+        without_spaced_slashes = re.sub(r"(?<=\s)/(?=\s)", " ", value)
+        contains_path = _contains_absolute_path(
+            without_spaced_slashes,
+            allow_public_route=allow_public_route,
+        )
+    if contains_path:
         categories.append("absolute_path")
     if EMAIL.search(value):
         categories.append("email")

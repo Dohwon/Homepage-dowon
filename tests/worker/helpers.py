@@ -9,10 +9,12 @@ import yaml
 from atlas_worker.content_audit import audit_curated_project_content
 from atlas_worker.privacy import PrivacyGate
 from atlas_worker.source_manifest import build_source_manifest
-from atlas_worker.graph import build_graph
 from atlas_worker.manifest import content_version, project_hashes_from_files
 from atlas_worker.models import (
     EvidenceClaim,
+    GraphData,
+    GraphEdge,
+    GraphNode,
     ProjectEvent,
     ProjectKnowledge,
     ProjectRef,
@@ -133,11 +135,11 @@ def write_project_profile(root: Path, **overrides: object) -> Path:
         "publication": "public",
         "summary": "Alpha project",
         "tags": {
-            "domain": ["AI"],
-            "problem": ["Routing"],
-            "pattern": ["Evaluation"],
+            "domain": ["Agent Systems"],
+            "problem": ["라우팅 경계"],
+            "pattern": ["구조화된 평가"],
             "technology": ["Python"],
-            "outcome": ["Tool"],
+            "outcome": ["승인 중심 업무 흐름"],
         },
     }
     profile.update(overrides)
@@ -231,26 +233,40 @@ def write_bundle_fixture(
         _write_fixture_json(project_dir / "project.json", project)
         projects.append(make_public_project(project_id))
 
-    graph = build_graph(tuple(projects))
+    graph = GraphData(
+        nodes=(
+            GraphNode("focus:test", "Test Focus", "KnowledgeFocus"),
+            GraphNode("domain:test", "Test Domain", "KnowledgeDomain"),
+            *(
+                GraphNode(
+                    f"project:{project.project_id}",
+                    project.display_name,
+                    "Project",
+                    f"/projects/{project.project_id}",
+                    summary,
+                )
+                for project in projects
+            ),
+        ),
+        edges=(
+            GraphEdge("focus:test", "domain:test", "FOCUS_HAS_TAG"),
+            *(
+                edge
+                for project in projects
+                for edge in (
+                    GraphEdge(f"project:{project.project_id}", "focus:test", "HAS_FOCUS"),
+                    GraphEdge(f"project:{project.project_id}", "domain:test", "HAS_TAG"),
+                )
+            ),
+        ),
+    )
     _write_fixture_json(
         root / "graph" / "nodes.json",
-        [
-            {"id": node.node_id, "kind": node.kind, "label": node.label}
-            for node in graph.nodes
-        ],
+        [node.to_public_dict() for node in graph.nodes],
     )
     _write_fixture_json(
         root / "graph" / "edges.json",
-        [
-            {
-                "kind": edge.kind,
-                "reasons": list(edge.reasons),
-                "source": edge.source_id,
-                "target": edge.target_id,
-                "weight": edge.weight,
-            }
-            for edge in graph.edges
-        ],
+        [edge.to_public_dict() for edge in graph.edges],
     )
     _write_fixture_json(root / "topics.json", [])
     _write_fixture_json(root / "changelog.json", [])

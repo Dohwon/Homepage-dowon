@@ -20,7 +20,7 @@ test("loads the v2 public bundle and omits heavy content from bootstrap", async 
   const bootstrap = await store.bootstrap();
   const project = await store.project("alpha");
 
-  assert.equal(bootstrap.version, "31dab58058afafc3a2f772323754250837287090dce78b56deb7c8f4c40d72e0");
+  assert.equal(bootstrap.version, "a3470656b7815d31fd5a1f75de9bb0e67137c9d0b75e68bbf01e00912b7efeb2");
   assert.deepEqual(bootstrap.projects.map((item) => item.id), ["alpha", "beta"]);
   assert.equal(bootstrap.topics.length, 10);
   assert.equal(bootstrap.changelog.length, 2);
@@ -206,6 +206,46 @@ test("rejects graph kinds that are not part of the public graph schema", async (
   await assert.rejects(() => store.graph(), /invalid_atlas_graph_node/);
 });
 
+test("server accepts KG records and strips no allowed relation evidence", async () => {
+  const graph = await createStore().graph();
+
+  assert.deepEqual(
+    new Set(graph.nodes.map((node) => node.kind)),
+    new Set(["KnowledgeFocus", "Project", "KnowledgeDomain"])
+  );
+  assert.equal(graph.edges.some((edge) => edge.kind === "project-similarity"), false);
+  assert.deepEqual(graph.edges[0].evidence_links, [
+    { label: "Routing spec", url: "/projects/alpha?tab=evidence" }
+  ]);
+});
+
+test("rejects unsafe KG evidence links and labels", async (t) => {
+  const cases = [
+    ["evidence link", "edges.json", (records) => {
+      records[0].evidence_links[0].url = "javascript:alert(1)";
+    }, /invalid_atlas_graph_edge/],
+    ["node label", "nodes.json", (records) => {
+      records[0].label = "/home/dowon/private";
+    }, /unsafe_public_content/]
+  ];
+
+  for (const [label, filename, mutate, expected] of cases) {
+    const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-unsafe-graph-"));
+    t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+    await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+    const graphPath = path.join(temporaryRoot, "graph", filename);
+    const records = JSON.parse(await fsp.readFile(graphPath, "utf8"));
+    mutate(records);
+    await fsp.writeFile(graphPath, JSON.stringify(records));
+
+    await assert.rejects(
+      () => createAtlasStore({ bundleDir: temporaryRoot }).graph(),
+      expected,
+      label
+    );
+  }
+});
+
 test("returns an explicit empty Atlas state when no promoted bundle exists", async (t) => {
   const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-missing-bundle-"));
   t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
@@ -250,8 +290,45 @@ test("hidden generated projects are omitted from every public collection", async
   assert.deepEqual((await store.bootstrap()).projects.map((project) => project.id), ["beta"]);
   assert.deepEqual((await store.bootstrap()).topics.map((topic) => topic.label), ["Data Quality", "Verified report", "Reproducible evaluation", "Unclear evidence", "Python"]);
   assert.deepEqual((await store.bootstrap()).changelog.map((entry) => entry.project_id), ["beta"]);
-  assert.deepEqual((await store.graph()).nodes.map((node) => node.id), ["domain:data%20quality", "outcome:verified%20report", "pattern:reproducible%20evaluation", "problem:unclear%20evidence", "project:beta", "technology:python"]);
+  const graph = await store.graph();
+  assert.equal(graph.nodes.some((node) => node.id === "project:alpha"), false);
+  assert.deepEqual(
+    new Set(graph.nodes.filter((node) => node.kind === "KnowledgeFocus").map((node) => node.id)),
+    new Set(["focus:ai-quality", "focus:product-delivery"])
+  );
+  assert.equal(graph.nodes.filter((node) => node.kind === "KnowledgeDomain").length, 8);
+  assert.equal(graph.edges.some((edge) => edge.source === "project:alpha" || edge.target === "project:alpha"), false);
   assert.deepEqual(await store.search("routing"), []);
+});
+
+test("hidden projects remove disconnected artifact, technology, and tag components", async (t) => {
+  const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-hidden-graph-"));
+  t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+  await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+  const nodesPath = path.join(temporaryRoot, "graph", "nodes.json");
+  const edgesPath = path.join(temporaryRoot, "graph", "edges.json");
+  const nodes = JSON.parse(await fsp.readFile(nodesPath, "utf8"));
+  const edges = JSON.parse(await fsp.readFile(edgesPath, "utf8"));
+  nodes.push(
+    { id: "technology:node", label: "Node.js", kind: "Technology", url: "", summary: "" },
+    { id: "artifact:alpha:routing", label: "Routing proof", kind: "Artifact", url: "/projects/alpha?tab=evidence", summary: "Routing proof" },
+    { id: "tag:routing", label: "Routing", kind: "KnowledgeTag", url: "", summary: "" }
+  );
+  edges.push(
+    { id: "uses_tech:project%3Aalpha:technology%3Anode", source: "project:alpha", target: "technology:node", kind: "USES_TECH", weight: 1, evidence_links: [] },
+    { id: "produces_artifact:project%3Aalpha:artifact%3Aalpha%3Arouting", source: "project:alpha", target: "artifact:alpha:routing", kind: "PRODUCES_ARTIFACT", weight: 1, evidence_links: [] },
+    { id: "artifact_has_tag:artifact%3Aalpha%3Arouting:tag%3Arouting", source: "artifact:alpha:routing", target: "tag:routing", kind: "ARTIFACT_HAS_TAG", weight: 1, evidence_links: [] }
+  );
+  await fsp.writeFile(nodesPath, JSON.stringify(nodes));
+  await fsp.writeFile(edgesPath, JSON.stringify(edges));
+
+  const graph = await createAtlasStore({
+    bundleDir: temporaryRoot,
+    loadCmsContent: async () => ({ meta: { hiddenProjectIds: ["alpha"] } })
+  }).graph();
+
+  assert.equal(graph.nodes.some((node) => ["Artifact", "Technology", "KnowledgeTag"].includes(node.kind)), false);
+  assert.equal(graph.edges.some((edge) => edge.source.includes("alpha") || edge.target.includes("alpha")), false);
 });
 
 test("unsafe CMS presentation fields cannot override a public project", async () => {

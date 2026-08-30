@@ -43,7 +43,7 @@ from .fs_safety import (
     read_confined_text,
     require_write_destination,
 )
-from .graph import build_graph
+from .kg import build_knowledge_graph, load_knowledge_taxonomy
 from .memory import load_project_memory
 from .memory_writer import plan_project_memory_writes
 from .models import (
@@ -975,7 +975,13 @@ def _bundle_context(
         )
 
     ordered = tuple(sorted(projects, key=lambda project: project.project_id))
-    graph = build_graph(ordered)
+    graph = build_knowledge_graph(
+        ordered,
+        articles,
+        evidence_by_project,
+        {},
+        load_knowledge_taxonomy(),
+    )
     search_documents = tuple(
         document
         for project in ordered

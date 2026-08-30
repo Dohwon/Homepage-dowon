@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass, field
 import json
 import os
@@ -25,8 +24,8 @@ from .manifest import (
     tree_hash,
 )
 from .models import (
-    LEGACY_GRAPH_EDGE_KINDS as GRAPH_EDGE_KINDS,
-    LEGACY_GRAPH_NODE_KINDS as GRAPH_NODE_KINDS,
+    GRAPH_EDGE_KINDS,
+    GRAPH_NODE_KINDS,
     BundleManifest,
     EvidenceRecord,
     GraphData,
@@ -36,10 +35,10 @@ from .models import (
     ProjectRef,
     PromotionResult,
     PublicProject,
+    validate_public_graph_url,
     validate_schema,
 )
 from .privacy import PrivacyGate
-from .graph import TAG_WEIGHTS
 from .taxonomy import display_tag_label, normalize_tag_label
 
 
@@ -69,6 +68,7 @@ _MANAGED_COMMENT = re.compile(r"<!-- /?atlas:event:[A-Za-z0-9][A-Za-z0-9._-]* --
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _SVG_TAG = "{http://www.w3.org/2000/svg}svg"
+_TOPIC_KINDS = frozenset({"domain", "problem", "pattern", "technology", "outcome"})
 
 
 class BundleRecoveryError(OSError):
@@ -375,25 +375,25 @@ def _project_ref(project: PublicProject) -> ProjectRef:
     )
 
 
-def _graph_nodes(graph: GraphData) -> list[dict[str, str]]:
+def _graph_nodes(graph: GraphData) -> list[dict[str, object]]:
     return [
-        {"id": node.node_id, "label": node.label, "kind": node.kind}
+        node.to_public_dict()
         for node in sorted(graph.nodes, key=lambda item: (item.kind, item.node_id, item.label))
     ]
 
 
 def _graph_edges(graph: GraphData) -> list[dict[str, object]]:
     return [
-        {
-            "source": edge.source_id,
-            "target": edge.target_id,
-            "kind": edge.kind,
-            "weight": edge.weight,
-            "reasons": list(edge.reasons),
-        }
+        edge.to_public_dict()
         for edge in sorted(
             graph.edges,
-            key=lambda item: (item.kind, item.source_id, item.target_id, -item.weight, item.reasons),
+            key=lambda item: (
+                item.kind,
+                item.source_id,
+                item.target_id,
+                -item.weight,
+                tuple((link["label"], link["url"]) for link in item.evidence_links),
+            ),
         )
     ]
 
@@ -824,12 +824,18 @@ def _validate_graph_nodes(value: object) -> list[dict[str, object]]:
     records = _require_record_list(value, "graph nodes")
     seen = set()
     for record in records:
-        _require_exact_keys(record, {"id", "label", "kind"}, "graph node")
+        _require_exact_keys(record, {"id", "label", "kind", "url", "summary"}, "graph node")
         _require_non_empty_strings(record, ("id", "label", "kind"), "graph node")
         if record["kind"] not in GRAPH_NODE_KINDS:
-            raise ValueError("graph node has unknown kind")
+            raise ValueError("graph-node-kind")
+        if not isinstance(record["url"], str) or not isinstance(record["summary"], str):
+            raise ValueError("graph-node-shape")
+        try:
+            validate_public_graph_url(record["url"], allow_empty=True)
+        except ValueError:
+            raise ValueError("graph-node-url") from None
         if record["id"] in seen:
-            raise ValueError("graph nodes require unique IDs")
+            raise ValueError("graph-node-duplicate-id")
         seen.add(record["id"])
     return records
 
@@ -837,14 +843,28 @@ def _validate_graph_nodes(value: object) -> list[dict[str, object]]:
 def _validate_graph_edges(value: object) -> list[dict[str, object]]:
     records = _require_record_list(value, "graph edges")
     for record in records:
-        _require_exact_keys(record, {"source", "target", "kind", "weight", "reasons"}, "graph edge")
-        _require_non_empty_strings(record, ("source", "target", "kind"), "graph edge")
+        _require_exact_keys(
+            record,
+            {"id", "source", "target", "kind", "weight", "evidence_links"},
+            "graph edge",
+        )
+        _require_non_empty_strings(record, ("id", "source", "target", "kind"), "graph edge")
         if record["kind"] not in GRAPH_EDGE_KINDS:
-            raise ValueError("graph edge has unknown kind")
+            raise ValueError("graph-edge-kind")
         if not isinstance(record["weight"], int) or isinstance(record["weight"], bool) or record["weight"] <= 0:
-            raise ValueError("graph edge weight must be a positive integer")
-        if not _is_string_list(record["reasons"]):
-            raise ValueError("graph edge reasons must be strings")
+            raise ValueError("graph-edge-weight")
+        links = record["evidence_links"]
+        if not isinstance(links, list):
+            raise ValueError("graph-evidence-link")
+        for link in links:
+            if not isinstance(link, dict):
+                raise ValueError("graph-evidence-link")
+            _require_exact_keys(link, {"label", "url"}, "graph evidence link")
+            _require_non_empty_strings(link, ("label", "url"), "graph evidence link")
+            try:
+                validate_public_graph_url(link["url"])
+            except ValueError:
+                raise ValueError("graph-evidence-link-url") from None
     return records
 
 
@@ -855,175 +875,47 @@ def _validate_graph(
 ) -> None:
     nodes = _validate_graph_nodes(nodes_value)
     edges = _validate_graph_edges(edges_value)
-    expected_nodes, expected_memberships, project_tags = _expected_graph(projects)
+    validate_schema({"nodes": nodes, "edges": edges}, "public-graph")
     actual_nodes = {str(node["id"]): node for node in nodes}
-    if set(actual_nodes) != set(expected_nodes):
-        raise ValueError("graph nodes do not match canonical project and tag IDs")
-    for node_id, (kind, label) in expected_nodes.items():
-        node = actual_nodes[node_id]
-        if node["kind"] != kind or node["label"] != label:
-            raise ValueError("graph node kind or label is not canonical")
+    expected_projects = {
+        f"project:{quote(project_id, safe='')}": {
+            "id": f"project:{quote(project_id, safe='')}",
+            "label": payload["name"],
+            "kind": "Project",
+            "url": f"/projects/{quote(project_id, safe='')}",
+            "summary": payload["summary"],
+        }
+        for project_id, payload in projects.items()
+    }
+    actual_projects = {
+        node_id: node
+        for node_id, node in actual_nodes.items()
+        if node["kind"] == "Project"
+    }
+    if actual_projects != expected_projects:
+        raise ValueError("graph-project-nodes")
 
-    memberships: set[tuple[str, str]] = set()
-    similarity_pairs: set[tuple[str, str]] = set()
+    seen_ids: set[str] = set()
     seen_edges: set[tuple[str, str, str]] = set()
-    degrees: dict[str, int] = defaultdict(int)
     for edge in edges:
+        edge_id = str(edge["id"])
         source = str(edge["source"])
         target = str(edge["target"])
         kind = str(edge["kind"])
         identity = (kind, source, target)
+        if edge_id in seen_ids:
+            raise ValueError("graph-edge-duplicate-id")
+        seen_ids.add(edge_id)
         if identity in seen_edges:
-            raise ValueError("graph edges require unique directed pairs")
+            raise ValueError("graph-edge-duplicate-id")
         seen_edges.add(identity)
         if source == target:
-            raise ValueError("graph edges cannot be self edges")
+            raise ValueError("graph-edge-self")
         if source not in actual_nodes or target not in actual_nodes:
-            raise ValueError("graph edge has a dangling endpoint")
-
-        source_kind = str(actual_nodes[source]["kind"])
-        target_kind = str(actual_nodes[target]["kind"])
-        reasons = tuple(edge["reasons"])
-        if kind == "tag-membership":
-            if source_kind != "project" or target_kind == "project":
-                raise ValueError("graph membership direction or tag kind is invalid")
-            if edge["weight"] != 1 or reasons:
-                raise ValueError("graph membership weight and reasons must be canonical")
-            pair = (source, target)
-            if pair in memberships:
-                raise ValueError("graph membership pairs must be unique")
-            memberships.add(pair)
-            continue
-
-        if source_kind != "project" or target_kind != "project":
-            raise ValueError("graph similarity endpoints must both be projects")
-        pair = tuple(sorted((source, target)))
-        if (source, target) != pair:
-            raise ValueError("graph similarity endpoints must use canonical ordering")
-        if pair in similarity_pairs:
-            raise ValueError("graph similarity pairs must be unique")
-        similarity_pairs.add(pair)
-        expected_reasons, expected_weight = _similarity_contract(
-            source,
-            target,
-            project_tags,
-            expected_nodes,
-        )
-        if reasons != expected_reasons or edge["weight"] != expected_weight:
-            raise ValueError("graph similarity reasons or weight are not stable")
-        degrees[source] += 1
-        degrees[target] += 1
-        if degrees[source] > 5 or degrees[target] > 5:
-            raise ValueError("graph project similarity degree exceeds five")
-
-    if memberships != expected_memberships:
-        raise ValueError("graph membership edges do not match project tags")
-    if similarity_pairs != _expected_similarity_pairs(project_tags, expected_nodes):
-        raise ValueError("graph similarity edges do not match deterministic selection")
-
-
-def _expected_graph(
-    projects: Mapping[str, dict[str, object]],
-) -> tuple[
-    dict[str, tuple[str, str]],
-    set[tuple[str, str]],
-    dict[str, dict[str, set[str]]],
-]:
-    tag_labels: dict[tuple[str, str], list[str]] = defaultdict(list)
-    project_tags: dict[str, dict[str, set[str]]] = {}
-    for project_id, payload in projects.items():
-        tags = payload["tags"]
-        normalized_by_kind: dict[str, set[str]] = {}
-        for kind in TAG_WEIGHTS:
-            normalized_by_kind[kind] = {
-                normalize_tag_label(label) for label in tags[kind]
-            }
-            for label in tags[kind]:
-                tag_labels[(kind, normalize_tag_label(label))].append(
-                    display_tag_label(label)
-                )
-        project_tags[_project_node_id(project_id)] = normalized_by_kind
-
-    canonical_tag_labels = {
-        key: min(values, key=lambda value: (normalize_tag_label(value), value))
-        for key, values in tag_labels.items()
-    }
-    expected_nodes = {
-        _project_node_id(project_id): ("project", str(payload["name"]))
-        for project_id, payload in projects.items()
-    }
-    expected_nodes.update(
-        {
-            _tag_node_id(kind, identity): (kind, label)
-            for (kind, identity), label in canonical_tag_labels.items()
-        }
-    )
-    memberships = {
-        (project_node_id, _tag_node_id(kind, identity))
-        for project_node_id, by_kind in project_tags.items()
-        for kind, identities in by_kind.items()
-        for identity in identities
-    }
-    return expected_nodes, memberships, project_tags
-
-
-def _similarity_contract(
-    source: str,
-    target: str,
-    project_tags: Mapping[str, Mapping[str, set[str]]],
-    expected_nodes: Mapping[str, tuple[str, str]],
-) -> tuple[tuple[str, ...], int]:
-    reasons = []
-    weight = 0
-    for kind, tag_weight in TAG_WEIGHTS.items():
-        for identity in sorted(project_tags[source][kind] & project_tags[target][kind]):
-            tag_id = _tag_node_id(kind, identity)
-            reasons.append(f"{kind}:{expected_nodes[tag_id][1]}")
-            weight += tag_weight
-    if not reasons or weight <= 0:
-        raise ValueError("graph similarity requires shared project tags")
-    return tuple(reasons), weight
-
-
-def _expected_similarity_pairs(
-    project_tags: Mapping[str, Mapping[str, set[str]]],
-    expected_nodes: Mapping[str, tuple[str, str]],
-) -> set[tuple[str, str]]:
-    project_ids = tuple(sorted(project_tags))
-    candidates: list[tuple[int, str, str, tuple[str, ...]]] = []
-    for index, source in enumerate(project_ids):
-        for target in project_ids[index + 1 :]:
-            try:
-                reasons, weight = _similarity_contract(
-                    source,
-                    target,
-                    project_tags,
-                    expected_nodes,
-                )
-            except ValueError:
-                continue
-            candidates.append((weight, source, target, reasons))
-
-    degrees: dict[str, int] = defaultdict(int)
-    selected: set[tuple[str, str]] = set()
-    for _, source, target, _ in sorted(
-        candidates,
-        key=lambda item: (-item[0], item[1], item[2], item[3]),
-    ):
-        if degrees[source] >= 5 or degrees[target] >= 5:
-            continue
-        degrees[source] += 1
-        degrees[target] += 1
-        selected.add((source, target))
-    return selected
-
-
-def _project_node_id(project_id: str) -> str:
-    return f"project:{quote(project_id, safe='')}"
-
-
-def _tag_node_id(kind: str, identity: str) -> str:
-    return f"{kind}:{quote(identity, safe='')}"
+            raise ValueError("graph-edge-endpoint")
+        expected_id = f"{kind.lower()}:{quote(source, safe='')}:{quote(target, safe='')}"
+        if edge_id != expected_id:
+            raise ValueError("graph-edge-id")
 
 
 def _validate_topics(value: object, project_ids: set[str]) -> None:
@@ -1031,7 +923,7 @@ def _validate_topics(value: object, project_ids: set[str]) -> None:
     for record in records:
         _require_exact_keys(record, {"kind", "label", "project_ids"}, "topic")
         _require_non_empty_strings(record, ("kind", "label"), "topic")
-        if record["kind"] not in GRAPH_NODE_KINDS - {"project"}:
+        if record["kind"] not in _TOPIC_KINDS:
             raise ValueError("topic has unknown kind")
         if not _is_string_list(record["project_ids"], non_empty=True):
             raise ValueError("topic project_ids must be non-empty strings")

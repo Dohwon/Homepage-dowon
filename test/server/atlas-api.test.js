@@ -105,7 +105,7 @@ test("bootstrap, graph, and search routes expose stable bundle data", async (t) 
   const graph = (await request(server.url, "/api/atlas/graph")).json();
   const search = (await request(server.url, "/api/atlas/search?q=ROUTING")).json();
 
-  assert.equal(bootstrap.version, "31dab58058afafc3a2f772323754250837287090dce78b56deb7c8f4c40d72e0");
+  assert.equal(bootstrap.version, "a3470656b7815d31fd5a1f75de9bb0e67137c9d0b75e68bbf01e00912b7efeb2");
   assert.deepEqual(bootstrap.projects.map((project) => project.id), ["alpha", "beta"]);
   assert.equal(graph.nodes.length, 12);
   assert.deepEqual(search.items.map((item) => item.id), ["alpha-overview", "article:alpha:routing"]);

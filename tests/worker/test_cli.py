@@ -119,11 +119,11 @@ def _reviewed_profile(project_id: str, lifecycle: str = "active") -> dict[str, o
         "publication": "private",
         "summary": f"{project_id.title()} reviewed profile",
         "tags": {
-            "domain": ["AI"],
-            "problem": ["Routing"],
-            "pattern": ["Evaluation"],
+            "domain": ["Agent Systems"],
+            "problem": ["라우팅 경계"],
+            "pattern": ["구조화된 평가"],
             "technology": ["Python"],
-            "outcome": ["Tool"],
+            "outcome": ["승인 중심 업무 흐름"],
         },
     }
 
@@ -184,10 +184,19 @@ def test_build_publishes_audited_structured_article_and_section_search(tmp_path,
     article = json.loads((public / "projects" / "alpha" / "article.json").read_text(encoding="utf-8"))
     evidence = json.loads((public / "projects" / "alpha" / "evidence.json").read_text(encoding="utf-8"))
     search = json.loads((public / "search-index.json").read_text(encoding="utf-8"))
+    graph_nodes = json.loads((public / "graph" / "nodes.json").read_text(encoding="utf-8"))
+    graph_edges = json.loads((public / "graph" / "edges.json").read_text(encoding="utf-8"))
     assert output["validated"]
     assert article["sections"][0]["id"] == "routing"
     assert set(evidence[0]) == {"id", "label", "source_type", "observed_at"}
     assert {item["id"] for item in search} >= {"project:alpha", "article:alpha:routing"}
+    assert "Artifact" in {node["kind"] for node in graph_nodes}
+    assert all(set(node) == {"id", "label", "kind", "url", "summary"} for node in graph_nodes)
+    assert all(
+        set(edge) == {"id", "source", "target", "kind", "weight", "evidence_links"}
+        for edge in graph_edges
+    )
+    assert "project-similarity" not in {edge["kind"] for edge in graph_edges}
     assert "/private/atlas" not in json.dumps({"article": article, "evidence": evidence, "search": search})
 
 
@@ -1578,7 +1587,7 @@ def test_validate_invalid_bundle_returns_sanitized_validation_exit_without_write
     assert _snapshot(fixture) == before
 
 
-@pytest.mark.parametrize("mutation", ("dangling", "six-neighbors"))
+@pytest.mark.parametrize("mutation", ("dangling", "similarity"))
 def test_cli_validate_rejects_rehashed_cross_graph_contract_violations(
     tmp_path, capsys, mutation
 ):
@@ -1590,30 +1599,24 @@ def test_cli_validate_rejects_rehashed_cross_graph_contract_violations(
     if mutation == "dangling":
         edges.append(
             {
-                "kind": "project-similarity",
-                "reasons": ["domain:AI"],
+                "id": "validates:project%3Aproject-0:project%3Amissing",
                 "source": "project:project-0",
                 "target": "project:missing",
-                "weight": 4,
+                "kind": "VALIDATES",
+                "weight": 1,
+                "evidence_links": [],
             }
         )
     else:
-        edges = [edge for edge in edges if edge["kind"] != "project-similarity"]
-        edges.extend(
+        edges.append(
             {
-                "kind": "project-similarity",
-                "reasons": [
-                    "domain:AI",
-                    "outcome:Tool",
-                    "pattern:Evaluation",
-                    "problem:Routing",
-                    "technology:Python",
-                ],
+                "id": "similarity:project-0:project-1",
                 "source": "project:project-0",
-                "target": f"project:project-{index}",
-                "weight": 20,
+                "target": "project:project-1",
+                "kind": "project-similarity",
+                "weight": 1,
+                "evidence_links": [],
             }
-            for index in range(1, 7)
         )
     edges_path.write_text(
         json.dumps(edges, sort_keys=True, separators=(",", ":")) + "\n",
@@ -1650,11 +1653,12 @@ def test_cli_promotion_rejects_malformed_graph_and_preserves_last_good(
         edges = json.loads(edges_path.read_text(encoding="utf-8"))
         edges.append(
             {
-                "kind": "project-similarity",
-                "reasons": ["domain:AI"],
+                "id": "similarity:alpha:beta",
                 "source": "project:alpha",
-                "target": "project:missing",
-                "weight": 4,
+                "target": "project:beta",
+                "kind": "project-similarity",
+                "weight": 1,
+                "evidence_links": [],
             }
         )
         edges_path.write_text(
