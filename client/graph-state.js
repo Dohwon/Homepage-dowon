@@ -10,6 +10,53 @@ const PROJECT_EXPANSION = new Set([
 
 const FOCUS_EXPANSION = new Set(["FOCUS_HAS_TAG", "HAS_SUBTAG"]);
 
+function rejectReadonlyMutation() {
+  throw new TypeError("read-only graph collection");
+}
+
+function readonlyCollection(collection, mutationMethods) {
+  let facade;
+  facade = new Proxy(collection, {
+    get(target, property) {
+      if (mutationMethods.includes(property)) return rejectReadonlyMutation;
+      if (property === "valueOf") return () => facade;
+      if (property === "forEach") {
+        return (callback, thisArg) => target.forEach(
+          (value, key) => callback.call(thisArg, value, key, facade),
+        );
+      }
+      const value = Reflect.get(target, property, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+    set: rejectReadonlyMutation,
+    defineProperty: rejectReadonlyMutation,
+    deleteProperty: rejectReadonlyMutation,
+  });
+  return Object.freeze(facade);
+}
+
+function readonlySet(values) {
+  return readonlyCollection(new Set(values), ["add", "delete", "clear"]);
+}
+
+function readonlyMap(entries) {
+  return readonlyCollection(new Map(entries), ["set", "delete", "clear"]);
+}
+
+function freezeNodeRecord(node) {
+  return Object.freeze({ ...node });
+}
+
+function freezeEdgeRecord(edge) {
+  const clone = { ...edge };
+  if (Array.isArray(clone.evidence_links)) {
+    clone.evidence_links = Object.freeze(
+      clone.evidence_links.map((link) => Object.freeze({ ...link })),
+    );
+  }
+  return Object.freeze(clone);
+}
+
 function neighborId(edge, nodeId) {
   return edge.source === nodeId ? edge.target : edge.source;
 }
@@ -28,9 +75,10 @@ function compareAdjacentEdges(nodeId, left, right) {
 function freezeGraphState(state) {
   return Object.freeze({
     ...state,
-    visibleNodeIds: Object.freeze(new Set(state.visibleNodeIds)),
-    expandedIds: Object.freeze(new Set(state.expandedIds)),
-    relationKinds: Object.freeze(new Set(state.relationKinds)),
+    visibleNodeIds: readonlySet(state.visibleNodeIds),
+    visibleEdgeIds: readonlySet(state.visibleEdgeIds),
+    expandedIds: readonlySet(state.expandedIds),
+    relationKinds: readonlySet(state.relationKinds),
     revealedPath: Object.freeze([...state.revealedPath]),
   });
 }
@@ -38,10 +86,11 @@ function freezeGraphState(state) {
 export function createGraphIndex(graph) {
   const nodes = new Map();
   const nodesByKind = new Map();
-  const edges = [...(graph?.edges || [])];
+  const edges = (graph?.edges || []).map(freezeEdgeRecord);
   const adjacency = new Map();
 
-  for (const node of graph?.nodes || []) {
+  for (const sourceNode of graph?.nodes || []) {
+    const node = freezeNodeRecord(sourceNode);
     nodes.set(node.id, node);
     const ids = nodesByKind.get(node.kind) || [];
     ids.push(node.id);
@@ -65,24 +114,28 @@ export function createGraphIndex(graph) {
   }
 
   return Object.freeze({
-    nodes,
-    nodesByKind,
+    nodes: readonlyMap(nodes),
+    nodesByKind: readonlyMap(nodesByKind),
     edges: Object.freeze(edges),
-    adjacency,
-    edgeKinds: Object.freeze(new Set(edges.map((edge) => edge.kind))),
+    adjacency: readonlyMap(adjacency),
+    edgeKinds: readonlySet(edges.map((edge) => edge.kind)),
   });
 }
 
 export function initialGraphState(index) {
   const visibleNodeIds = new Set(index.nodesByKind.get("KnowledgeFocus") || []);
+  const visibleEdgeIds = new Set();
   for (const edge of index.edges) {
     if (edge.kind !== "HAS_FOCUS") continue;
-    if (index.nodes.has(edge.source)) visibleNodeIds.add(edge.source);
-    if (index.nodes.has(edge.target)) visibleNodeIds.add(edge.target);
+    if (!index.nodes.has(edge.source) || !index.nodes.has(edge.target)) continue;
+    visibleNodeIds.add(edge.source);
+    visibleNodeIds.add(edge.target);
+    visibleEdgeIds.add(edge.id);
   }
 
   return freezeGraphState({
     visibleNodeIds,
+    visibleEdgeIds,
     selectedId: null,
     expandedIds: new Set(),
     relationKinds: index.edgeKinds,
@@ -98,16 +151,19 @@ export function expandNode(state, nodeId, index) {
       ? FOCUS_EXPANSION
       : new Set();
   const visibleNodeIds = new Set(state.visibleNodeIds);
+  const visibleEdgeIds = new Set(state.visibleEdgeIds);
 
   for (const edge of index.adjacency.get(nodeId) || []) {
     if (!allowedKinds.has(edge.kind)) continue;
     visibleNodeIds.add(edge.source);
     visibleNodeIds.add(edge.target);
+    visibleEdgeIds.add(edge.id);
   }
 
   return freezeGraphState({
     ...state,
     visibleNodeIds,
+    visibleEdgeIds,
     selectedId: nodeId,
     expandedIds: new Set([...state.expandedIds, nodeId]),
   });
@@ -116,21 +172,24 @@ export function expandNode(state, nodeId, index) {
 function shortestPathFromFocus(nodeId, index) {
   if (!index.nodes.has(nodeId)) return null;
   const focusIds = [...(index.nodesByKind.get("KnowledgeFocus") || [])].sort();
-  if (focusIds.includes(nodeId)) return [nodeId];
+  if (focusIds.includes(nodeId)) return { nodeIds: [nodeId], edgeIds: [] };
 
   const visited = new Set(focusIds);
-  const queue = focusIds.map((focusId) => [focusId]);
+  const queue = focusIds.map((focusId) => ({ nodeIds: [focusId], edgeIds: [] }));
   let cursor = 0;
 
   while (cursor < queue.length) {
     const path = queue[cursor];
     cursor += 1;
-    const currentId = path[path.length - 1];
+    const currentId = path.nodeIds[path.nodeIds.length - 1];
 
     for (const edge of index.adjacency.get(currentId) || []) {
       const nextId = neighborId(edge, currentId);
       if (visited.has(nextId)) continue;
-      const nextPath = [...path, nextId];
+      const nextPath = {
+        nodeIds: [...path.nodeIds, nextId],
+        edgeIds: [...path.edgeIds, edge.id],
+      };
       if (nextId === nodeId) return nextPath;
       visited.add(nextId);
       queue.push(nextPath);
@@ -141,14 +200,15 @@ function shortestPathFromFocus(nodeId, index) {
 }
 
 export function revealPath(state, nodeId, index) {
-  const revealedPath = shortestPathFromFocus(nodeId, index);
-  if (!revealedPath) return state;
+  const path = shortestPathFromFocus(nodeId, index);
+  if (!path) return state;
 
   return freezeGraphState({
     ...state,
-    visibleNodeIds: new Set([...state.visibleNodeIds, ...revealedPath]),
+    visibleNodeIds: new Set([...state.visibleNodeIds, ...path.nodeIds]),
+    visibleEdgeIds: new Set([...state.visibleEdgeIds, ...path.edgeIds]),
     selectedId: nodeId,
-    revealedPath,
+    revealedPath: path.nodeIds,
   });
 }
 
@@ -166,6 +226,7 @@ function selectedNeighborhood(state, index) {
 
   const activeNodeIds = new Set([state.selectedId]);
   for (const edge of index.adjacency.get(state.selectedId) || []) {
+    if (!state.visibleEdgeIds.has(edge.id)) continue;
     if (!state.relationKinds.has(edge.kind)) continue;
     activeNodeIds.add(edge.source);
     activeNodeIds.add(edge.target);
@@ -185,6 +246,7 @@ export function visibleGraph(state, index) {
 
   const links = [];
   for (const edge of index.edges) {
+    if (!state.visibleEdgeIds.has(edge.id)) continue;
     if (!state.relationKinds.has(edge.kind)) continue;
     if (!state.visibleNodeIds.has(edge.source) || !state.visibleNodeIds.has(edge.target)) continue;
     if (!index.nodes.has(edge.source) || !index.nodes.has(edge.target)) continue;

@@ -57,6 +57,23 @@ test("initial graph shows only focuses and connected projects", async () => {
   assert.deepEqual(new Set(visible.links.map((link) => link.kind)), new Set(["HAS_FOCUS"]));
 });
 
+test("initial graph hides direct relations between visible projects until expansion", async () => {
+  const { createGraphIndex, initialGraphState, expandNode, visibleGraph } = await importGraphStateModule();
+  const graph = fixtureGraph();
+  graph.edges.push(edge("evolved:alpha-beta", "project:alpha", "project:beta", "EVOLVED_FROM"));
+  const index = createGraphIndex(graph);
+  const initial = initialGraphState(index);
+
+  assert.deepEqual(
+    visibleGraph(initial, index).links.map((link) => link.id).sort(),
+    ["has-focus:alpha", "has-focus:beta"],
+  );
+
+  const expanded = expandNode(initial, "project:alpha", index);
+  assert.equal(visibleGraph(expanded, index).links.some((link) => link.id === "evolved:alpha-beta"), true);
+  assert.equal(visibleGraph(expanded, index).links.some((link) => link.id === "produces:beta"), false);
+});
+
 test("project expansion adds only its exact allowed one-hop neighbors", async () => {
   const { createGraphIndex, initialGraphState, expandNode, visibleGraph } = await importGraphStateModule();
   const index = createGraphIndex(fixtureGraph());
@@ -125,7 +142,7 @@ test("project expansion supports every exact project relation and no others", as
 });
 
 test("search reveals the deterministic shortest path through a cyclic graph", async () => {
-  const { createGraphIndex, initialGraphState, revealPath } = await importGraphStateModule();
+  const { createGraphIndex, initialGraphState, revealPath, visibleGraph } = await importGraphStateModule();
   const graph = {
     nodes: [
       node("focus:root", "KnowledgeFocus"),
@@ -150,6 +167,10 @@ test("search reveals the deterministic shortest path through a cyclic graph", as
     ["domain:z", "focus:root", "project:a", "tag:target"],
   );
   assert.equal(state.selectedId, "tag:target");
+  assert.deepEqual(
+    visibleGraph(state, index).links.map((link) => link.id).sort(),
+    ["domain-target", "focus-domain", "focus-project"],
+  );
 });
 
 test("search for a missing target leaves state unchanged", async () => {
@@ -217,4 +238,50 @@ test("visible projection marks the selected neighborhood active and leaves sourc
   assert.notStrictEqual(visible.links[0], graph.edges.find((item) => item.id === visible.links[0].id));
   assert.equal(Object.isFrozen(initial), true);
   assert.deepEqual([...initial.visibleNodeIds].sort(), ["focus:delivery", "project:alpha", "project:beta"]);
+});
+
+test("public state collections reject mutation without changing earlier snapshots", async () => {
+  const { createGraphIndex, initialGraphState, visibleGraph } = await importGraphStateModule();
+  const index = createGraphIndex(fixtureGraph());
+  const state = initialGraphState(index);
+  const before = visibleGraph(state, index);
+
+  assert.equal(state.visibleNodeIds instanceof Set, true);
+  assert.throws(() => state.visibleNodeIds.clear(), /read-only/i);
+  assert.throws(() => state.visibleEdgeIds.clear(), /read-only/i);
+  assert.throws(() => state.expandedIds.add("project:injected"), /read-only/i);
+  assert.throws(() => state.relationKinds.delete("HAS_FOCUS"), /read-only/i);
+
+  assert.deepEqual(visibleGraph(state, index), before);
+  assert.deepEqual([...state.expandedIds], []);
+  assert.equal(state.relationKinds.has("HAS_FOCUS"), true);
+});
+
+test("public index collections reject mutation without changing graph behavior", async () => {
+  const { createGraphIndex, initialGraphState, expandNode, revealPath, visibleGraph } = await importGraphStateModule();
+  const graph = fixtureGraph();
+  const index = createGraphIndex(graph);
+  let exposedNodes;
+  index.nodes.forEach((_value, _key, collection) => {
+    exposedNodes = collection;
+  });
+
+  assert.equal(index.nodes instanceof Map, true);
+  assert.equal(index.edgeKinds instanceof Set, true);
+  assert.strictEqual(index.nodes.valueOf(), index.nodes);
+  assert.strictEqual(exposedNodes, index.nodes);
+  assert.throws(() => index.nodes.clear(), /read-only/i);
+  assert.throws(() => index.nodesByKind.set("Project", []), /read-only/i);
+  assert.throws(() => index.adjacency.delete("project:alpha"), /read-only/i);
+  assert.throws(() => index.edgeKinds.add("INJECTED"), /read-only/i);
+  assert.throws(() => exposedNodes.clear(), /read-only/i);
+  assert.equal(Reflect.set(index.nodes.get("project:alpha"), "kind", "Injected"), false);
+  assert.equal(graph.nodes.find((item) => item.id === "project:alpha").kind, "Project");
+
+  const expanded = expandNode(initialGraphState(index), "project:alpha", index);
+  assert.equal(visibleGraph(expanded, index).nodes.some((item) => item.id === "technology:python"), true);
+  assert.deepEqual(
+    revealPath(initialGraphState(index), "artifact:alpha:report", index).revealedPath,
+    ["focus:delivery", "project:alpha", "artifact:alpha:report"],
+  );
 });
