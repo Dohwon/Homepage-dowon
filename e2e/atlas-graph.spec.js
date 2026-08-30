@@ -1,11 +1,13 @@
 const { test, expect } = require("./fixtures");
 
 test("graph starts collapsed and expands one project neighborhood", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.goto("/graph");
 
   await expect(page.locator("#knowledge-graph")).toHaveAttribute("role", "group");
   await expect(page.locator("[data-graph-node-count]")).toHaveText("4");
+  await expect(page.locator("[data-reduced-motion]")).toHaveAttribute("data-reduced-motion", "false");
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(page.locator("[data-reduced-motion]")).toHaveAttribute("data-reduced-motion", "true");
 
   for (const selector of ["[data-graph-fit]", "[data-graph-reset]"]) {

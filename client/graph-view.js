@@ -21,6 +21,14 @@ function toRendererData(graph) {
   };
 }
 
+function nodeTooltip(node, documentRef) {
+  if (!node?.active && node?.kind !== "KnowledgeFocus") return "";
+  if (typeof documentRef?.createElement !== "function") return "";
+  const label = documentRef.createElement("span");
+  label.textContent = `${node.label} · ${node.kind}`;
+  return label;
+}
+
 function focusCamera(instance, node, duration) {
   if (!node || typeof node !== "object") return false;
   const x = Number(node.x) || 0;
@@ -52,9 +60,11 @@ export function createGraphView(container, graph, {
   },
   onSelect = () => {},
   reducedMotion = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false,
+  documentRef = globalThis.document,
 } = {}) {
   if (typeof forceGraphFactory !== "function") throw new Error("force_graph_3d_unavailable");
 
+  let motionReduced = Boolean(reducedMotion);
   const initialGraph = toRendererData(graph);
   const size = rendererSize(container);
   const previousWidth = container.style.width;
@@ -77,7 +87,7 @@ export function createGraphView(container, graph, {
     .nodeId("id")
     .linkSource("source")
     .linkTarget("target")
-    .nodeLabel(node => node.active || node.kind === "KnowledgeFocus" ? `${node.label} · ${node.kind}` : "")
+    .nodeLabel(node => nodeTooltip(node, documentRef))
     .nodeColor(node => NODE_COLORS[node.kind] || NODE_COLORS.Artifact)
     .nodeOpacity(node => node.dimmed ? 0.18 : 0.92)
     .linkOpacity(link => link.dimmed ? 0.05 : 0.42)
@@ -87,11 +97,11 @@ export function createGraphView(container, graph, {
       node.fy = node.y;
       node.fz = node.z;
     })
-    .cooldownTicks(reducedMotion ? 18 : 80)
-    .warmupTicks(reducedMotion ? 12 : 0)
+    .cooldownTicks(motionReduced ? 18 : 80)
+    .warmupTicks(motionReduced ? 12 : 0)
     .graphData(toRendererData(initialGraph));
 
-  if (reducedMotion) instance.d3AlphaDecay(0.3);
+  if (motionReduced) instance.d3AlphaDecay(0.3);
 
   let destroyed = false;
   const ResizeObserverClass = globalThis.ResizeObserver;
@@ -115,10 +125,19 @@ export function createGraphView(container, graph, {
       instance.graphData(toRendererData(next));
     },
     focus(node) {
-      return focusCamera(instance, node, reducedMotion ? 0 : 700);
+      return focusCamera(instance, node, motionReduced ? 0 : 700);
     },
     fit() {
-      instance.zoomToFit(reducedMotion ? 0 : 500, 70);
+      instance.zoomToFit(motionReduced ? 0 : 500, 70);
+    },
+    setReducedMotion(next) {
+      const normalized = Boolean(next);
+      if (normalized === motionReduced) return;
+      motionReduced = normalized;
+      instance
+        .cooldownTicks(motionReduced ? 18 : 80)
+        .warmupTicks(motionReduced ? 12 : 0);
+      if (motionReduced) instance.d3AlphaDecay(0.3);
     },
     reset() {
       instance.graphData(toRendererData(initialGraph));

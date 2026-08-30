@@ -234,6 +234,30 @@ test("renders every article section in order and places figures after prose", as
   ]);
 });
 
+test("error rendering clears active route resources before replacing the DOM", async (t) => {
+  installSanitizers(t);
+  const { renderError } = await importRenderModule(t);
+  const events = [];
+  const root = {
+    __atlasCleanup() {
+      events.push("destroy");
+      events.push("disconnect");
+    },
+  };
+  Object.defineProperty(root, "innerHTML", {
+    set(value) {
+      events.push("replace");
+      this.html = value;
+    },
+  });
+
+  renderError(root, new Error("route failed"));
+
+  assert.deepEqual(events, ["destroy", "disconnect", "replace"]);
+  assert.equal(root.__atlasCleanup, null);
+  assert.match(root.html, /Atlas를 불러오지 못했습니다/);
+});
+
 test("insufficient and review-required articles render factual empty states without legacy filler", async (t) => {
   installSanitizers(t);
   const { renderProjectContent } = await importRenderModule(t);

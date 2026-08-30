@@ -498,6 +498,9 @@ function bindGraph(root, state) {
     fallback.hidden = false;
     shell.dataset.graphMode = "fallback";
   };
+  const onReducedMotionChange = (event) => {
+    view?.setReducedMotion(Boolean(event.detail));
+  };
 
   if (supportsWebGL(document)) {
     try {
@@ -553,11 +556,13 @@ function bindGraph(root, state) {
   root.addEventListener("click", onClick);
   root.addEventListener("change", onChange);
   root.addEventListener("input", onInput);
+  root.addEventListener("atlas:reduced-motion-change", onReducedMotionChange);
   update();
   return () => {
     root.removeEventListener("click", onClick);
     root.removeEventListener("change", onChange);
     root.removeEventListener("input", onInput);
+    root.removeEventListener("atlas:reduced-motion-change", onReducedMotionChange);
     view?.destroy();
   };
 }
@@ -806,9 +811,14 @@ function updateNavigation(route) {
   });
 }
 
+function cleanupActiveRoute(root) {
+  const cleanup = root.__atlasCleanup;
+  root.__atlasCleanup = null;
+  if (typeof cleanup === "function") cleanup();
+}
+
 export function renderRoute(state, root, { navigate = () => {} } = {}) {
-  const previousCleanup = root.__atlasCleanup;
-  if (typeof previousCleanup === "function") previousCleanup();
+  cleanupActiveRoute(root);
   if (!state.bootstrap) {
     root.innerHTML = '<div class="loading-state" role="status"><span class="loading-line"></span><span class="loading-line short"></span></div>';
     return;
@@ -839,5 +849,6 @@ export function renderRoute(state, root, { navigate = () => {} } = {}) {
 }
 
 export function renderError(root, error) {
+  cleanupActiveRoute(root);
   root.innerHTML = `<div class="content-shell"><div class="error-state" role="alert"><h1>Atlas를 불러오지 못했습니다.</h1><p>${escapeHtml(error?.code || error?.message || "unknown_error")}</p></div></div>`;
 }

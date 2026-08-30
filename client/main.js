@@ -17,7 +17,9 @@ let navigationId = 0;
 let projectReaderCleanup = () => {};
 
 function syncReducedMotion() {
-  root.dataset.reducedMotion = String(Boolean(reducedMotionQuery?.matches));
+  const reducedMotion = Boolean(reducedMotionQuery?.matches);
+  root.dataset.reducedMotion = String(reducedMotion);
+  root.dispatchEvent(new CustomEvent("atlas:reduced-motion-change", { detail: reducedMotion }));
 }
 
 syncReducedMotion();

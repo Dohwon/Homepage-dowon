@@ -164,6 +164,14 @@ function fakeDocument({ contexts = [], throws = false, missingGetContext = false
   };
 }
 
+function fakeLabelDocument() {
+  return {
+    createElement(name) {
+      return { nodeName: String(name).toUpperCase(), textContent: "", children: [] };
+    },
+  };
+}
+
 test("3D adapter uses the injected orbit renderer and updates without recreation", async () => {
   const resize = installResizeObserver();
   try {
@@ -176,6 +184,7 @@ test("3D adapter uses the injected orbit renderer and updates without recreation
       forceGraphFactory: fake.factory,
       onSelect: node => selected.push(node.id),
       reducedMotion: false,
+      documentRef: fakeLabelDocument(),
     });
 
     assert.strictEqual(fake.config.element, element);
@@ -192,7 +201,7 @@ test("3D adapter uses the injected orbit renderer and updates without recreation
     assert.equal(fake.calls.graphData.length, 1);
     assert.notStrictEqual(fake.calls.graphData[0].nodes[0], initial.nodes[0]);
     assert.notStrictEqual(fake.calls.graphData[0].links[0], initial.links[0]);
-    assert.equal(fake.config.nodeLabel(initial.nodes[0]), "Delivery · KnowledgeFocus");
+    assert.equal(fake.config.nodeLabel(initial.nodes[0]).textContent, "Delivery · KnowledgeFocus");
     assert.equal(fake.config.nodeLabel(initial.nodes[1]), "");
     assert.equal(fake.config.nodeOpacity({ dimmed: true }), 0.18);
     assert.equal(fake.config.linkOpacity({ dimmed: true }), 0.05);
@@ -252,6 +261,59 @@ test("reduced motion shortens simulation and removes camera animation", async ()
     view.focus({ x: 1, y: 2, z: 3 });
     assert.equal(fake.calls.cameraPosition[0][2], 0);
     view.fit();
+    assert.deepEqual(fake.calls.zoomToFit.at(-1), [0, 70]);
+    view.destroy();
+  } finally {
+    resize.restore();
+  }
+});
+
+test("node labels use textContent instead of an HTML-capable string", async () => {
+  const resize = installResizeObserver();
+  try {
+    const { createGraphView } = await importGraphModule();
+    const fake = fakeForceGraph();
+    const view = createGraphView(container(), fixtureGraph(), {
+      forceGraphFactory: fake.factory,
+      documentRef: fakeLabelDocument(),
+      reducedMotion: false,
+    });
+    const unsafeLabel = '<img src=x onerror="globalThis.pwned=true">';
+    const tooltip = fake.config.nodeLabel({
+      id: "project:unsafe",
+      kind: "Project",
+      label: unsafeLabel,
+      active: true,
+    });
+
+    assert.equal(typeof tooltip, "object");
+    assert.equal(tooltip.nodeName, "SPAN");
+    assert.equal(tooltip.textContent, `${unsafeLabel} · Project`);
+    assert.deepEqual(tooltip.children, []);
+    view.destroy();
+  } finally {
+    resize.restore();
+  }
+});
+
+test("live reduced motion updates disable subsequent focus and Fit animation", async () => {
+  const resize = installResizeObserver();
+  try {
+    const { createGraphView } = await importGraphModule();
+    const fake = fakeForceGraph();
+    const view = createGraphView(container(), fixtureGraph(), {
+      forceGraphFactory: fake.factory,
+      reducedMotion: false,
+    });
+
+    view.setReducedMotion(true);
+    view.focus({ x: 1, y: 2, z: 3 });
+    view.fit();
+
+    assert.equal(fake.config.cooldownTicks, 18);
+    assert.equal(fake.config.warmupTicks, 12);
+    assert.deepEqual(fake.calls.d3AlphaDecay, [0.3]);
+    assert.equal(fake.calls.cameraPosition.at(-1)[2], 0);
     assert.deepEqual(fake.calls.zoomToFit.at(-1), [0, 70]);
     view.destroy();
   } finally {
