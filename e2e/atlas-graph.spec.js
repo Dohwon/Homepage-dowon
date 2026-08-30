@@ -20,41 +20,69 @@ function nonBackgroundPixelCount(image) {
   return count;
 }
 
-function pixelDifferenceCount(left, right) {
-  if (left.width !== right.width || left.height !== right.height) return Number.POSITIVE_INFINITY;
-  let count = 0;
-  for (let offset = 0; offset < left.data.length; offset += 4) {
-    const delta = Math.abs(left.data[offset] - right.data[offset])
-      + Math.abs(left.data[offset + 1] - right.data[offset + 1])
-      + Math.abs(left.data[offset + 2] - right.data[offset + 2]);
-    if (delta > 42) count += 1;
-  }
-  return count;
-}
-
-function projectPixel(image) {
-  const target = [79, 134, 198];
-  for (let y = 0; y < image.height; y += 1) {
-    for (let x = 0; x < image.width; x += 1) {
-      const offset = (y * image.width + x) * 4;
-      const red = image.data[offset];
-      const green = image.data[offset + 1];
-      const blue = image.data[offset + 2];
-      const delta = Math.abs(red - target[0]) + Math.abs(green - target[1]) + Math.abs(blue - target[2]);
-      if (image.data[offset + 3] > 0 && delta < 90 && blue > red && blue > green) return { x, y };
-    }
-  }
-  return null;
-}
-
 async function canvasPng(canvas) {
   return PNG.sync.read(await canvas.screenshot());
 }
 
-async function expectCanvasChanged(canvas, action) {
-  const before = await canvasPng(canvas);
-  await action();
-  await expect.poll(async () => pixelDifferenceCount(before, await canvasPng(canvas))).toBeGreaterThan(200);
+function vectorDistance(left, right) {
+  return Math.hypot(left.x - right.x, left.y - right.y, left.z - right.z);
+}
+
+function cameraVector(snapshot) {
+  return {
+    x: snapshot.camera.x - snapshot.target.x,
+    y: snapshot.camera.y - snapshot.target.y,
+    z: snapshot.camera.z - snapshot.target.z
+  };
+}
+
+async function graphSnapshot(page) {
+  return page.locator("[data-graph-canvas]").evaluate((element) => (
+    typeof element.__atlasGraphInspector === "function"
+      ? element.__atlasGraphInspector()
+      : null
+  ));
+}
+
+function snapshotMotion(previous, current) {
+  const currentNodes = new Map(current.nodes.map((node) => [node.id, node]));
+  const nodeMotion = previous.nodes.reduce((maximum, node) => {
+    const next = currentNodes.get(node.id);
+    return next ? Math.max(maximum, vectorDistance(node.position, next.position)) : Number.POSITIVE_INFINITY;
+  }, 0);
+  return Math.max(
+    vectorDistance(previous.camera, current.camera),
+    vectorDistance(previous.target, current.target),
+    nodeMotion
+  );
+}
+
+async function waitForSettledGraph(page) {
+  await expect.poll(async () => (await graphSnapshot(page))?.engineSettled).toBe(true);
+  let previous = await graphSnapshot(page);
+  let stableSamples = 0;
+  await expect.poll(async () => {
+    await page.waitForTimeout(80);
+    const current = await graphSnapshot(page);
+    stableSamples = current && snapshotMotion(previous, current) < 0.05 ? stableSamples + 1 : 0;
+    previous = current;
+    return stableSamples;
+  }).toBeGreaterThanOrEqual(2);
+  return graphSnapshot(page);
+}
+
+function backgroundGesturePoint(box, snapshot) {
+  const candidates = [
+    { x: box.width * 0.8, y: box.height * 0.75 },
+    { x: box.width * 0.2, y: box.height * 0.75 },
+    { x: box.width * 0.75, y: box.height * 0.45 }
+  ];
+  return candidates.sort((left, right) => {
+    const clearance = point => Math.min(...snapshot.nodes.map(node => (
+      Math.hypot(point.x - node.screen.x, point.y - node.screen.y)
+    )));
+    return clearance(right) - clearance(left);
+  })[0];
 }
 
 async function expectControlsDoNotOverlap(page) {
@@ -103,46 +131,74 @@ test("3D graph canvas is nonblank and bounded on desktop and mobile", async ({ p
 
 test("canvas supports zoom, pan, rotate, node drag, Fit, and Reset", async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 });
-  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.goto("/graph");
   const canvas = page.locator("[data-graph-canvas] canvas");
   await expect(canvas).toBeVisible();
   await expect.poll(async () => nonBackgroundPixelCount(await canvasPng(canvas))).toBeGreaterThan(500);
-  await page.waitForTimeout(500);
   const box = await canvas.boundingBox();
 
+  const beforeZoom = await waitForSettledGraph(page);
   await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.55);
-  await expectCanvasChanged(canvas, () => page.mouse.wheel(0, -600));
-  await expectCanvasChanged(canvas, async () => {
-    await page.mouse.move(box.x + box.width * 0.72, box.y + box.height * 0.72);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.62, box.y + box.height * 0.64, { steps: 8 });
-    await page.mouse.up();
-  });
-  await expectCanvasChanged(canvas, async () => {
-    await page.mouse.move(box.x + box.width * 0.74, box.y + box.height * 0.74);
-    await page.mouse.down({ button: "right" });
-    await page.mouse.move(box.x + box.width * 0.66, box.y + box.height * 0.68, { steps: 8 });
-    await page.mouse.up({ button: "right" });
-  });
+  await page.mouse.wheel(0, -600);
+  await expect.poll(async () => (await graphSnapshot(page)).controlRevision).toBeGreaterThan(beforeZoom.controlRevision);
+  const afterZoom = await waitForSettledGraph(page);
+  expect(vectorDistance(beforeZoom.target, afterZoom.target)).toBeLessThan(1);
+  expect(Math.abs(vectorDistance(beforeZoom.camera, beforeZoom.target) - vectorDistance(afterZoom.camera, afterZoom.target))).toBeGreaterThan(2);
 
-  const beforeDrag = await canvasPng(canvas);
-  const pixel = projectPixel(beforeDrag);
-  expect(pixel, "a rendered Project node pixel is required for drag").not.toBeNull();
-  const scaleX = box.width / beforeDrag.width;
-  const scaleY = box.height / beforeDrag.height;
-  const start = { x: box.x + pixel.x * scaleX, y: box.y + pixel.y * scaleY };
+  const beforeRotate = afterZoom;
+  const rotatePoint = backgroundGesturePoint(box, beforeRotate);
+  await page.mouse.move(box.x + rotatePoint.x, box.y + rotatePoint.y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + rotatePoint.x - 90, box.y + rotatePoint.y - 55, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(async () => (await graphSnapshot(page)).controlRevision).toBeGreaterThan(beforeRotate.controlRevision);
+  const afterRotate = await waitForSettledGraph(page);
+  expect(vectorDistance(beforeRotate.target, afterRotate.target)).toBeLessThan(1);
+  expect(Math.abs(vectorDistance(beforeRotate.camera, beforeRotate.target) - vectorDistance(afterRotate.camera, afterRotate.target))).toBeLessThan(2);
+  expect(vectorDistance(cameraVector(beforeRotate), cameraVector(afterRotate))).toBeGreaterThan(2);
+
+  const beforePan = afterRotate;
+  const panPoint = backgroundGesturePoint(box, beforePan);
+  await page.mouse.move(box.x + panPoint.x, box.y + panPoint.y);
+  await page.mouse.down({ button: "right" });
+  await page.mouse.move(box.x + panPoint.x - 75, box.y + panPoint.y - 45, { steps: 8 });
+  await page.mouse.up({ button: "right" });
+  await expect.poll(async () => (await graphSnapshot(page)).controlRevision).toBeGreaterThan(beforePan.controlRevision);
+  const afterPan = await waitForSettledGraph(page);
+  expect(vectorDistance(beforePan.target, afterPan.target)).toBeGreaterThan(2);
+  expect(vectorDistance(cameraVector(beforePan), cameraVector(afterPan))).toBeLessThan(2);
+
+  const commandRevision = afterPan.lastCameraCommand?.revision || 0;
+  await page.locator("[data-graph-fit]").click();
+  await expect.poll(async () => (await graphSnapshot(page)).lastCameraCommand?.revision || 0).toBeGreaterThan(commandRevision);
+  const afterFit = await waitForSettledGraph(page);
+  expect(afterFit.lastCameraCommand).toMatchObject({ operation: "fit", duration: 500 });
+
+  const project = afterFit.nodes.find(node => (
+    node.kind === "Project"
+    && node.screen.x > 0 && node.screen.x < box.width
+    && node.screen.y > 100 && node.screen.y < box.height
+  ));
+  expect(project, "a projected Project node is required for drag").toBeTruthy();
+  const dragRevision = afterFit.lastDrag?.revision || 0;
+  const start = { x: box.x + project.screen.x, y: box.y + project.screen.y };
   const end = { x: start.x + 42, y: start.y + 30 };
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
   await page.mouse.move(end.x, end.y, { steps: 10 });
   await page.mouse.up();
-  await expect.poll(async () => pixelDifferenceCount(beforeDrag, await canvasPng(canvas))).toBeGreaterThan(200);
+  await expect.poll(async () => (await graphSnapshot(page)).lastDrag?.revision || 0).toBeGreaterThan(dragRevision);
+  const afterDrag = await graphSnapshot(page);
+  expect(afterDrag.lastDrag.id).toBe(project.id);
+  expect(afterDrag.lastDrag.pinned).toBe(true);
+  expect(vectorDistance(afterDrag.lastDrag.from, afterDrag.lastDrag.to)).toBeGreaterThan(2);
+  expect(afterDrag.nodes.find(node => node.id === project.id).pinned).toBe(true);
 
-  await expectCanvasChanged(canvas, () => page.locator("[data-graph-fit]").click());
   await page.locator("[data-graph-reset]").click();
   await expect(page.locator("[data-graph-node-count]")).toHaveText("4");
   await expect(page.locator("[data-selected-node]")).toContainText("노드를 선택");
+  await expect.poll(async () => (await graphSnapshot(page)).lastCameraCommand?.operation).toBe("reset");
 });
 
 test("progressive graph controls reveal exact paths and navigate to projects", async ({ page }) => {
@@ -154,6 +210,15 @@ test("progressive graph controls reveal exact paths and navigate to projects", a
   await expect(page.locator("[data-reduced-motion]")).toHaveAttribute("data-reduced-motion", "false");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(page.locator("[data-reduced-motion]")).toHaveAttribute("data-reduced-motion", "true");
+  await expect.poll(async () => (await graphSnapshot(page))?.reducedMotion).toBe(true);
+  const motionCommandRevision = (await graphSnapshot(page)).lastCameraCommand?.revision || 0;
+  await page.locator("[data-graph-fit]").click();
+  await expect.poll(async () => {
+    const command = (await graphSnapshot(page)).lastCameraCommand;
+    return command?.operation === "fit" && command.revision > motionCommandRevision
+      ? command.duration
+      : null;
+  }).toBe(0);
 
   for (const selector of ["[data-graph-fit]", "[data-graph-reset]"]) {
     const box = await page.locator(selector).boundingBox();

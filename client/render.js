@@ -517,6 +517,14 @@ function bindGraph(root, state) {
     activateFallback();
   }
 
+  if (view?.inspect) {
+    Object.defineProperty(container, "__atlasGraphInspector", {
+      configurable: true,
+      value: () => view?.inspect() || null,
+      writable: false,
+    });
+  }
+
   const onClick = (event) => {
     if (event.target.closest("[data-graph-fit]")) {
       view?.fit();
@@ -563,6 +571,7 @@ function bindGraph(root, state) {
     root.removeEventListener("change", onChange);
     root.removeEventListener("input", onInput);
     root.removeEventListener("atlas:reduced-motion-change", onReducedMotionChange);
+    delete container.__atlasGraphInspector;
     view?.destroy();
   };
 }

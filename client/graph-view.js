@@ -42,6 +42,35 @@ function focusCamera(instance, node, duration) {
   return true;
 }
 
+function coordinates(value) {
+  return {
+    x: Number(value?.x) || 0,
+    y: Number(value?.y) || 0,
+    z: Number(value?.z) || 0,
+  };
+}
+
+function frozenCoordinates(value) {
+  return Object.freeze(coordinates(value));
+}
+
+function inspectedNode(instance, node) {
+  if (!node || typeof node.id !== "string") return null;
+  const position = frozenCoordinates(node);
+  const projected = typeof instance.graph2ScreenCoords === "function"
+    ? instance.graph2ScreenCoords(position.x, position.y, position.z)
+    : null;
+  return Object.freeze({
+    id: node.id,
+    kind: typeof node.kind === "string" ? node.kind : "",
+    position,
+    screen: projected
+      ? Object.freeze({ x: Number(projected.x) || 0, y: Number(projected.y) || 0 })
+      : null,
+    pinned: [node.fx, node.fy, node.fz].every(Number.isFinite),
+  });
+}
+
 export function supportsWebGL(documentRef = globalThis.document) {
   try {
     if (typeof documentRef?.createElement !== "function") return false;
@@ -65,6 +94,13 @@ export function createGraphView(container, graph, {
   if (typeof forceGraphFactory !== "function") throw new Error("force_graph_3d_unavailable");
 
   let motionReduced = Boolean(reducedMotion);
+  let engineSettled = false;
+  let controlRevision = 0;
+  let dragRevision = 0;
+  let cameraCommandRevision = 0;
+  let activeDrag = null;
+  let lastDrag = null;
+  let lastCameraCommand = null;
   const initialGraph = toRendererData(graph);
   const size = rendererSize(container);
   const previousWidth = container.style.width;
@@ -92,16 +128,42 @@ export function createGraphView(container, graph, {
     .nodeOpacity(node => node.dimmed ? 0.18 : 0.92)
     .linkOpacity(link => link.dimmed ? 0.05 : 0.42)
     .onNodeClick(node => onSelect(node))
+    .onNodeDrag((node) => {
+      engineSettled = false;
+      if (!activeDrag || activeDrag.id !== node.id) {
+        activeDrag = { id: node.id, from: coordinates(node) };
+      }
+    })
     .onNodeDragEnd((node) => {
+      const from = activeDrag && activeDrag.id === node.id ? activeDrag.from : coordinates(node);
       node.fx = node.x;
       node.fy = node.y;
       node.fz = node.z;
+      dragRevision += 1;
+      lastDrag = {
+        id: node.id,
+        from,
+        to: coordinates(node),
+        pinned: true,
+        revision: dragRevision,
+      };
+      activeDrag = null;
     })
+    .onEngineStop(() => { engineSettled = true; })
     .cooldownTicks(motionReduced ? 18 : 80)
     .warmupTicks(motionReduced ? 12 : 0)
     .graphData(toRendererData(initialGraph));
 
   if (motionReduced) instance.d3AlphaDecay(0.3);
+
+  const controls = typeof instance.controls === "function" ? instance.controls() : null;
+  const onControlChange = () => { controlRevision += 1; };
+  controls?.addEventListener?.("change", onControlChange);
+
+  const recordCameraCommand = (operation, duration) => {
+    cameraCommandRevision += 1;
+    lastCameraCommand = { operation, duration, revision: cameraCommandRevision };
+  };
 
   let destroyed = false;
   const ResizeObserverClass = globalThis.ResizeObserver;
@@ -122,13 +184,19 @@ export function createGraphView(container, graph, {
 
   return {
     update(next) {
+      engineSettled = false;
       instance.graphData(toRendererData(next));
     },
     focus(node) {
-      return focusCamera(instance, node, motionReduced ? 0 : 700);
+      const duration = motionReduced ? 0 : 700;
+      const focused = focusCamera(instance, node, duration);
+      if (focused) recordCameraCommand("focus", duration);
+      return focused;
     },
     fit() {
-      instance.zoomToFit(motionReduced ? 0 : 500, 70);
+      const duration = motionReduced ? 0 : 500;
+      recordCameraCommand("fit", duration);
+      instance.zoomToFit(duration, 70);
     },
     setReducedMotion(next) {
       const normalized = Boolean(next);
@@ -140,13 +208,39 @@ export function createGraphView(container, graph, {
       if (motionReduced) instance.d3AlphaDecay(0.3);
     },
     reset() {
+      engineSettled = false;
+      recordCameraCommand("reset", 0);
       instance.graphData(toRendererData(initialGraph));
       instance.zoomToFit(0, 70);
+    },
+    inspect() {
+      const rendererGraph = typeof instance.graphData === "function"
+        ? instance.graphData()
+        : { nodes: [] };
+      const nodes = (rendererGraph?.nodes || [])
+        .map(node => inspectedNode(instance, node))
+        .filter(Boolean)
+        .sort((left, right) => left.id.localeCompare(right.id));
+      return Object.freeze({
+        camera: frozenCoordinates(instance.cameraPosition?.()),
+        target: frozenCoordinates(controls?.target),
+        controlRevision,
+        engineSettled,
+        lastCameraCommand: lastCameraCommand ? Object.freeze({ ...lastCameraCommand }) : null,
+        lastDrag: lastDrag ? Object.freeze({
+          ...lastDrag,
+          from: frozenCoordinates(lastDrag.from),
+          to: frozenCoordinates(lastDrag.to),
+        }) : null,
+        nodes: Object.freeze(nodes),
+        reducedMotion: motionReduced,
+      });
     },
     destroy() {
       if (destroyed) return;
       destroyed = true;
       resizeObserver?.disconnect();
+      controls?.removeEventListener?.("change", onControlChange);
       instance.pauseAnimation();
       instance._destructor?.();
       container.replaceChildren();

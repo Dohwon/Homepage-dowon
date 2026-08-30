@@ -56,6 +56,18 @@ function fakeForceGraph() {
     d3AlphaDecay: [],
   };
   const config = {};
+  let currentGraph = { nodes: [], links: [] };
+  let camera = { x: 0, y: 0, z: 100 };
+  const controlListeners = new Map();
+  const controls = {
+    target: { x: 0, y: 0, z: 0 },
+    addEventListener(type, listener) {
+      controlListeners.set(type, listener);
+    },
+    removeEventListener(type, listener) {
+      if (controlListeners.get(type) === listener) controlListeners.delete(type);
+    },
+  };
   const chain = [
     "nodeId",
     "linkSource",
@@ -65,7 +77,9 @@ function fakeForceGraph() {
     "nodeOpacity",
     "linkOpacity",
     "onNodeClick",
+    "onNodeDrag",
     "onNodeDragEnd",
+    "onEngineStop",
     "cooldownTicks",
     "warmupTicks",
   ];
@@ -76,7 +90,9 @@ function fakeForceGraph() {
       return instance;
     };
   }
-  instance.graphData = (value) => {
+  instance.graphData = function graphData(value) {
+    if (arguments.length === 0) return currentGraph;
+    currentGraph = value;
     calls.graphData.push(value);
     return instance;
   };
@@ -89,6 +105,8 @@ function fakeForceGraph() {
     return instance;
   };
   instance.cameraPosition = (...args) => {
+    if (args.length === 0) return { ...camera };
+    camera = { ...camera, ...args[0] };
     calls.cameraPosition.push(args);
     return instance;
   };
@@ -107,11 +125,23 @@ function fakeForceGraph() {
     calls.d3AlphaDecay.push(value);
     return instance;
   };
+  instance.controls = () => controls;
+  instance.graph2ScreenCoords = (x, y, z) => ({ x: x + 100, y: y + 50, z });
 
   return {
     calls,
     config,
     instance,
+    controls,
+    emitControlChange() {
+      controlListeners.get("change")?.();
+    },
+    hasControlListener(type) {
+      return controlListeners.has(type);
+    },
+    setCamera(value) {
+      camera = { ...value };
+    },
     factory(element, options) {
       config.element = element;
       config.options = options;
@@ -316,6 +346,71 @@ test("live reduced motion updates disable subsequent focus and Fit animation", a
     assert.equal(fake.calls.cameraPosition.at(-1)[2], 0);
     assert.deepEqual(fake.calls.zoomToFit.at(-1), [0, 70]);
     view.destroy();
+  } finally {
+    resize.restore();
+  }
+});
+
+test("inspection snapshot exposes settled camera, control, drag, and motion command state", async () => {
+  const resize = installResizeObserver();
+  try {
+    const { createGraphView } = await importGraphModule();
+    const fake = fakeForceGraph();
+    const view = createGraphView(container(), fixtureGraph(), {
+      forceGraphFactory: fake.factory,
+      reducedMotion: false,
+    });
+
+    fake.config.onEngineStop();
+    fake.setCamera({ x: 4, y: 5, z: 110 });
+    fake.controls.target = { x: 1, y: 2, z: 3 };
+    fake.emitControlChange();
+    const rendererNode = fake.instance.graphData().nodes.find(node => node.id === "project:atlas");
+    Object.assign(rendererNode, { x: 10, y: 20, z: 30 });
+    fake.config.onNodeDrag(rendererNode);
+    Object.assign(rendererNode, { x: 14, y: 26, z: 34 });
+    fake.config.onNodeDragEnd(rendererNode);
+    fake.config.onEngineStop();
+
+    const active = view.inspect();
+    assert.equal(active.engineSettled, true);
+    assert.equal(active.reducedMotion, false);
+    assert.deepEqual(active.camera, { x: 4, y: 5, z: 110 });
+    assert.deepEqual(active.target, { x: 1, y: 2, z: 3 });
+    assert.equal(active.controlRevision, 1);
+    assert.deepEqual(active.lastDrag, {
+      id: "project:atlas",
+      from: { x: 10, y: 20, z: 30 },
+      to: { x: 14, y: 26, z: 34 },
+      pinned: true,
+      revision: 1,
+    });
+    assert.equal(active.lastCameraCommand, null);
+    assert.deepEqual(active.nodes.find(node => node.id === "project:atlas"), {
+      id: "project:atlas",
+      kind: "Project",
+      position: { x: 14, y: 26, z: 34 },
+      screen: { x: 114, y: 76 },
+      pinned: true,
+    });
+
+    view.focus(rendererNode);
+    assert.deepEqual(view.inspect().lastCameraCommand, {
+      operation: "focus",
+      duration: 700,
+      revision: 1,
+    });
+
+    view.setReducedMotion(true);
+    view.fit();
+    const reduced = view.inspect();
+    assert.equal(reduced.reducedMotion, true);
+    assert.deepEqual(reduced.lastCameraCommand, { operation: "fit", duration: 0, revision: 2 });
+
+    view.update(expandedGraph());
+    assert.equal(view.inspect().engineSettled, false);
+    view.destroy();
+    assert.equal(fake.hasControlListener("change"), false);
   } finally {
     resize.restore();
   }
