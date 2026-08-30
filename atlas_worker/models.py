@@ -273,10 +273,12 @@ def _validate_public_project_route(value: str) -> str:
     if not encoded_id or "/" in encoded_id:
         raise ValueError("invalid public project route")
     decoded_id = unquote(encoded_id)
+    _require_safe_url_text(decoded_id)
     if (
         quote(decoded_id, safe="") != encoded_id
-        or decoded_id in {".", ".."}
+        or unquote(decoded_id) != decoded_id
         or decoded_id.startswith(("/", "\\"))
+        or any(segment in {".", ".."} for segment in decoded_id.split("/"))
     ):
         raise ValueError("invalid public project route")
     if parsed.query:

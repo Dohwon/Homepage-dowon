@@ -106,6 +106,10 @@ def public_evidence(project_id, evidence_id="routing-spec"):
     )
 
 
+def public_article_mapping(project_id, readiness="ready"):
+    return replace(public_article(project_id), readiness=readiness).to_public_dict()
+
+
 def test_kg_uses_six_node_types_and_no_similarity_edges(projects, taxonomy):
     graph = build_knowledge_graph(projects, {}, {}, {}, taxonomy)
 
@@ -229,6 +233,8 @@ def test_public_artifacts_and_relations_include_safe_evidence_links(projects, ta
         "session:019fca18-private-locator",
         "file:///home/dowon/private/evidence",
         "/projects/../../private",
+        "/projects/..%2Fprivate?tab=evidence",
+        "/projects/%252E%252E%252Fprivate?tab=evidence",
     ),
 )
 def test_graph_node_projection_rejects_private_locator_urls(url):
@@ -245,6 +251,8 @@ def test_graph_node_projection_rejects_private_locator_urls(url):
         "session:private-evidence",
         "file:///tmp/evidence",
         "/projects/../private?tab=evidence",
+        "/projects/..%2Fprivate?tab=evidence",
+        "/projects/%252E%252E%252Fprivate?tab=evidence",
     ),
 )
 def test_graph_evidence_link_projection_rejects_private_locator_urls(url):
@@ -285,6 +293,31 @@ def test_public_graph_schema_rejects_private_locator_urls():
                 ],
             }
         ],
+    }
+
+    with pytest.raises(ValueError):
+        validate_schema(payload, "public-graph")
+
+
+@pytest.mark.parametrize(
+    "url",
+    (
+        "/projects/..%2Fprivate?tab=evidence",
+        "/projects/%252E%252E%252Fprivate?tab=evidence",
+    ),
+)
+def test_public_graph_schema_rejects_encoded_traversal_urls(url):
+    payload = {
+        "nodes": [
+            {
+                "id": "project:alpha",
+                "label": "Alpha",
+                "kind": "Project",
+                "url": url,
+                "summary": "Alpha project",
+            }
+        ],
+        "edges": [],
     }
 
     with pytest.raises(ValueError):
@@ -343,6 +376,45 @@ def test_public_article_project_id_must_match_mapping_key(projects, taxonomy):
             {},
             taxonomy,
         )
+
+
+def test_id_only_article_mapping_cannot_publish_evidence(projects, taxonomy):
+    evidence = {"left": (public_evidence("left"),)}
+
+    with pytest.raises(ValueError, match="graph-article-schema"):
+        build_knowledge_graph(
+            projects,
+            {"left": {"project_id": "left"}},
+            evidence,
+            {},
+            taxonomy,
+        )
+
+
+def test_review_required_article_cannot_publish_evidence(projects, taxonomy):
+    evidence = {"left": (public_evidence("left"),)}
+    article = replace(public_article("left"), readiness="review-required")
+
+    with pytest.raises(ValueError, match="graph-article-readiness"):
+        build_knowledge_graph(
+            projects,
+            {"left": article},
+            evidence,
+            {},
+            taxonomy,
+        )
+
+
+def test_complete_ready_article_mapping_can_publish_evidence(projects, taxonomy):
+    graph = build_knowledge_graph(
+        projects,
+        {"left": public_article_mapping("left")},
+        {"left": (public_evidence("left"),)},
+        {},
+        taxonomy,
+    )
+
+    assert any(node.kind == "Artifact" for node in graph.nodes)
 
 
 def test_unknown_project_taxonomy_label_enters_review(project_factory, taxonomy):

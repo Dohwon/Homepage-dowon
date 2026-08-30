@@ -16,7 +16,9 @@ from .models import (
     GraphData,
     GraphEdge,
     GraphNode,
+    ProjectArticle,
     PublicProject,
+    validate_schema,
 )
 from .taxonomy import display_tag_label, normalize_tag_label
 
@@ -338,8 +340,20 @@ def _require_known_mapping_keys(values: Mapping[str, object], project_ids: set[s
 def _public_articles(articles: Mapping[str, object]) -> set[str]:
     result: set[str] = set()
     for project_id, article in articles.items():
-        if _project_id_value(article) != project_id:
+        if isinstance(article, ProjectArticle):
+            payload = article.to_public_dict()
+        elif isinstance(article, Mapping):
+            payload = dict(article)
+        else:
+            raise ValueError("graph-article-schema")
+        try:
+            validate_schema(payload, "public-article")
+        except ValueError:
+            raise ValueError("graph-article-schema") from None
+        if payload["project_id"] != project_id:
             raise ValueError("graph-article-project")
+        if payload["readiness"] != "ready":
+            raise ValueError("graph-article-readiness")
         result.add(project_id)
     return result
 
