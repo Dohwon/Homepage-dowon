@@ -1,7 +1,15 @@
 import { toRouteHref, PROJECT_TABS } from "./router.js";
 import { renderMarkdown, sanitizeSvg } from "./markdown.js";
 import { toSafePublicHref } from "./public-url.js";
-import { createGraphView } from "./graph-view.js";
+import { createGraphView, supportsWebGL } from "./graph-view.js";
+import {
+  createGraphIndex,
+  expandNode,
+  initialGraphState,
+  revealPath,
+  setRelationFilters,
+  visibleGraph,
+} from "./graph-state.js";
 
 const TAB_LABELS = {
   "decisions": "Decisions",
@@ -19,12 +27,35 @@ const KIND_LABELS = {
 };
 
 const GRAPH_KIND_COLORS = {
-  project: "var(--project)",
-  domain: "var(--domain)",
-  problem: "var(--problem)",
-  pattern: "var(--pattern)",
-  technology: "var(--technology)",
-  outcome: "var(--outcome)"
+  KnowledgeFocus: "#f2c14e",
+  KnowledgeDomain: "#4ea699",
+  KnowledgeTag: "#8b7bb8",
+  Project: "#4f86c6",
+  Technology: "#d96c75",
+  Artifact: "#7d8a96"
+};
+
+const GRAPH_KIND_LABELS = {
+  KnowledgeFocus: "핵심 주제",
+  KnowledgeDomain: "도메인",
+  KnowledgeTag: "태그",
+  Project: "프로젝트",
+  Technology: "기술",
+  Artifact: "산출물"
+};
+
+const GRAPH_RELATION_LABELS = {
+  HAS_FOCUS: "핵심 주제",
+  FOCUS_HAS_TAG: "주제 분류",
+  HAS_SUBTAG: "하위 태그",
+  HAS_TAG: "태그",
+  USES_TECH: "사용 기술",
+  PRODUCES_ARTIFACT: "산출물",
+  ARTIFACT_HAS_TAG: "산출물 태그",
+  EVOLVED_FROM: "발전 관계",
+  VALIDATES: "검증",
+  DEPLOYS: "배포",
+  REUSES_COMPONENT: "구성요소 재사용"
 };
 
 const SECTION_TYPE_LABELS = {
@@ -201,58 +232,333 @@ function renderChangelog(state) {
   return `<div class="content-shell">${pageHeading("Changelog", "", "프로젝트 변경점 기록")}${changes.length ? changelogRows(changes, state.bootstrap.projects || []) : '<p class="empty-state">공개된 변경 기록이 없습니다.</p>'}</div>`;
 }
 
+function projectHref(node) {
+  if (node?.kind !== "Project" || !node.id?.startsWith("project:")) return "";
+  return `/projects/${encodeURIComponent(node.id.slice("project:".length))}`;
+}
+
+function graphNeighborId(edge, nodeId) {
+  return edge.source === nodeId ? edge.target : edge.source;
+}
+
+function fallbackForest(graph) {
+  const nodes = new Map((graph.nodes || []).map((node) => [node.id, node]));
+  const adjacency = new Map([...nodes.keys()].map((nodeId) => [nodeId, []]));
+  for (const edge of graph.edges || []) {
+    if (!nodes.has(edge.source) || !nodes.has(edge.target)) continue;
+    adjacency.get(edge.source).push(edge);
+    adjacency.get(edge.target).push(edge);
+  }
+  for (const [nodeId, edges] of adjacency) {
+    edges.sort((left, right) => {
+      const leftId = graphNeighborId(left, nodeId);
+      const rightId = graphNeighborId(right, nodeId);
+      return String(nodes.get(leftId)?.label || leftId).localeCompare(String(nodes.get(rightId)?.label || rightId), "ko")
+        || String(left.kind).localeCompare(String(right.kind))
+        || String(left.id).localeCompare(String(right.id));
+    });
+  }
+
+  const roots = [...nodes.values()]
+    .filter((node) => node.kind === "KnowledgeFocus")
+    .sort((left, right) => left.label.localeCompare(right.label, "ko"));
+  const children = new Map([...nodes.keys()].map((nodeId) => [nodeId, []]));
+  const seen = new Set(roots.map((node) => node.id));
+  const queue = roots.map((node) => node.id);
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    const nodeId = queue[cursor];
+    for (const edge of adjacency.get(nodeId) || []) {
+      const nextId = graphNeighborId(edge, nodeId);
+      if (seen.has(nextId)) continue;
+      seen.add(nextId);
+      children.get(nodeId).push(nextId);
+      queue.push(nextId);
+    }
+  }
+
+  return {
+    nodes,
+    roots,
+    children,
+    orphans: [...nodes.values()].filter((node) => !seen.has(node.id)),
+  };
+}
+
+function fallbackTreeItem(nodeId, forest) {
+  const node = forest.nodes.get(nodeId);
+  if (!node) return "";
+  const rawLabel = String(node.label || node.id);
+  const label = escapeHtml(rawLabel);
+  const kind = escapeHtml(GRAPH_KIND_LABELS[node.kind] || node.kind);
+  const href = projectHref(node);
+  const control = href
+    ? `<a href="${href}" data-route-link data-fallback-node="${escapeHtml(node.id)}">${label}<span>${kind}</span></a>`
+    : `<button type="button" data-fallback-select="${escapeHtml(node.id)}" data-fallback-node="${escapeHtml(node.id)}">${label}<span>${kind}</span></button>`;
+  const children = forest.children.get(nodeId) || [];
+  return `<li data-fallback-item data-fallback-label="${escapeHtml(rawLabel.toLocaleLowerCase("ko"))}">
+    ${control}
+    ${children.length ? `<ul>${children.map((childId) => fallbackTreeItem(childId, forest)).join("")}</ul>` : ""}
+  </li>`;
+}
+
+function renderGraphFallback(graph) {
+  const forest = fallbackForest(graph);
+  const branches = forest.roots.map((focus) => `<details open>
+    <summary data-fallback-node="${escapeHtml(focus.id)}" data-fallback-label="${escapeHtml(focus.label.toLocaleLowerCase("ko"))}">${escapeHtml(focus.label)}</summary>
+    <ul>${(forest.children.get(focus.id) || []).map((nodeId) => fallbackTreeItem(nodeId, forest)).join("")}</ul>
+  </details>`).join("");
+  const orphans = forest.orphans.length
+    ? `<details open><summary>기타</summary><ul>${forest.orphans.map((node) => fallbackTreeItem(node.id, forest)).join("")}</ul></details>`
+    : "";
+  return `<section class="graph-fallback" data-graph-fallback hidden aria-label="프로젝트 지식 그래프 목록">
+    <div class="graph-fallback-heading">
+      <h2>목록으로 보기</h2>
+      <p>3D 그래프를 사용할 수 없어 연결 구조를 목록으로 표시합니다.</p>
+    </div>
+    <label class="graph-fallback-search">
+      <span class="sr-only">그래프 노드 검색</span>
+      <i data-lucide="search" aria-hidden="true"></i>
+      <input type="search" placeholder="노드 검색" autocomplete="off" data-graph-fallback-search>
+    </label>
+    <div class="graph-fallback-tree">${branches}${orphans}</div>
+    <p class="graph-fallback-empty" data-graph-fallback-empty hidden>일치하는 노드가 없습니다.</p>
+  </section>`;
+}
+
+function renderEvidenceLinks(links) {
+  const safeLinks = (links || []).map((link) => {
+    const href = toSafePublicHref(link.url, { allowRelative: true });
+    if (!href) return "";
+    const external = href.startsWith("https://");
+    return `<a href="${escapeHtml(href)}"${external ? ' target="_blank" rel="noreferrer"' : " data-route-link"}>${escapeHtml(link.label || "근거 보기")}</a>`;
+  }).filter(Boolean);
+  return safeLinks.length ? `<div class="graph-evidence-links">${safeLinks.join("")}</div>` : "";
+}
+
+function renderGraphDetail(graphState, index) {
+  const selected = graphState.selectedId ? index.nodes.get(graphState.selectedId) : null;
+  if (!selected) {
+    return `<div class="graph-detail-empty">
+      <p class="graph-detail-kicker">선택한 노드</p>
+      <h2 data-selected-node>노드를 선택하세요</h2>
+      <p>연결 관계와 공개 근거를 확인할 수 있습니다.</p>
+    </div>`;
+  }
+
+  const relations = (index.adjacency.get(selected.id) || []).filter((edge) => (
+    graphState.visibleEdgeIds.has(edge.id) && graphState.relationKinds.has(edge.kind)
+  ));
+  const href = projectHref(selected);
+  return `<div class="graph-detail-content">
+    <p class="graph-detail-kicker">${escapeHtml(GRAPH_KIND_LABELS[selected.kind] || selected.kind)}</p>
+    <h2 data-selected-node>${escapeHtml(selected.label || selected.id)}</h2>
+    ${selected.summary ? `<p class="graph-node-summary">${escapeHtml(selected.summary)}</p>` : ""}
+    ${href ? `<a class="graph-project-link" href="${href}" data-route-link data-project-article-link>프로젝트 글 보기<i data-lucide="arrow-up-right" aria-hidden="true"></i></a>` : ""}
+    <div class="graph-relation-panel">
+      <h3>연결 관계</h3>
+      <div class="graph-relation-list" data-selected-relations>
+        ${relations.length ? relations.map((edge) => {
+          const neighbor = index.nodes.get(graphNeighborId(edge, selected.id));
+          return `<article class="graph-relation-row">
+            <div class="graph-relation-heading"><span>${escapeHtml(GRAPH_RELATION_LABELS[edge.kind] || edge.kind)}</span><code>${escapeHtml(edge.kind)}</code></div>
+            <strong>${escapeHtml(neighbor?.label || graphNeighborId(edge, selected.id))}</strong>
+            ${renderEvidenceLinks(edge.evidence_links)}
+          </article>`;
+        }).join("") : '<p class="graph-relation-empty">현재 표시할 관계가 없습니다.</p>'}
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderGraph(state) {
-  const kinds = [...new Set((state.graph?.nodes || []).map((node) => node.kind))];
+  const graph = state.graph || { nodes: [], edges: [] };
+  const relationKinds = [...new Set((graph.edges || []).map((edge) => edge.kind))].sort();
+  const graphKinds = new Set((graph.nodes || []).map((node) => node.kind));
+  const orderedKinds = [
+    ...Object.keys(GRAPH_KIND_LABELS).filter((kind) => graphKinds.has(kind)),
+    ...[...graphKinds].filter((kind) => !Object.hasOwn(GRAPH_KIND_LABELS, kind)).sort(),
+  ];
   return `
-    <div class="content-shell wide">
-      ${pageHeading("Knowledge graph", "", "프로젝트와 공통 주제를 연결해 반복되는 문제와 작업 패턴을 보여줍니다.")}
-      <div class="graph-shell">
-        <div class="graph-stage">
-          <svg id="knowledge-graph" role="group" aria-label="프로젝트 지식 그래프"></svg>
-          <div class="graph-toolbar">
-            <button class="icon-button" type="button" data-graph-fit aria-label="그래프 전체 보기" title="전체 보기"><i data-lucide="scan" aria-hidden="true"></i></button>
+    <div class="content-shell wide graph-page">
+      ${pageHeading("지식 그래프", "", "프로젝트와 공통 주제의 근거 있는 연결을 단계별로 살펴봅니다.")}
+      <div class="graph-shell" data-graph-shell>
+        <section class="graph-stage" data-graph-stage aria-label="3D 지식 그래프">
+          <div id="knowledge-graph" role="group" aria-label="프로젝트 지식 그래프"></div>
+          <div class="graph-toolbar" aria-label="그래프 도구">
+            <div class="graph-search-wrap">
+              <label class="graph-search">
+                <span class="sr-only">그래프 노드 검색</span>
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input type="search" placeholder="노드 검색" autocomplete="off" data-graph-search aria-controls="graph-search-results" aria-expanded="false">
+              </label>
+              <div id="graph-search-results" class="graph-search-results" data-graph-search-results role="listbox" hidden></div>
+            </div>
+            <details class="graph-relation-menu" data-graph-relation-menu>
+              <summary>관계 <span data-graph-relation-count>${relationKinds.length}</span></summary>
+              <div class="graph-relation-options">
+                ${relationKinds.map((kind) => `<label><input type="checkbox" value="${escapeHtml(kind)}" checked data-graph-relation-filter><span>${escapeHtml(GRAPH_RELATION_LABELS[kind] || kind)}</span></label>`).join("")}
+              </div>
+            </details>
+            <button class="icon-button" type="button" data-graph-fit aria-label="그래프 맞춤 보기" title="맞춤 보기"><i data-lucide="maximize-2" aria-hidden="true"></i></button>
+            <button class="icon-button" type="button" data-graph-reset aria-label="그래프 초기화" title="초기화"><i data-lucide="rotate-ccw" aria-hidden="true"></i></button>
           </div>
-        </div>
-        <aside class="graph-sidebar">
-          <h2>Node types</h2>
-          <div class="graph-filter-list">
-            ${kinds.map((kind) => `<label class="graph-filter" style="--kind-color: ${GRAPH_KIND_COLORS[kind] || "var(--muted)"}"><input type="checkbox" value="${escapeHtml(kind)}" checked data-graph-filter><span class="graph-swatch"></span><span>${escapeHtml(KIND_LABELS[kind] || kind)}</span></label>`).join("")}
-          </div>
-          <p class="graph-status" data-graph-status>전체 보기 · ${state.graph?.nodes?.length || 0} nodes</p>
+          <p class="graph-status" data-graph-status><output data-graph-node-count>0</output>개 노드</p>
+        </section>
+        ${renderGraphFallback(graph)}
+        <aside class="graph-sidebar" data-graph-detail aria-live="polite">
+          <div data-graph-detail-content></div>
+          <section class="graph-legend" aria-labelledby="graph-legend-title">
+            <h2 id="graph-legend-title">노드 유형</h2>
+            <ul>${orderedKinds.map((kind) => `<li><span class="graph-swatch" style="--kind-color: ${GRAPH_KIND_COLORS[kind] || "var(--muted)"}"></span><span>${escapeHtml(GRAPH_KIND_LABELS[kind] || kind)}</span></li>`).join("")}</ul>
+          </section>
         </aside>
       </div>
     </div>`;
 }
 
-function bindGraph(root, state, navigate) {
-  const svg = root.querySelector("#knowledge-graph");
-  if (!svg || !state.graph) return () => {};
+function bindGraph(root, state) {
+  const container = root.querySelector("#knowledge-graph");
+  if (!container || !state.graph) return () => {};
+  const index = createGraphIndex(state.graph);
+  let graphState = initialGraphState(index);
+  let view = null;
+  const shell = root.querySelector("[data-graph-shell]");
+  const stage = root.querySelector("[data-graph-stage]");
+  const fallback = root.querySelector("[data-graph-fallback]");
+  const detail = root.querySelector("[data-graph-detail-content]");
+  const nodeCount = root.querySelector("[data-graph-node-count]");
   const status = root.querySelector("[data-graph-status]");
-  const view = createGraphView(svg, state.graph, {
-    onSelect(node) {
-      if (node.kind === "project") navigate({ view: "project", projectId: node.id.replace(/^project:/, ""), tab: "decisions" });
-      else {
-        view.focus(node.id);
-        status.textContent = node.label;
+  const graphSearch = root.querySelector("[data-graph-search]");
+  const graphSearchResults = root.querySelector("[data-graph-search-results]");
+  const fallbackSearch = root.querySelector("[data-graph-fallback-search]");
+
+  const update = () => {
+    const projected = visibleGraph(graphState, index);
+    view?.update(projected);
+    nodeCount.textContent = String(projected.nodes.length);
+    status.setAttribute("aria-label", `${projected.nodes.length}개 노드, ${projected.links.length}개 관계`);
+    detail.innerHTML = renderGraphDetail(graphState, index);
+    window.lucide?.createIcons();
+    const checkedCount = root.querySelectorAll("[data-graph-relation-filter]:checked").length;
+    const relationCount = root.querySelector("[data-graph-relation-count]");
+    if (relationCount) relationCount.textContent = String(checkedCount);
+  };
+
+  const selectNode = (nodeId, rendererNode = null, reveal = false) => {
+    if (!index.nodes.has(nodeId)) return;
+    if (reveal) graphState = revealPath(graphState, nodeId, index);
+    graphState = expandNode(graphState, nodeId, index);
+    update();
+    if (rendererNode) view?.focus(rendererNode);
+    else view?.fit();
+  };
+
+  const renderSearchResults = (value) => {
+    const query = value.trim().toLocaleLowerCase("ko");
+    const matches = query ? [...index.nodes.values()]
+      .filter((node) => `${node.label} ${node.kind}`.toLocaleLowerCase("ko").includes(query))
+      .sort((left, right) => left.label.localeCompare(right.label, "ko")) : [];
+    graphSearchResults.innerHTML = matches.map((node) => `<button type="button" role="option" data-graph-search-result="${escapeHtml(node.id)}"><strong>${escapeHtml(node.label)}</strong><span>${escapeHtml(GRAPH_KIND_LABELS[node.kind] || node.kind)}</span></button>`).join("");
+    graphSearchResults.hidden = matches.length === 0;
+    graphSearch.setAttribute("aria-expanded", String(matches.length > 0));
+  };
+
+  const filterFallback = (value) => {
+    const query = value.trim().toLocaleLowerCase("ko");
+    const items = [...fallback.querySelectorAll("[data-fallback-item]")];
+    const branches = [...fallback.querySelectorAll(".graph-fallback-tree > details")];
+    let matches = 0;
+    items.forEach((item) => {
+      const matched = !query || item.dataset.fallbackLabel.includes(query);
+      item.hidden = !matched;
+      if (query && matched) matches += 1;
+    });
+    branches.forEach((branch) => {
+      const rootMatched = !query || branch.querySelector("summary")?.dataset.fallbackLabel?.includes(query);
+      const childMatched = items.some((item) => !item.hidden && branch.contains(item));
+      branch.hidden = !rootMatched && !childMatched;
+      if (query && rootMatched) matches += 1;
+    });
+    if (query) {
+      for (const item of items.filter((candidate) => !candidate.hidden)) {
+        let parent = item.parentElement?.closest("[data-fallback-item]");
+        while (parent) {
+          parent.hidden = false;
+          parent = parent.parentElement?.closest("[data-fallback-item]");
+        }
       }
+      branches.filter((branch) => !branch.hidden).forEach((branch) => { branch.open = true; });
     }
-  });
+    const empty = fallback.querySelector("[data-graph-fallback-empty]");
+    if (empty) empty.hidden = !query || matches > 0;
+  };
+
+  const activateFallback = () => {
+    stage.hidden = true;
+    fallback.hidden = false;
+    shell.dataset.graphMode = "fallback";
+  };
+
+  if (supportsWebGL(document)) {
+    try {
+      view = createGraphView(container, visibleGraph(graphState, index), {
+        onSelect(node) {
+          selectNode(node.id, node);
+        },
+        reducedMotion: root.dataset.reducedMotion === "true",
+      });
+    } catch {
+      activateFallback();
+    }
+  } else {
+    activateFallback();
+  }
+
   const onClick = (event) => {
-    if (!event.target.closest("[data-graph-fit]")) return;
-    view.fit();
-    status.textContent = `전체 보기 · ${state.graph.nodes.length} nodes`;
+    if (event.target.closest("[data-graph-fit]")) {
+      view?.fit();
+      return;
+    }
+    if (event.target.closest("[data-graph-reset]")) {
+      graphState = initialGraphState(index);
+      root.querySelectorAll("[data-graph-relation-filter]").forEach((input) => { input.checked = true; });
+      graphSearch.value = "";
+      renderSearchResults("");
+      update();
+      view?.reset();
+      return;
+    }
+    const result = event.target.closest("[data-graph-search-result]");
+    if (result) {
+      const node = index.nodes.get(result.dataset.graphSearchResult);
+      graphSearch.value = node?.label || "";
+      renderSearchResults("");
+      selectNode(result.dataset.graphSearchResult, null, true);
+      return;
+    }
+    const fallbackNode = event.target.closest("[data-fallback-select]");
+    if (fallbackNode) selectNode(fallbackNode.dataset.fallbackSelect, null, true);
   };
-  const onChange = () => {
-    const selected = [...root.querySelectorAll("[data-graph-filter]:checked")].map((input) => input.value);
-    view.setKinds(selected);
-    status.textContent = `${selected.length} types · ${state.graph.nodes.filter((node) => selected.includes(node.kind)).length} nodes`;
+  const onChange = (event) => {
+    if (!event.target.matches("[data-graph-relation-filter]")) return;
+    const selectedKinds = [...root.querySelectorAll("[data-graph-relation-filter]:checked")].map((input) => input.value);
+    graphState = setRelationFilters(graphState, selectedKinds);
+    update();
   };
+  const onInput = (event) => {
+    if (event.target === graphSearch) renderSearchResults(graphSearch.value);
+    if (event.target === fallbackSearch) filterFallback(fallbackSearch.value);
+  };
+
   root.addEventListener("click", onClick);
   root.addEventListener("change", onChange);
+  root.addEventListener("input", onInput);
+  update();
   return () => {
     root.removeEventListener("click", onClick);
     root.removeEventListener("change", onChange);
-    view.destroy();
+    root.removeEventListener("input", onInput);
+    view?.destroy();
   };
 }
 

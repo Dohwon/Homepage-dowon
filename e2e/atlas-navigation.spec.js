@@ -94,7 +94,9 @@ test("pager and graph project routes land on Decisions", async ({ page }) => {
   await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveText("Decisions");
 
   await page.goto("/graph");
-  await page.locator('#knowledge-graph [data-node-type="Project"]').first().click();
+  await page.locator("[data-graph-search]").fill("Alpha");
+  await page.locator('[data-graph-search-result="project:alpha"]').click();
+  await page.locator("[data-project-article-link]").click();
   await expect(page).toHaveURL(/\/projects\/alpha$/);
   await expect(page.locator('[role="tab"][aria-selected="true"]')).toHaveText("Decisions");
 });

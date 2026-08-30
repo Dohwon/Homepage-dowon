@@ -12,8 +12,16 @@ const root = document.querySelector("#atlas-main");
 const progressElement = document.querySelector("#reading-progress");
 const progressLifecycle = createProgressLifecycle(progressElement);
 const store = createStore({ route: parseRoute(new URL(window.location.href)) });
+const reducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
 let navigationId = 0;
 let projectReaderCleanup = () => {};
+
+function syncReducedMotion() {
+  root.dataset.reducedMotion = String(Boolean(reducedMotionQuery?.matches));
+}
+
+syncReducedMotion();
+reducedMotionQuery?.addEventListener?.("change", syncReducedMotion);
 
 function normalizeDestination(destination) {
   if (destination instanceof URL) return destination;

@@ -173,6 +173,29 @@ test("search reveals the deterministic shortest path through a cyclic graph", as
   );
 });
 
+test("project search reveals its path before expanding one exact neighborhood", async () => {
+  const { createGraphIndex, initialGraphState, revealPath, expandNode, visibleGraph } = await importGraphStateModule();
+  const index = createGraphIndex(fixtureGraph());
+  const initial = initialGraphState(index);
+  const revealed = revealPath(initial, "project:alpha", index);
+  const expanded = expandNode(revealed, "project:alpha", index);
+
+  assert.equal(visibleGraph(initial, index).nodes.length, 3);
+  assert.deepEqual(revealed.revealedPath, ["focus:delivery", "project:alpha"]);
+  assert.equal(revealed.selectedId, "project:alpha");
+  assert.deepEqual(
+    visibleGraph(expanded, index).nodes.map((item) => item.id).sort(),
+    [
+      "artifact:alpha:report",
+      "focus:delivery",
+      "project:alpha",
+      "project:beta",
+      "tag:routing",
+      "technology:python",
+    ],
+  );
+});
+
 test("search for a missing target leaves state unchanged", async () => {
   const { createGraphIndex, initialGraphState, revealPath } = await importGraphStateModule();
   const index = createGraphIndex(fixtureGraph());

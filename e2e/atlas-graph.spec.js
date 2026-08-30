@@ -1,49 +1,44 @@
 const { test, expect } = require("./fixtures");
-const { PNG } = require("pngjs");
 
-test("graph renders, filters, zooms and fits", async ({ page }) => {
+test("graph starts collapsed and expands one project neighborhood", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/graph");
-  const graph = page.locator("#knowledge-graph");
-  await expect(graph).toHaveAttribute("role", "group");
-  await expect(graph.locator('[data-node-type="Project"]')).toHaveCount(2);
-  await expect(graph.locator('[data-node-type="Project"]').first()).toHaveAttribute("role", "button");
 
-  const projectLabel = graph.locator('[data-node-type="Project"] text').first();
-  const topicNode = graph.locator('[data-node-type="Domain"]').first();
-  const topicLabel = topicNode.locator("text");
-  await expect(projectLabel).toHaveCSS("opacity", "1");
-  await expect(topicLabel).toHaveCSS("opacity", "0");
-  const topicBox = await topicNode.locator("circle").boundingBox();
-  await page.mouse.move(topicBox.x + topicBox.width / 2, topicBox.y + topicBox.height / 2);
-  await expect(topicLabel).toHaveCSS("opacity", "1");
-  await topicNode.focus();
-  await expect(topicLabel).toHaveCSS("opacity", "1");
+  await expect(page.locator("#knowledge-graph")).toHaveAttribute("role", "group");
+  await expect(page.locator("[data-graph-node-count]")).toHaveText("4");
+  await expect(page.locator("[data-reduced-motion]")).toHaveAttribute("data-reduced-motion", "true");
 
-  const before = await graph.locator("#graph-viewport").getAttribute("transform");
-  const box = await graph.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.wheel(0, -500);
-  await expect.poll(() => graph.locator("#graph-viewport").getAttribute("transform")).not.toBe(before);
-
-  await page.locator("[data-graph-fit]").click();
-  await expect(page.locator("[data-graph-status]")).toContainText("전체 보기");
-
-  const graphBox = await graph.boundingBox();
-  for (const node of await graph.locator('[data-node-type="Project"]').all()) {
-    const nodeBox = await node.boundingBox();
-    expect(nodeBox.x).toBeGreaterThanOrEqual(graphBox.x - 1);
-    expect(nodeBox.y).toBeGreaterThanOrEqual(graphBox.y - 1);
-    expect(nodeBox.x + nodeBox.width).toBeLessThanOrEqual(graphBox.x + graphBox.width + 1);
-    expect(nodeBox.y + nodeBox.height).toBeLessThanOrEqual(graphBox.y + graphBox.height + 1);
+  for (const selector of ["[data-graph-fit]", "[data-graph-reset]"]) {
+    const box = await page.locator(selector).boundingBox();
+    expect(box.width).toBe(42);
+    expect(box.height).toBe(42);
   }
 
-  const png = PNG.sync.read(await graph.screenshot());
-  const colors = new Set();
-  for (let index = 0; index < png.data.length; index += 4) {
-    colors.add(`${png.data[index]}:${png.data[index + 1]}:${png.data[index + 2]}:${png.data[index + 3]}`);
-  }
-  expect(colors.size).toBeGreaterThan(10);
+  await page.locator("[data-graph-search]").fill("Alpha");
+  await page.locator('[data-graph-search-result="project:alpha"]').click();
+  await expect(page.locator("[data-selected-node]")).toContainText("Alpha");
+  await expect(page.locator("[data-graph-node-count]")).toHaveText("5");
+  await expect(page.locator("[data-project-article-link]")).toHaveAttribute("href", "/projects/alpha");
+  await expect(page.locator("[data-selected-relations]")).toContainText("HAS_FOCUS");
+  await expect(page.locator("[data-selected-relations]")).toContainText("Routing spec");
 
-  await page.locator('[data-graph-filter][value="domain"]').uncheck();
-  await expect(graph.locator('[data-node-type="Domain"]')).toHaveCount(0);
+  await page.locator("[data-graph-relation-menu] summary").click();
+  await page.locator('[data-graph-relation-filter][value="HAS_TAG"]').uncheck();
+  await expect(page.locator('[data-selected-relations] code', { hasText: "HAS_TAG" })).toHaveCount(0);
+
+  await page.locator("[data-graph-reset]").click();
+  await expect(page.locator("[data-graph-node-count]")).toHaveText("4");
+  await expect(page.locator("[data-selected-node]")).toContainText("노드를 선택");
+});
+
+test("WebGL failure renders a searchable hierarchy", async ({ page }) => {
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.getContext = () => null;
+  });
+  await page.goto("/graph");
+
+  await expect(page.locator("[data-graph-fallback]")).toBeVisible();
+  await page.locator("[data-graph-fallback-search]").fill("Alpha");
+  await expect(page.locator('[data-fallback-node="project:alpha"]')).toBeVisible();
+  await expect(page.locator('[data-fallback-node="project:alpha"]')).toHaveAttribute("href", "/projects/alpha");
 });
