@@ -39,11 +39,7 @@ export function supportsWebGL(documentRef = globalThis.document) {
     if (typeof documentRef?.createElement !== "function") return false;
     const canvas = documentRef.createElement("canvas");
     if (typeof canvas?.getContext !== "function") return false;
-    return Boolean(
-      canvas.getContext("webgl2")
-      || canvas.getContext("webgl")
-      || canvas.getContext("experimental-webgl"),
-    );
+    return Boolean(canvas.getContext("webgl2"));
   } catch {
     return false;
   }

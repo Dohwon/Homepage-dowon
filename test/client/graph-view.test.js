@@ -149,14 +149,15 @@ function installResizeObserver() {
   };
 }
 
-function fakeDocument({ webgl = false, throws = false } = {}) {
+function fakeDocument({ contexts = [], throws = false, missingGetContext = false } = {}) {
   return {
     createElement(name) {
       assert.equal(name, "canvas");
+      if (missingGetContext) return {};
       return {
         getContext(type) {
           if (throws) throw new Error("context unavailable");
-          return webgl && ["webgl2", "webgl", "experimental-webgl"].includes(type) ? {} : null;
+          return contexts.includes(type) ? {} : null;
         },
       };
     },
@@ -270,8 +271,11 @@ test("force graph factory injection fails with a closed adapter error", async ()
 test("WebGL capability check fails closed", async () => {
   const { supportsWebGL } = await importGraphModule();
 
-  assert.equal(supportsWebGL(fakeDocument({ webgl: true })), true);
-  assert.equal(supportsWebGL(fakeDocument({ webgl: false })), false);
+  assert.equal(supportsWebGL(fakeDocument({ contexts: ["webgl2"] })), true);
+  assert.equal(supportsWebGL(fakeDocument({ contexts: ["webgl", "experimental-webgl"] })), false);
+  assert.equal(supportsWebGL(fakeDocument()), false);
+  assert.equal(supportsWebGL({}), false);
+  assert.equal(supportsWebGL(fakeDocument({ missingGetContext: true })), false);
   assert.equal(supportsWebGL(fakeDocument({ throws: true })), false);
   assert.equal(supportsWebGL(null), false);
 });
