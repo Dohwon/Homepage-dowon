@@ -12,6 +12,7 @@ from pathlib import Path
 import posixpath
 import re
 import secrets
+import stat
 import sys
 import tempfile
 from typing import Any
@@ -59,6 +60,7 @@ from .models import (
     validate_schema,
 )
 from .privacy import MIN_ALIAS_KEY_BYTES, PrivacyGate, PrivacyViolation
+from .runtime_state import RuntimeState
 from .session_index import index_session, map_session_trace, merge_child_evidence
 from .source_manifest import SubprocessGitRunner, build_source_manifest, resolve_git_owner
 
@@ -160,6 +162,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--sessions-root", type=Path)
     run.add_argument("--apply-reviewed-report", type=Path)
     run.add_argument("--dry-run", action="store_true")
+    run.add_argument("--changed-only", action="store_true")
 
     audit = commands.add_parser("audit-content")
     _add_workspace(audit)
@@ -290,6 +293,20 @@ def _command_validate(args: argparse.Namespace) -> dict[str, object]:
 def _command_run(args: argparse.Namespace) -> dict[str, object]:
     workspace = _workspace(args.workspace)
     config = _load_runtime_config(workspace)
+    if args.dry_run:
+        return _execute_run(args, workspace, config, runtime_state=None)
+    runtime_state = RuntimeState.open(workspace)
+    with runtime_state.lock():
+        return _execute_run(args, workspace, config, runtime_state=runtime_state)
+
+
+def _execute_run(
+    args: argparse.Namespace,
+    workspace: Path,
+    config: Mapping[str, object],
+    *,
+    runtime_state: RuntimeState | None,
+) -> dict[str, object]:
     gate = _privacy_gate(workspace, config, ephemeral=bool(args.dry_run))
     report = _discover(workspace, config, source_gate=gate)
     sessions_root = _sessions_root(workspace, config, args.sessions_root)
@@ -308,8 +325,17 @@ def _command_run(args: argparse.Namespace) -> dict[str, object]:
             reviewed_report=args.apply_reviewed_report,
         )
 
-    build = _execute_build(workspace, config, report, gate, dry_run=bool(args.dry_run))
+    build = _execute_build(
+        workspace,
+        config,
+        report,
+        gate,
+        dry_run=bool(args.dry_run),
+        runtime_state=runtime_state,
+        changed_only=bool(args.changed_only),
+    )
     return {
+        "affected_projects": build["affected_projects"],
         "backfill": backfill,
         "build": build,
         "discovery": {
@@ -884,10 +910,25 @@ def _execute_build(
     gate: PrivacyGate,
     *,
     dry_run: bool,
+    runtime_state: RuntimeState | None = None,
+    changed_only: bool = False,
 ) -> dict[str, object]:
     service_root = _service_root(workspace, runtime_config)
-    context = _bundle_context(workspace, discovery, gate)
     public_dir = service_root / "public-bundle"
+    previous_manifest = validate_bundle(public_dir, gate) if public_dir.is_dir() else None
+    context = _bundle_context(
+        workspace,
+        discovery,
+        gate,
+        previous_manifest=previous_manifest,
+    )
+    if changed_only and runtime_state is not None:
+        affected_projects = runtime_state.changed_project_ids(
+            source_hashes=context.source_hashes,
+            audit_hashes=context.audit_hashes,
+        )
+    else:
+        affected_projects = tuple(sorted(context.source_hashes))
     with tempfile.TemporaryDirectory(prefix=".project-atlas-staging-", dir=service_root) as temporary:
         staging = Path(temporary) / "candidate"
         manifest = build_candidate_bundle(context, staging)
@@ -899,7 +940,14 @@ def _execute_build(
             changed = promotion.changed
             changed_projects = list(promotion.changed_projects)
             validated = validate_bundle(public_dir, gate)
+            if runtime_state is not None:
+                runtime_state.save_success(
+                    source_hashes=context.source_hashes,
+                    audit_hashes=context.audit_hashes,
+                    manifest=validated.to_dict(),
+                )
     return {
+        "affected_projects": list(affected_projects),
         "changed": changed,
         "changed_projects": changed_projects,
         "dry_run": dry_run,
@@ -913,6 +961,8 @@ def _bundle_context(
     workspace: Path,
     discovery: DiscoveryReport,
     gate: PrivacyGate,
+    *,
+    previous_manifest: Any = None,
 ) -> BundleContext:
     ambiguous_ids = {ref.project_id for ref in discovery.ambiguous}
     projects: list[PublicProject] = []
@@ -922,6 +972,8 @@ def _bundle_context(
     relations_by_project = {}
     system_maps = {}
     source_hashes: dict[str, str] = {}
+    audit_hashes: dict[str, str] = {}
+    git_runner = SubprocessGitRunner()
     for ref in discovery.projects:
         if ref.publication != "public" or ref.project_id in ambiguous_ids:
             continue
@@ -956,10 +1008,12 @@ def _bundle_context(
             relations = load_project_relations(ref.root, gate)
             if relations:
                 relations_by_project[ref.project_id] = relations
+        source_manifest = build_source_manifest(ref, git_runner)
+        audit_hashes[ref.project_id] = str(source_manifest.audit_payload()["content_hash"])
         if article is not None:
             audit = audit_curated_project_content(
                 ref,
-                build_source_manifest(ref, SubprocessGitRunner()),
+                source_manifest,
                 (),
                 gate,
             )
@@ -1003,7 +1057,8 @@ def _bundle_context(
         graph=graph,
         search_documents=search_documents,
         source_hashes=source_hashes,
-        previous_manifest=None,
+        previous_manifest=previous_manifest,
+        audit_hashes=audit_hashes,
         privacy_gate=gate,
         project_articles=articles,
         project_evidence=evidence_by_project,
@@ -1119,7 +1174,28 @@ def _runtime_alias_key(
     path = Path(configured).expanduser()
     if not path.is_absolute():
         path = workspace / path
-    key = path.read_bytes().rstrip(b"\r\n")
+    metadata = path.lstat()
+    if not stat.S_ISREG(metadata.st_mode) or stat.S_IMODE(metadata.st_mode) != 0o600:
+        raise ConfigError("/alias-key")
+    flags = os.O_RDONLY
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(path, flags)
+    try:
+        opened = os.fstat(descriptor)
+        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (
+            metadata.st_dev,
+            metadata.st_ino,
+        ):
+            raise ConfigError("/alias-key")
+        with os.fdopen(descriptor, "rb") as source:
+            descriptor = -1
+            key = source.read().rstrip(b"\r\n")
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
     if not key:
         raise ConfigError("/alias-key")
     return key

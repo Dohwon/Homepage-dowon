@@ -107,6 +107,7 @@ class BundleContext:
     source_hashes: Mapping[str, str]
     previous_manifest: BundleManifest | None
     privacy_gate: PrivacyGate
+    audit_hashes: Mapping[str, str] = field(default_factory=dict)
     project_articles: Mapping[str, ProjectArticle] = field(default_factory=dict)
     project_evidence: Mapping[str, tuple[EvidenceRecord, ...]] = field(default_factory=dict)
     project_system_maps: Mapping[str, str] = field(default_factory=dict)

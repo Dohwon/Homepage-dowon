@@ -1359,6 +1359,7 @@ def test_build_real_write_accepts_explicit_runtime_alias_key_file(tmp_path):
     workspace = make_workspace_fixture(tmp_path)
     key_path = tmp_path / "atlas-hmac.key"
     key_path.write_bytes(PRODUCTION_ALIAS_KEY.encode("utf-8") + b"\n")
+    key_path.chmod(0o600)
     runtime = workspace / ".knowledge-worker" / "config.yaml"
     runtime.parent.mkdir()
     runtime.write_text(yaml.safe_dump({"hmac_key_path": str(key_path)}), encoding="utf-8")
@@ -1367,6 +1368,77 @@ def test_build_real_write_accepts_explicit_runtime_alias_key_file(tmp_path):
 
     assert output["changed"]
     assert key_path.read_text(encoding="utf-8") not in json.dumps(output)
+
+
+def test_build_rejects_runtime_alias_key_file_without_owner_only_permissions(
+    tmp_path, capsys
+):
+    workspace = make_workspace_fixture(tmp_path)
+    key_path = tmp_path / "atlas-hmac.key"
+    key_path.write_bytes(PRODUCTION_ALIAS_KEY.encode("utf-8"))
+    key_path.chmod(0o644)
+    runtime = workspace / ".knowledge-worker" / "config.yaml"
+    runtime.parent.mkdir()
+    runtime.write_text(yaml.safe_dump({"hmac_key_path": str(key_path)}), encoding="utf-8")
+
+    code = main(["build", "--workspace", str(workspace)])
+
+    assert code == EXIT_VALIDATION
+    assert json.loads(capsys.readouterr().err) == {
+        "error": {"category": "config", "pointer": "/alias-key"}
+    }
+    assert not (workspace / "portfolio-homepage" / "public-bundle").exists()
+
+
+def test_run_changed_only_tracks_affected_projects_but_builds_complete_candidate(
+    tmp_path, monkeypatch
+):
+    workspace = make_workspace_fixture(tmp_path)
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+
+    first = invoke_cli_json(
+        ["run", "--workspace", str(workspace), "--changed-only"]
+    )
+    second = invoke_cli_json(
+        ["run", "--workspace", str(workspace), "--changed-only"]
+    )
+    write_project_profile(
+        workspace / "projects" / "alpha",
+        summary="Alpha changed public summary",
+    )
+    third = invoke_cli_json(
+        ["run", "--workspace", str(workspace), "--changed-only"]
+    )
+
+    assert first["affected_projects"] == ["alpha", "beta"]
+    assert second["affected_projects"] == []
+    assert not second["build"]["changed"]
+    assert third["affected_projects"] == ["alpha"]
+    assert third["build"]["projects"] == ["alpha", "beta"]
+    assert third["build"]["changed_projects"] == ["alpha"]
+
+
+def test_failed_changed_only_run_preserves_last_good_bundle_and_runtime_state(
+    tmp_path, monkeypatch, capsys
+):
+    workspace = make_workspace_fixture(tmp_path)
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+    invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+    public_manifest = workspace / "portfolio-homepage" / "public-bundle" / "manifest.json"
+    state_path = workspace / ".knowledge-worker" / "runtime-state.json"
+    before_manifest = public_manifest.read_bytes()
+    before_state = state_path.read_bytes()
+    write_project_profile(
+        workspace / "projects" / "alpha",
+        summary="Do not publish /home/private/source/session.jsonl",
+    )
+
+    code = main(["run", "--workspace", str(workspace), "--changed-only"])
+
+    assert code == EXIT_PRIVACY
+    assert public_manifest.read_bytes() == before_manifest
+    assert state_path.read_bytes() == before_state
+    assert "/home/private/source/session.jsonl" not in capsys.readouterr().err
 
 
 def test_build_dry_run_blocks_encoded_route_without_leaking_value_or_writing(tmp_path, capsys):

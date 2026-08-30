@@ -2,6 +2,7 @@
 .codex
 .runtime-sync/
 runtime-sync/
+.knowledge-worker/
 data/analytics.jsonl
 data/comments.json
 data/KakaoTalk_*.jpg
