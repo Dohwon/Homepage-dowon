@@ -434,12 +434,29 @@ svg { display: block; }
   min-inline-size: 0;
   min-block-size: 620px;
   aspect-ratio: 16 / 9;
-  overflow: hidden;
+  overflow: auto;
   background: var(--surface);
 }
 .graph-stage[hidden] { display: none; }
-#knowledge-graph { inline-size: 100%; block-size: 100%; min-block-size: 620px; cursor: grab; touch-action: none; }
-#knowledge-graph:active { cursor: grabbing; }
+#knowledge-graph { inline-size: 100%; min-block-size: 620px; padding-top: 64px; background: var(--surface); }
+#knowledge-graph > svg { display: block; inline-size: max(100%, 1100px); block-size: auto; min-block-size: 556px; }
+.kg-background { fill: var(--surface); }
+.kg-edge { fill: none; stroke: var(--line-strong); stroke-width: 1.5; opacity: 0.72; }
+.kg-edge.is-dimmed { opacity: 0.13; }
+.kg-node { cursor: pointer; outline: none; }
+.kg-node rect { fill: var(--surface-subtle); stroke: var(--line-strong); stroke-width: 1.5; }
+.kg-node-label { fill: var(--text); font: 650 13px/1.2 "IBM Plex Sans KR", sans-serif; letter-spacing: 0; pointer-events: none; }
+.kg-node-count { fill: var(--muted); font: 500 9px/1 "JetBrains Mono", monospace; letter-spacing: 0; pointer-events: none; }
+.kg-kind-KnowledgeFocus rect { fill: color-mix(in srgb, #f2c14e 24%, var(--surface)); stroke: #b18422; }
+.kg-kind-KnowledgeDomain rect { fill: color-mix(in srgb, #4ea699 20%, var(--surface)); stroke: #3f897f; }
+.kg-kind-KnowledgeTag rect { fill: color-mix(in srgb, #8b7bb8 18%, var(--surface)); stroke: #75659f; }
+.kg-kind-Project rect { fill: color-mix(in srgb, #4f86c6 18%, var(--surface)); stroke: #3f6fa5; }
+.kg-kind-Technology rect { fill: color-mix(in srgb, #d96c75 16%, var(--surface)); stroke: #aa5660; }
+.kg-kind-Artifact rect { fill: color-mix(in srgb, #7d8a96 16%, var(--surface)); stroke: #687580; }
+.kg-node.is-active rect,
+.kg-node:hover rect,
+.kg-node:focus-visible rect { stroke: var(--focus); stroke-width: 3; }
+.kg-node.is-dimmed { opacity: 0.24; }
 .graph-toolbar {
   position: absolute;
   inset: 14px 14px auto;

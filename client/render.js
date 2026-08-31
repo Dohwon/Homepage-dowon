@@ -1,7 +1,7 @@
 import { toRouteHref, PROJECT_TABS } from "./router.js";
 import { renderMarkdown, sanitizeSvg } from "./markdown.js";
 import { toSafePublicHref } from "./public-url.js";
-import { createGraphView, supportsWebGL } from "./graph-view.js";
+import { createGraphView, supportsSvg } from "./graph-view.js";
 import {
   createGraphIndex,
   expandNode,
@@ -313,7 +313,7 @@ function renderGraphFallback(graph) {
   return `<section class="graph-fallback" data-graph-fallback hidden aria-label="프로젝트 지식 그래프 목록">
     <div class="graph-fallback-heading">
       <h2>목록으로 보기</h2>
-      <p>3D 그래프를 사용할 수 없어 연결 구조를 목록으로 표시합니다.</p>
+      <p>그래프를 표시할 수 없어 연결 구조를 목록으로 제공합니다.</p>
     </div>
     <label class="graph-fallback-search">
       <span class="sr-only">그래프 노드 검색</span>
@@ -382,7 +382,7 @@ function renderGraph(state) {
     <div class="content-shell wide graph-page">
       ${pageHeading("지식 그래프", "", "프로젝트와 공통 주제의 근거 있는 연결을 단계별로 살펴봅니다.")}
       <div class="graph-shell" data-graph-shell>
-        <section class="graph-stage" data-graph-stage aria-label="3D 지식 그래프">
+        <section class="graph-stage" data-graph-stage aria-label="2D 지식 그래프">
           <div id="knowledge-graph" role="group" aria-label="프로젝트 지식 그래프" data-graph-canvas></div>
           <div class="graph-toolbar" aria-label="그래프 도구">
             <div class="graph-search-wrap">
@@ -418,7 +418,7 @@ function renderGraph(state) {
 
 export function bindGraph(root, state, {
   createView = createGraphView,
-  hasWebGL = supportsWebGL,
+  canRender = supportsSvg,
 } = {}) {
   const container = root.querySelector("#knowledge-graph");
   if (!container || !state.graph) return () => {};
@@ -437,6 +437,15 @@ export function bindGraph(root, state, {
 
   const update = () => {
     const projected = visibleGraph(graphState, index);
+    projected.nodes = projected.nodes.map((node) => ({
+      ...node,
+      projectCount: node.kind === "KnowledgeTag"
+        ? new Set((index.adjacency.get(node.id) || [])
+          .filter((edge) => edge.kind === "HAS_TAG" && edge.target === node.id)
+          .map((edge) => edge.source)
+          .filter((nodeId) => index.nodes.get(nodeId)?.kind === "Project")).size
+        : undefined,
+    }));
     view?.update(projected);
     nodeCount.textContent = String(projected.nodes.length);
     status.setAttribute("aria-label", `${projected.nodes.length}개 노드, ${projected.links.length}개 관계`);
@@ -508,7 +517,7 @@ export function bindGraph(root, state, {
     view?.setReducedMotion(Boolean(event.detail));
   };
 
-  if (hasWebGL(document)) {
+  if (canRender(document)) {
     try {
       view = createView(container, visibleGraph(graphState, index), {
         onSelect(node) {

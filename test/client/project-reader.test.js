@@ -327,7 +327,7 @@ test("runtime renderer failure switches the bound graph to its accessible fallba
       ],
     },
   }, {
-    hasWebGL: () => true,
+    canRender: () => true,
     createView(_container, _graph, options) {
       failureHandler = options.onFailure;
       return {

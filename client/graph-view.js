@@ -1,304 +1,239 @@
-const NODE_COLORS = Object.freeze({
-  KnowledgeFocus: "#f2c14e",
-  KnowledgeDomain: "#4ea699",
-  KnowledgeTag: "#8b7bb8",
-  Project: "#4f86c6",
-  Technology: "#d96c75",
-  Artifact: "#7d8a96",
+const KIND_COLUMN = Object.freeze({
+  KnowledgeFocus: 0,
+  KnowledgeDomain: 1,
+  KnowledgeTag: 2,
+  Project: 3,
+  Technology: 4,
+  Artifact: 4,
 });
 
-function rendererSize(container) {
-  const bounds = container?.getBoundingClientRect?.() || {};
-  const width = Math.max(1, Math.round(Number(bounds.width) || Number(container?.clientWidth) || 960));
-  const height = Math.max(1, Math.round(Number(bounds.height) || Number(container?.clientHeight) || 620));
-  return { width, height };
+const COLUMN_X = Object.freeze([42, 292, 542, 792, 1042]);
+const NODE_WIDTH = 208;
+const NODE_HEIGHT = 52;
+const ROW_GAP = 68;
+const GRAPH_WIDTH = 1292;
+
+function escapeXml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[character]));
 }
 
-function toRendererData(graph) {
+function graphData(value) {
   return {
-    nodes: (graph?.nodes || []).map(node => ({ ...node })),
-    links: (graph?.links ?? graph?.edges ?? []).map(link => ({ ...link })),
+    nodes: Array.isArray(value?.nodes) ? value.nodes.map(node => ({ ...node })) : [],
+    links: Array.isArray(value?.links ?? value?.edges)
+      ? (value.links ?? value.edges).map(link => ({ ...link }))
+      : [],
   };
 }
 
-function nodeTooltip(node, documentRef) {
-  if (!node?.active && node?.kind !== "KnowledgeFocus") return "";
-  if (typeof documentRef?.createElement !== "function") return "";
-  const label = documentRef.createElement("span");
-  label.textContent = `${node.label} · ${node.kind}`;
-  return label;
+function splitLabel(value, limit = 22) {
+  const label = String(value || "");
+  if (label.length <= limit) return [label];
+  const words = label.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return [label.slice(0, limit - 1) + "…"];
+  const lines = [""];
+  for (const word of words) {
+    const current = lines.at(-1);
+    if (!current || `${current} ${word}`.length <= limit) lines[lines.length - 1] = current ? `${current} ${word}` : word;
+    else if (lines.length === 1) lines.push(word);
+    else lines[1] = `${lines[1]}…`;
+  }
+  return lines.slice(0, 2);
 }
 
-function focusCamera(instance, node, duration) {
-  if (!node || typeof node !== "object") return false;
-  const x = Number(node.x) || 0;
-  const y = Number(node.y) || 0;
-  const z = Number(node.z) || 0;
-  const distance = Math.hypot(x, y, z);
-  const position = distance > 0
-    ? { x: x * (1 + 120 / distance), y: y * (1 + 120 / distance), z: z * (1 + 120 / distance) }
-    : { x: 0, y: 0, z: 120 };
-  instance.cameraPosition(position, node, duration);
-  return true;
+function layoutGraph(graph) {
+  const columns = new Map(Array.from({ length: 5 }, (_, index) => [index, []]));
+  for (const node of graph.nodes) {
+    const column = KIND_COLUMN[node.kind] ?? 4;
+    columns.get(column).push(node);
+  }
+  for (const values of columns.values()) {
+    values.sort((left, right) => String(left.label).localeCompare(String(right.label), "ko") || left.id.localeCompare(right.id));
+  }
+  const rowCount = Math.max(1, ...[...columns.values()].map(values => values.length));
+  const height = Math.max(620, 116 + rowCount * ROW_GAP);
+  const positions = new Map();
+  for (let column = 0; column < 5; column += 1) {
+    const values = columns.get(column);
+    const offset = Math.max(0, (rowCount - values.length) * ROW_GAP / 2);
+    values.forEach((node, index) => {
+      positions.set(node.id, {
+        x: COLUMN_X[column],
+        y: 82 + offset + index * ROW_GAP,
+        column,
+      });
+    });
+  }
+  return { height, positions };
 }
 
-function coordinates(value) {
+function edgeMarkup(link, positions) {
+  const source = positions.get(typeof link.source === "object" ? link.source.id : link.source);
+  const target = positions.get(typeof link.target === "object" ? link.target.id : link.target);
+  if (!source || !target) return "";
+  let sx = source.x + NODE_WIDTH;
+  let sy = source.y + NODE_HEIGHT / 2;
+  let tx = target.x;
+  let ty = target.y + NODE_HEIGHT / 2;
+  if (target.column <= source.column) {
+    sx = source.x;
+    tx = target.x + NODE_WIDTH;
+  }
+  const middle = (sx + tx) / 2;
+  return `<path class="kg-edge${link.dimmed ? " is-dimmed" : ""}" data-edge-kind="${escapeXml(link.kind)}" d="M ${sx} ${sy} C ${middle} ${sy}, ${middle} ${ty}, ${tx} ${ty}" />`;
+}
+
+function nodeMarkup(node, position) {
+  const lines = splitLabel(node.label);
+  const lineMarkup = lines.map((line, index) => (
+    `<tspan x="${position.x + 14}" y="${position.y + 23 + index * 15}">${escapeXml(line)}</tspan>`
+  )).join("");
+  const count = node.kind === "KnowledgeTag" && Number.isFinite(node.projectCount)
+    ? `<text class="kg-node-count" x="${position.x + NODE_WIDTH - 12}" y="${position.y + NODE_HEIGHT - 10}" text-anchor="end">${node.projectCount} projects</text>`
+    : "";
+  return `<g class="kg-node kg-kind-${escapeXml(node.kind)}${node.dimmed ? " is-dimmed" : ""}${node.active ? " is-active" : ""}" data-graph-node="${escapeXml(node.id)}" data-node-id="${escapeXml(node.id)}" role="button" tabindex="0" aria-label="${escapeXml(node.label)}">
+    <rect x="${position.x}" y="${position.y}" width="${NODE_WIDTH}" height="${NODE_HEIGHT}" rx="6" />
+    <text class="kg-node-label">${lineMarkup}</text>${count}
+  </g>`;
+}
+
+function renderSvg(graph) {
+  const layout = layoutGraph(graph);
+  const edges = graph.links.map(link => edgeMarkup(link, layout.positions)).join("");
+  const nodes = graph.nodes.map(node => nodeMarkup(node, layout.positions.get(node.id))).join("");
   return {
-    x: Number(value?.x) || 0,
-    y: Number(value?.y) || 0,
-    z: Number(value?.z) || 0,
+    html: `<svg xmlns="http://www.w3.org/2000/svg" data-knowledge-graph viewBox="0 0 ${GRAPH_WIDTH} ${layout.height}" role="img" aria-labelledby="kg-title kg-desc">
+      <title id="kg-title">프로젝트 지식 그래프</title>
+      <desc id="kg-desc">핵심 주제, 도메인, 태그와 프로젝트의 연결 구조</desc>
+      <rect class="kg-background" width="${GRAPH_WIDTH}" height="${layout.height}" />
+      <g class="kg-edges">${edges}</g>
+      <g class="kg-nodes">${nodes}</g>
+    </svg>`,
+    layout,
   };
 }
 
-function frozenCoordinates(value) {
-  return Object.freeze(coordinates(value));
-}
-
-function inspectedNode(instance, node) {
-  if (!node || typeof node.id !== "string") return null;
-  const position = frozenCoordinates(node);
-  const projected = typeof instance.graph2ScreenCoords === "function"
-    ? instance.graph2ScreenCoords(position.x, position.y, position.z)
-    : null;
-  return Object.freeze({
-    id: node.id,
-    kind: typeof node.kind === "string" ? node.kind : "",
-    position,
-    screen: projected
-      ? Object.freeze({ x: Number(projected.x) || 0, y: Number(projected.y) || 0 })
-      : null,
-    pinned: [node.fx, node.fy, node.fz].every(Number.isFinite),
-  });
-}
-
-export function supportsWebGL(documentRef = globalThis.document) {
+export function supportsSvg(documentRef = globalThis.document) {
   try {
-    if (typeof documentRef?.createElement !== "function") return false;
-    const canvas = documentRef.createElement("canvas");
-    if (typeof canvas?.getContext !== "function") return false;
-    return Boolean(canvas.getContext("webgl2"));
+    if (typeof documentRef?.createElementNS !== "function") return false;
+    const element = documentRef.createElementNS("http://www.w3.org/2000/svg", "svg");
+    return Boolean(element && element.namespaceURI === "http://www.w3.org/2000/svg");
   } catch {
     return false;
   }
 }
 
-function teardownRenderer(instance, container) {
-  for (const operation of [
-    () => instance?.pauseAnimation?.(),
-    () => instance?._destructor?.(),
-    () => container?.replaceChildren?.(),
-  ]) {
-    try {
-      operation();
-    } catch {
-      // Teardown is best-effort so every allocated resource gets a cleanup attempt.
-    }
-  }
-}
-
 export function createGraphView(container, graph, {
-  forceGraphFactory = (element, config) => {
-    if (typeof globalThis.ForceGraph3D !== "function") throw new Error("force_graph_3d_unavailable");
-    return new globalThis.ForceGraph3D(element, config);
-  },
   onSelect = () => {},
   onFailure = () => {},
-  reducedMotion = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false,
-  documentRef = globalThis.document,
+  reducedMotion = false,
 } = {}) {
-  if (typeof forceGraphFactory !== "function") throw new Error("force_graph_3d_unavailable");
-
+  let current = graphData(graph);
+  const initial = graphData(graph);
   let motionReduced = Boolean(reducedMotion);
-  let engineSettled = false;
-  let controlRevision = 0;
-  let dragRevision = 0;
-  let cameraCommandRevision = 0;
-  let activeDrag = null;
-  let lastDrag = null;
-  let lastCameraCommand = null;
-  let instance;
-  let controls = null;
-  let resizeObserver = null;
   let destroyed = false;
-  const initialGraph = toRendererData(graph);
-  const size = rendererSize(container);
-  const onControlChange = () => { controlRevision += 1; };
-  const onContextLost = (event) => {
-    event?.preventDefault?.();
-    fail(new Error("webgl_context_lost"));
-  };
+  let layout = null;
+  let lastCommand = null;
 
   const teardown = () => {
     if (destroyed) return;
     destroyed = true;
-    resizeObserver?.disconnect();
-    controls?.removeEventListener?.("change", onControlChange);
-    container.removeEventListener?.("webglcontextlost", onContextLost, true);
-    teardownRenderer(instance, container);
+    container.removeEventListener?.("click", onClick);
+    container.removeEventListener?.("keydown", onKeydown);
+    container.replaceChildren?.();
   };
-
   const fail = (error) => {
     if (destroyed) return;
     teardown();
     try {
-      onFailure(error instanceof Error ? error : new Error("force_graph_runtime_failure"));
+      onFailure(error instanceof Error ? error : new Error("graph_render_failed"));
     } catch {
-      // The renderer is already closed; fallback callback failures cannot restore it.
+      // The accessible list remains the final fallback.
     }
   };
-
-  try {
-    const previousWidth = container.style.width;
-    const previousHeight = container.style.height;
-    container.style.width = `${size.width}px`;
-    container.style.height = `${size.height}px`;
+  const render = () => {
+    if (destroyed) return;
     try {
-      instance = forceGraphFactory(container, {
-        controlType: "orbit",
-        rendererConfig: { antialias: true, alpha: true },
-      });
-    } finally {
-      container.style.width = previousWidth;
-      container.style.height = previousHeight;
-    }
-
-    instance
-      .nodeId("id")
-      .linkSource("source")
-      .linkTarget("target")
-      .nodeLabel(node => nodeTooltip(node, documentRef))
-      .nodeColor(node => NODE_COLORS[node.kind] || NODE_COLORS.Artifact)
-      .nodeOpacity(node => node.dimmed ? 0.18 : 0.92)
-      .linkOpacity(link => link.dimmed ? 0.05 : 0.42)
-      .onNodeClick(node => onSelect(node))
-      .onNodeDrag((node) => {
-        engineSettled = false;
-        if (!activeDrag || activeDrag.id !== node.id) {
-          activeDrag = { id: node.id, from: coordinates(node) };
-        }
-      })
-      .onNodeDragEnd((node) => {
-        const from = activeDrag && activeDrag.id === node.id ? activeDrag.from : coordinates(node);
-        node.fx = node.x;
-        node.fy = node.y;
-        node.fz = node.z;
-        dragRevision += 1;
-        lastDrag = {
-          id: node.id,
-          from,
-          to: coordinates(node),
-          pinned: true,
-          revision: dragRevision,
-        };
-        activeDrag = null;
-      })
-      .onEngineStop(() => { engineSettled = true; })
-      .cooldownTicks(motionReduced ? 18 : 80)
-      .warmupTicks(motionReduced ? 12 : 0)
-      .graphData(toRendererData(initialGraph));
-
-    if (motionReduced) instance.d3AlphaDecay(0.3);
-    controls = typeof instance.controls === "function" ? instance.controls() : null;
-    controls?.addEventListener?.("change", onControlChange);
-
-    const ResizeObserverClass = globalThis.ResizeObserver;
-    resizeObserver = typeof ResizeObserverClass === "function"
-      ? new ResizeObserverClass((entries) => {
-        if (destroyed) return;
-        const entry = entries.find(item => item.target === container) || entries[0];
-        const nextSize = entry?.contentRect
-          ? {
-            width: Math.max(1, Math.round(Number(entry.contentRect.width) || 1)),
-            height: Math.max(1, Math.round(Number(entry.contentRect.height) || 1)),
-          }
-          : rendererSize(container);
-        runRuntime(() => instance.width(nextSize.width).height(nextSize.height));
-      })
-      : null;
-    resizeObserver?.observe(container);
-    container.addEventListener?.("webglcontextlost", onContextLost, true);
-  } catch (error) {
-    teardown();
-    throw error;
-  }
-
-  const recordCameraCommand = (operation, duration) => {
-    cameraCommandRevision += 1;
-    lastCameraCommand = { operation, duration, revision: cameraCommandRevision };
-  };
-
-  function runRuntime(operation, fallbackValue) {
-    if (destroyed) return fallbackValue;
-    try {
-      return operation();
+      const projected = renderSvg(current);
+      layout = projected.layout;
+      container.innerHTML = projected.html;
     } catch (error) {
       fail(error);
-      return fallbackValue;
     }
+  };
+  const selectedNode = (event) => {
+    const element = event?.target?.closest?.("[data-graph-node]");
+    if (!element) return null;
+    return current.nodes.find(node => node.id === element.dataset.graphNode) || null;
+  };
+  function onClick(event) {
+    const node = selectedNode(event);
+    if (node) onSelect(node);
   }
+  function onKeydown(event) {
+    if (!new Set(["Enter", " "]).has(event.key)) return;
+    const node = selectedNode(event);
+    if (!node) return;
+    event.preventDefault?.();
+    onSelect(node);
+  }
+
+  container.addEventListener?.("click", onClick);
+  container.addEventListener?.("keydown", onKeydown);
+  render();
+
+  const record = (operation, nodeId = null) => {
+    lastCommand = Object.freeze({ operation, nodeId, reducedMotion: motionReduced });
+  };
 
   return {
     update(next) {
-      runRuntime(() => {
-        engineSettled = false;
-        instance.graphData(toRendererData(next));
-      });
+      if (destroyed) return;
+      current = graphData(next);
+      render();
     },
     focus(node) {
-      return runRuntime(() => {
-        const duration = motionReduced ? 0 : 700;
-        const focused = focusCamera(instance, node, duration);
-        if (focused) recordCameraCommand("focus", duration);
-        return focused;
-      }, false);
+      if (destroyed || !node?.id) return false;
+      const target = container.querySelector?.(`[data-node-id="${String(node.id).replace(/"/g, "")}"]`);
+      if (!target) return false;
+      record("focus", node.id);
+      target.scrollIntoView?.({ block: "center", inline: "center", behavior: motionReduced ? "auto" : "smooth" });
+      return true;
     },
     fit() {
-      runRuntime(() => {
-        const duration = motionReduced ? 0 : 500;
-        recordCameraCommand("fit", duration);
-        instance.zoomToFit(duration, 70);
-      });
+      if (destroyed) return;
+      record("fit");
+      container.scrollTo?.({ top: 0, left: 0, behavior: motionReduced ? "auto" : "smooth" });
     },
     setReducedMotion(next) {
-      runRuntime(() => {
-        const normalized = Boolean(next);
-        if (normalized === motionReduced) return;
-        motionReduced = normalized;
-        instance
-          .cooldownTicks(motionReduced ? 18 : 80)
-          .warmupTicks(motionReduced ? 12 : 0);
-        if (motionReduced) instance.d3AlphaDecay(0.3);
-      });
+      motionReduced = Boolean(next);
     },
     reset() {
-      runRuntime(() => {
-        engineSettled = false;
-        recordCameraCommand("reset", 0);
-        instance.graphData(toRendererData(initialGraph));
-        instance.zoomToFit(0, 70);
-      });
+      if (destroyed) return;
+      current = graphData(initial);
+      render();
+      record("reset");
+      container.scrollTo?.({ top: 0, left: 0, behavior: "auto" });
     },
     inspect() {
-      const rendererGraph = typeof instance.graphData === "function"
-        ? instance.graphData()
-        : { nodes: [] };
-      const nodes = (rendererGraph?.nodes || [])
-        .map(node => inspectedNode(instance, node))
-        .filter(Boolean)
-        .sort((left, right) => left.id.localeCompare(right.id));
+      const positions = layout?.positions || new Map();
       return Object.freeze({
-        camera: frozenCoordinates(instance.cameraPosition?.()),
-        target: frozenCoordinates(controls?.target),
-        controlRevision,
-        engineSettled,
-        lastCameraCommand: lastCameraCommand ? Object.freeze({ ...lastCameraCommand }) : null,
-        lastDrag: lastDrag ? Object.freeze({
-          ...lastDrag,
-          from: frozenCoordinates(lastDrag.from),
-          to: frozenCoordinates(lastDrag.to),
-        }) : null,
-        nodes: Object.freeze(nodes),
+        layout: "layered-2d",
         reducedMotion: motionReduced,
+        lastCommand,
+        viewBox: Object.freeze({ width: GRAPH_WIDTH, height: layout?.height || 0 }),
+        visibleKinds: Object.freeze([...new Set(current.nodes.map(node => node.kind))].sort()),
+        nodes: Object.freeze(current.nodes.map(node => Object.freeze({
+          id: node.id,
+          kind: node.kind,
+          position: Object.freeze({ ...(positions.get(node.id) || { x: 0, y: 0, column: 0 }) }),
+        }))),
       });
     },
     destroy() {
