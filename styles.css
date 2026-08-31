@@ -380,6 +380,9 @@ svg { display: block; }
 .markdown-body table { inline-size: 100%; border-collapse: collapse; font-size: 14px; }
 .markdown-body th, .markdown-body td { border-bottom: 1px solid var(--line); padding: 10px; text-align: start; vertical-align: top; overflow-wrap: anywhere; }
 .markdown-body img, .project-map { display: block; inline-size: 100%; block-size: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.article-summary { margin-bottom: 18px; color: var(--muted); font-size: 17px; }
+.article-orientation { margin-bottom: 38px; font-size: 17px; line-height: 1.84; }
+.article-orientation p { margin-block: 0 16px; }
 .decision-article [data-article-section] { scroll-margin-top: calc(var(--reader-sticky-offset) + 8px); }
 .decision-article [data-article-section] > h2 { overflow-wrap: anywhere; }
 .article-figure { margin: 24px 0 32px; }

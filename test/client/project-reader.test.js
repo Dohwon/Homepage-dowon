@@ -173,6 +173,8 @@ function fixtureProject(overrides = {}) {
       project_id: "alpha",
       title: "Alpha decisions",
       summary: "Public decision summary",
+      orientation: "처음 보는 독자는 이 프로젝트가 해결한 사용자 문제와 선택의 출발점을 여기서 이해한다.",
+      orientation_evidence_ids: ["ev-1"],
       readiness: "ready",
       prior_context: "이전 단계 요약",
       sections: [],
@@ -194,6 +196,8 @@ test("renders every article section in order and places figures after prose", as
       project_id: "alpha",
       title: "Alpha decisions",
       summary: "Public decision summary",
+      orientation: "경로 원본의 수명이 짧아 장기 방문 기록의 정본으로 사용할 수 없었다. 그래서 임시 탐색 데이터와 영구 도로 데이터를 분리했다.",
+      orientation_evidence_ids: ["ev-1"],
       readiness: "ready",
       prior_context: "이전 단계 요약",
       sections: [
@@ -221,6 +225,9 @@ test("renders every article section in order and places figures after prose", as
   const result = renderProjectContent(project, "decisions");
 
   assert.match(result.html, /data-project-reader/);
+  assert.match(result.html, /data-article-orientation/);
+  assert.ok(result.html.indexOf("Public decision summary") < result.html.indexOf("경로 원본의 수명이 짧아"));
+  assert.ok(result.html.indexOf("경로 원본의 수명이 짧아") < result.html.indexOf('data-article-section="prior-context"'));
   assert.match(result.html, /data-article-section="prior-context"/);
   assert.match(result.html, /data-article-section="retention"/);
   assert.match(result.html, /data-article-section="validation"/);
@@ -232,6 +239,7 @@ test("renders every article section in order and places figures after prose", as
     { id: "retention", label: "TMAP 데이터 장기 저장 제한 해결" },
     { id: "validation", label: "검증 범위 확정" }
   ]);
+  assert.equal(result.headings.some((heading) => heading.label === "프로젝트 설명"), false);
 });
 
 test("error rendering clears active route resources before replacing the DOM", async (t) => {

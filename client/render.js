@@ -628,6 +628,9 @@ export function renderArticle(project) {
   if (article.summary) {
     intro.push(`<div class="markdown-body article-summary">${renderMarkdown(article.summary)}</div>`);
   }
+  if (article.orientation) {
+    intro.push(`<div class="markdown-body article-orientation" data-article-orientation>${renderMarkdown(article.orientation)}</div>`);
+  }
   if (article.prior_context) {
     headings.push({ id: "prior-context", label: "이전 단계" });
     intro.push(`<section id="prior-context" data-article-section="prior-context">
