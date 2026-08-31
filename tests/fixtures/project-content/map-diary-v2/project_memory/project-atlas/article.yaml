@@ -1,6 +1,9 @@
 project_id: 260802-map-diary-v2
 title: 지도 기록 다이어리 v2
 summary: TMAP 경로 입력과 영구 방문 기록의 저장 경계를 검증된 근거로 고정한 curated article이다.
+orientation: TMAP 경로는 하루 뒤 보존할 수 없어 영구 방문 기록과 같은 데이터 수명을 가질 수 없었다.
+orientation_evidence_ids:
+  - v2-tmap-retention-spec
 readiness: ready
 sections:
   - id: retention

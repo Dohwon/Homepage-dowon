@@ -11,7 +11,7 @@ Project Atlas worker가 만든 검증된 `public-bundle/`만 공개 API로 읽�
 - `/projects`: 상태·도메인 필터가 있는 전체 프로젝트 목록
 - `/projects/{id}`: Decisions, System Map, Build Timeline, Evidence 탭과 본문 기준
   읽기 진행률
-- `/topics`, `/graph`, `/changelog`: 주제, 관계 그래프, 변경 기록
+- `/topics`, `/graph`, `/changelog`: 주제, 태그부터 프로젝트로 펼치는 2D 지식 그래프, 변경 기록
 - `Cmd/Ctrl+K`: 전체 공개 번들 검색
 - `/admin.html`: 기존 Google 로그인 기반 CMS
   - 비로그인: 읽기
@@ -25,6 +25,11 @@ Project Atlas worker가 만든 검증된 `public-bundle/`만 공개 API로 읽�
 채우지 않는다. 각 프로젝트 폴더는 독립 프로젝트로 유지하며 이름이 비슷하거나
 버전 이력이 이어져도 하나의 프로젝트 family로 병합하지 않는다. 앞선 이력은 필요한
 경우 해당 프로젝트의 Decisions 본문에서만 맥락으로 설명한다.
+
+각 프로젝트의 제목 없는 도입부는 `article.yaml`의 evidence-backed `orientation`을
+사용한다. System Map은 `system-map.yaml`에 있는 프로젝트별 실제 결정·구현·검증
+노드를 글 순서대로 보여 주며, 고정된 문제-결정-결과 개수에 맞춰 빈 단계를 만들지
+않는다.
 
 ## 파일 구조
 
@@ -120,6 +125,14 @@ python3 -m venv .venv
 .venv/bin/python scripts/project_atlas.py validate --workspace /home/dowon/securedir/git/codex
 .venv/bin/python scripts/project_atlas.py validate --fixture /path/to/public-bundle
 .venv/bin/python scripts/project_atlas.py run --workspace /home/dowon/securedir/git/codex --dry-run
+```
+
+기존 33개 curated article의 문제 정의를 Orientation으로 승격하고 대응하는 System Map
+source를 재생성할 때는 아래 migration을 사용한다. 이 명령은 정확히 33개를 요구하는
+기존 카탈로그 migration이며 새 프로젝트 초기화 명령이 아니다.
+
+```bash
+.venv/bin/python scripts/backfill_project_atlas_content.py --workspace /home/dowon/securedir/git/codex --expected-count 33 --check
 ```
 
 `discover`는 read-only다. `validate`도 bundle의 privacy, schema, hash, exact-tree contract만 읽어 검사하며 promotion을 호출하지 않는다. `backfill --dry-run`은 `--sessions-root`가 없고 `.knowledge-worker/config.yaml`에도 session root가 없으면 정상적인 zero-session 결과를 반환한다.

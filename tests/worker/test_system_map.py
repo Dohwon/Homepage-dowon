@@ -99,6 +99,26 @@ def test_loads_referenced_system_map_and_projects_deterministic_public_assets(tm
     assert "경로 데이터 수명 지도" in first
     assert "경로 제공자" in first
     assert "영구 저장" in first
+    assert 'marker-end="url(#system-map-arrow)"' in first
+    assert first.index('data-node="route-provider"') < first.index('data-node="road-snapshot"')
+    assert first.index('data-node="road-snapshot"') < first.index('data-node="visit-record"')
+
+
+def test_svg_wraps_long_project_context_instead_of_clipping_it(tmp_path):
+    value = _map()
+    value["summary"] = (
+        "처음 보는 사람도 프로젝트의 출발 문제와 구현 경계를 읽을 수 있도록 "
+        "긴 설명을 여러 줄로 나누어 표시한다."
+    )
+    _write_map(tmp_path, value)
+    system_map = load_project_system_map(
+        make_project_ref(tmp_path), _article(), _evidence(), _gate()
+    )
+
+    svg = render_system_map_svg(system_map)
+
+    assert svg.count("<tspan") >= 2
+    assert "긴 설명을 여러 줄로" in svg
 
 
 @pytest.mark.parametrize(

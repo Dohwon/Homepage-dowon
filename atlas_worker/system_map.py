@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from html import escape
 from pathlib import Path
 
@@ -21,16 +20,6 @@ from .privacy import PrivacyGate
 from .visuals import validate_curated_svg
 
 
-_KIND_COLUMN = {
-    "actor": 0,
-    "input": 0,
-    "interface": 1,
-    "process": 1,
-    "state": 2,
-    "service": 2,
-    "output": 3,
-    "guardrail": 3,
-}
 _KIND_FILL = {
     "actor": "#e9f2fb",
     "input": "#edf6f3",
@@ -101,78 +90,107 @@ def load_project_system_map(
 
 
 def render_system_map_svg(system_map: ProjectSystemMap) -> str:
-    """Render a stable four-column map without embedding private provenance."""
-    columns: dict[int, list[SystemMapNode]] = defaultdict(list)
-    for node in system_map.nodes:
-        columns[_KIND_COLUMN[node.kind]].append(node)
-    for values in columns.values():
-        values.sort(key=lambda node: (node.kind, node.label, node.node_id))
-
-    width = 1280
-    row_gap = 122
-    max_rows = max((len(values) for values in columns.values()), default=1)
-    height = max(420, 170 + max_rows * row_gap)
-    node_width = 228
-    node_height = 74
-    column_x = {0: 42, 1: 365, 2: 688, 3: 1010}
-    positions: dict[str, tuple[float, float]] = {}
+    """Render a stable narrative flow without embedding private provenance."""
+    width = 1120
+    node_x = 80
+    node_width = 960
+    node_height = 94
+    row_step = 158
+    title_lines = _wrap_svg_text(system_map.title, 38)
+    summary_lines = _wrap_svg_text(system_map.summary, 42)
+    header_height = 34 * len(title_lines) + 22 * len(summary_lines)
+    start_y = 54 + header_height + 34
+    height = max(420, start_y + len(system_map.nodes) * row_step + 24)
+    positions: dict[str, float] = {}
     node_markup = []
-    for column in range(4):
-        values = columns.get(column, [])
-        content_height = max(0, (len(values) - 1) * row_gap)
-        start_y = 118 + max(0, (max_rows - len(values)) * row_gap / 2)
-        for index, node in enumerate(values):
-            x = column_x[column]
-            y = start_y + index * row_gap
-            positions[node.node_id] = (x, y)
-            node_markup.append(
-                f'<g data-node="{escape(node.node_id)}">'
-                f'<rect x="{x}" y="{y}" width="{node_width}" height="{node_height}" rx="6" '
-                f'fill="{_KIND_FILL[node.kind]}" stroke="#52606d" stroke-width="1.5"/>'
-                f'<text x="{x + 14}" y="{y + 29}" fill="#17212b" font-size="16" font-weight="700">'
-                f'{escape(node.label)}</text>'
-                f'<text x="{x + 14}" y="{y + 53}" fill="#52606d" font-size="11">'
-                f'{escape(node.kind)}</text></g>'
-            )
+    for index, node in enumerate(system_map.nodes, 1):
+        y = start_y + (index - 1) * row_step
+        positions[node.node_id] = y
+        description = _truncate_svg_text(node.description, 104)
+        node_markup.append(
+            f'<g data-node="{escape(node.node_id)}">'
+            f'<rect x="{node_x}" y="{y}" width="{node_width}" height="{node_height}" rx="6" '
+            f'fill="{_KIND_FILL[node.kind]}" stroke="#52606d" stroke-width="1.5"/>'
+            f'<circle cx="{node_x + 36}" cy="{y + 34}" r="18" fill="#17212b"/>'
+            f'<text x="{node_x + 36}" y="{y + 39}" text-anchor="middle" fill="#ffffff" '
+            f'font-size="13" font-weight="700">{index}</text>'
+            f'<text x="{node_x + 70}" y="{y + 31}" fill="#17212b" font-size="17" font-weight="700">'
+            f'{escape(node.label)}</text>'
+            f'<text x="{node_x + node_width - 18}" y="{y + 31}" text-anchor="end" '
+            f'fill="#52606d" font-size="11">{escape(node.kind)}</text>'
+            f'<text x="{node_x + 70}" y="{y + 62}" fill="#52606d" font-size="12">'
+            f'{escape(description)}</text></g>'
+        )
 
     edge_markup = []
     for flow in sorted(system_map.flows, key=lambda item: item.flow_id):
-        source_x, source_y = positions[flow.source_id]
-        target_x, target_y = positions[flow.target_id]
-        sx = source_x + node_width
-        sy = source_y + node_height / 2
-        tx = target_x
-        ty = target_y + node_height / 2
-        if target_x <= source_x:
-            sx = source_x + node_width / 2
-            sy = source_y + node_height
-            tx = target_x + node_width / 2
-            ty = target_y
-        mx = (sx + tx) / 2
-        my = (sy + ty) / 2
+        source_y = positions[flow.source_id] + node_height
+        target_y = positions[flow.target_id]
+        center_x = node_x + node_width / 2
+        middle_y = (source_y + target_y) / 2
+        label = _truncate_svg_text(flow.label, 46)
+        label_width = min(420, max(72, len(label) * 12 + 24))
         edge_markup.append(
             f'<g data-flow="{escape(flow.flow_id)}">'
-            f'<path d="M {sx:g} {sy:g} C {mx:g} {sy:g}, {mx:g} {ty:g}, {tx:g} {ty:g}" '
-            'fill="none" stroke="#7b8794" stroke-width="2"/>'
-            f'<circle cx="{tx:g}" cy="{ty:g}" r="4" fill="#52606d"/>'
-            f'<text x="{mx:g}" y="{my - 8:g}" text-anchor="middle" fill="#52606d" font-size="11">'
-            f'{escape(flow.label)}</text></g>'
+            f'<path d="M {center_x:g} {source_y:g} L {center_x:g} {target_y - 8:g}" '
+            'fill="none" stroke="#7b8794" stroke-width="2" '
+            'marker-end="url(#system-map-arrow)"/>'
+            f'<rect x="{center_x - label_width / 2:g}" y="{middle_y - 14:g}" '
+            f'width="{label_width:g}" height="24" rx="4" fill="#ffffff" stroke="#d6dce2"/>'
+            f'<text x="{center_x:g}" y="{middle_y + 3:g}" text-anchor="middle" '
+            f'fill="#52606d" font-size="11">{escape(label)}</text></g>'
         )
+
+    title_markup = _svg_tspans(title_lines, x=80, y=52, line_height=34)
+    summary_y = 52 + 34 * len(title_lines)
+    summary_markup = _svg_tspans(summary_lines, x=80, y=summary_y, line_height=22)
 
     svg = (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
         'role="img" aria-labelledby="system-map-title system-map-desc">'
         f'<title id="system-map-title">{escape(system_map.title)}</title>'
         f'<desc id="system-map-desc">{escape(system_map.summary)}</desc>'
+        '<defs><marker id="system-map-arrow" viewBox="0 0 10 10" refX="5" refY="5" '
+        'markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
+        '<path d="M 0 0 L 10 5 L 0 10 z" fill="#52606d"/></marker></defs>'
         f'<rect width="{width}" height="{height}" fill="#ffffff"/>'
-        f'<text x="42" y="54" fill="#17212b" font-size="24" font-weight="700">{escape(system_map.title)}</text>'
-        f'<text x="42" y="82" fill="#52606d" font-size="13">{escape(system_map.summary)}</text>'
+        f'<text fill="#17212b" font-size="24" font-weight="700">{title_markup}</text>'
+        f'<text fill="#52606d" font-size="13">{summary_markup}</text>'
         + "".join(edge_markup)
         + "".join(node_markup)
         + "</svg>"
     )
     validate_curated_svg(svg, label="system-map-svg")
     return svg
+
+
+def _wrap_svg_text(value: str, line_limit: int) -> tuple[str, ...]:
+    words = value.split()
+    if not words:
+        return ("",)
+    lines: list[str] = []
+    current = words[0]
+    for word in words[1:]:
+        candidate = f"{current} {word}"
+        if len(candidate) <= line_limit:
+            current = candidate
+        else:
+            lines.append(current)
+            current = word
+    lines.append(current)
+    return tuple(lines)
+
+
+def _svg_tspans(lines: tuple[str, ...], *, x: int, y: int, line_height: int) -> str:
+    return "".join(
+        f'<tspan x="{x}" y="{y + index * line_height}">{escape(line)}</tspan>'
+        for index, line in enumerate(lines)
+    )
+
+
+def _truncate_svg_text(value: str, limit: int) -> str:
+    clean = " ".join(value.split())
+    return clean if len(clean) <= limit else f"{clean[: limit - 3].rstrip()}..."
 
 
 def _require_unique(values: object, label: str) -> None:
