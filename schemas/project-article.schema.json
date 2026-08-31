@@ -7,6 +7,13 @@
     "project_id": {"$ref": "#/$defs/stableId"},
     "title": {"type": "string", "minLength": 1},
     "summary": {"type": "string", "minLength": 1},
+    "orientation": {"type": "string", "minLength": 1},
+    "orientation_evidence_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/stableId"}
+    },
     "readiness": {"enum": ["ready", "insufficient-evidence", "review-required"]},
     "prior_context": {"type": "string", "minLength": 1},
     "sections": {"type": "array", "items": {"$ref": "#/$defs/section"}},

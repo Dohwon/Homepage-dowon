@@ -86,6 +86,10 @@ def audit_project_content(
             findings.add("title:blank-title")
         if article.project_id != project.project_id:
             findings.add("article-project-mismatch")
+        if article.readiness == "ready" and not article.orientation.strip():
+            findings.add("missing-orientation")
+        if article.readiness == "ready" and not article.orientation_evidence_ids:
+            findings.add("missing-orientation-evidence")
         referenced_ids = _referenced_evidence_ids(article)
         if not referenced_ids:
             findings.add("no-curated-evidence")
@@ -189,7 +193,7 @@ def _is_well_formed_report(report: object) -> bool:
 
 
 def _referenced_evidence_ids(article: ProjectArticle) -> tuple[str, ...]:
-    return tuple(
+    return article.orientation_evidence_ids + tuple(
         evidence_id
         for section in article.sections
         for evidence_id in section.evidence_ids
@@ -204,6 +208,7 @@ def _has_duplicate_evidence_reference(article: ProjectArticle) -> bool:
     return any(
         len(references) != len(set(references))
         for references in (
+            article.orientation_evidence_ids,
             *(section.evidence_ids for section in article.sections),
             *(decision.evidence_ids for decision in article.decision_index),
         )

@@ -46,6 +46,8 @@ def _article(*evidence_ids: str, sections: int = 1, title: str = "Evidence-backe
         project_id="alpha",
         title=title,
         summary="Curated result",
+        orientation="A first-time reader can identify the project and its starting problem.",
+        orientation_evidence_ids=(evidence_ids[0],) if evidence_ids else (),
         readiness="ready",
         sections=tuple(
             ArticleSection(
@@ -87,6 +89,30 @@ def test_missing_article_yields_insufficient_evidence_without_generic_sections()
 
     assert audit.readiness == "insufficient-evidence"
     assert "generic-section" not in audit.findings
+
+
+def test_ready_article_without_evidence_backed_orientation_requires_review():
+    article = _article("ev-support")
+    article = ProjectArticle(
+        project_id=article.project_id,
+        title=article.title,
+        summary=article.summary,
+        readiness=article.readiness,
+        sections=article.sections,
+    )
+
+    audit = audit_project_content(
+        _project(),
+        _manifest(),
+        article,
+        (_evidence("ev-support"),),
+        (),
+        article_validator=_clean_validator,
+    )
+
+    assert audit.readiness == "review-required"
+    assert "missing-orientation" in audit.findings
+    assert "missing-orientation-evidence" in audit.findings
 
 
 def test_missing_referenced_evidence_is_review_required():
@@ -215,6 +241,8 @@ def test_section_and_decision_index_may_share_same_evidence_reference():
         project_id="alpha",
         title="Evidence-backed decision",
         summary="Curated result",
+        orientation="The project starts from a documented product problem.",
+        orientation_evidence_ids=("ev-support",),
         readiness="ready",
         sections=(
             ArticleSection(

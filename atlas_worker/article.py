@@ -101,6 +101,15 @@ def load_project_article(ref: ProjectRef, gate: PrivacyGate | None = None) -> Pr
 
     evidence = _load_project_evidence(ref, root, source, gate, article_present=True)
     evidence_ids = {record.evidence_id for record in evidence}
+    orientation = data.get("orientation", "")
+    orientation_evidence = data.get("orientation_evidence_ids", [])
+    if data["readiness"] == "ready" and not orientation:
+        raise ValueError("ready article requires orientation")
+    if data["readiness"] == "ready" and not orientation_evidence:
+        raise ValueError("ready article requires orientation evidence")
+    validated_orientation_evidence = _validated_references(
+        orientation_evidence, evidence_ids, "orientation evidence"
+    )
     sections = _load_sections(data["sections"], source, root, gate, evidence_ids)
     decisions = _load_decisions(data.get("decision_index", []), sections, evidence_ids)
     return ProjectArticle(
@@ -109,6 +118,8 @@ def load_project_article(ref: ProjectRef, gate: PrivacyGate | None = None) -> Pr
         summary=data["summary"],
         readiness=data["readiness"],
         sections=sections,
+        orientation=orientation,
+        orientation_evidence_ids=validated_orientation_evidence,
         prior_context=data.get("prior_context", ""),
         decision_index=decisions,
     )

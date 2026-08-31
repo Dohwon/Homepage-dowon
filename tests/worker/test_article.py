@@ -56,6 +56,8 @@ def _article(*, diagrams: list[dict[str, str]] | None = None) -> dict[str, objec
         "project_id": "alpha",
         "title": "경로 주행 기록 개선",
         "summary": "주행 경로를 영구 도로 기록으로 변환했다.",
+        "orientation": "하루 뒤 사라지는 경로 원본을 방문 기록의 정본으로 쓸 수 없었다. 이 글은 임시 경로와 영구 도로 기록의 수명을 분리한 과정을 설명한다.",
+        "orientation_evidence_ids": ["ev-spec"],
         "readiness": "ready",
         "sections": [
             {
@@ -121,6 +123,8 @@ def test_article_loader_preserves_long_markdown_section_order_and_private_projec
     article = load_project_article(ref, _gate())
 
     assert article is not None
+    assert article.orientation.startswith("하루 뒤 사라지는 경로")
+    assert article.orientation_evidence_ids == ("ev-spec",)
     assert [section.section_id for section in article.sections] == ["retention", "validation"]
     assert article.sections[0].body.count("\n\n") == 1
     assert article.sections[1].body.count("\n\n") == 2
@@ -132,6 +136,25 @@ def test_article_loader_preserves_long_markdown_section_order_and_private_projec
     assert "svg" not in str(public)
     assert "source_locator" not in str(public)
     assert "content_hash" not in str(public)
+
+
+def test_ready_article_requires_evidence_backed_orientation(tmp_path):
+    ref = make_project_ref(tmp_path)
+    missing = _article()
+    missing.pop("orientation")
+    missing.pop("orientation_evidence_ids")
+    _write_article(tmp_path, missing)
+    _write_evidence(tmp_path, [_evidence()])
+
+    with pytest.raises(ValueError, match="orientation"):
+        load_project_article(ref, _gate())
+
+    unreferenced = _article()
+    unreferenced["orientation_evidence_ids"] = ["ev-missing"]
+    _write_article(tmp_path, unreferenced)
+
+    with pytest.raises(ValueError, match="evidence"):
+        load_project_article(ref, _gate())
 
 
 @pytest.mark.parametrize(

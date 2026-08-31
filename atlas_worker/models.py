@@ -389,6 +389,8 @@ class ProjectArticle:
     summary: str
     sections: tuple[ArticleSection, ...]
     readiness: Readiness
+    orientation: str = ""
+    orientation_evidence_ids: tuple[str, ...] = ()
     prior_context: str = ""
     decision_index: tuple[DecisionIndexEntry, ...] = ()
 
@@ -400,6 +402,10 @@ class ProjectArticle:
             "readiness": self.readiness,
             "sections": [_public_section(section) for section in self.sections],
         }
+        if self.orientation:
+            payload["orientation"] = self.orientation
+        if self.orientation_evidence_ids:
+            payload["orientation_evidence_ids"] = list(self.orientation_evidence_ids)
         if self.prior_context:
             payload["prior_context"] = self.prior_context
         if self.decision_index:

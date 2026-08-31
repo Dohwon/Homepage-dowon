@@ -1337,6 +1337,8 @@ def _load_reusable_article(
         summary=payload["summary"],
         sections=tuple(sections),
         readiness=payload["readiness"],
+        orientation=payload.get("orientation", ""),
+        orientation_evidence_ids=tuple(payload.get("orientation_evidence_ids", ())),
         prior_context=payload.get("prior_context", ""),
         decision_index=decisions,
     )
