@@ -400,6 +400,19 @@ svg { display: block; }
 .article-figure figcaption { margin-top: 9px; color: var(--muted); font-size: 13px; }
 .project-map { overflow: hidden; }
 .project-map svg { display: block; inline-size: 100%; block-size: auto; }
+.system-map-intro { margin-bottom: 24px; }
+.system-map-intro h2 { margin: 0 0 8px; font-size: 24px; }
+.system-map-section { margin-top: 40px; scroll-margin-top: calc(var(--reader-sticky-offset) + 8px); }
+.system-map-section > h2 { margin: 0 0 14px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 20px; }
+.system-map-components { margin: 0; }
+.system-map-components > div { display: grid; grid-template-columns: minmax(140px, 0.36fr) minmax(0, 1fr); gap: 24px; padding: 15px 0; border-bottom: 1px solid var(--line); }
+.system-map-components dt { font-weight: 700; }
+.system-map-components dt span { display: block; margin-top: 4px; color: var(--muted); font: 500 10px/1.4 "JetBrains Mono", monospace; text-transform: uppercase; }
+.system-map-components dd { margin: 0; color: var(--muted); line-height: 1.65; }
+.system-map-decisions { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.system-map-decisions li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.system-map-decisions a { color: var(--focus); font-weight: 650; text-decoration: none; }
+.system-map-decisions span { color: var(--muted); font-size: 12px; text-align: end; }
 .empty-state { border-block: 1px solid var(--line); padding: 40px 0; color: var(--muted); }
 
 .project-pager { display: flex; justify-content: space-between; gap: 16px; margin-top: 54px; padding-top: 20px; border-top: 1px solid var(--line); }

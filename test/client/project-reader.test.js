@@ -182,6 +182,7 @@ function fixtureProject(overrides = {}) {
     },
     visuals: {},
     systemMap: undefined,
+    systemMapData: undefined,
     timeline: [],
     evidence: [],
     ...overrides
@@ -370,7 +371,18 @@ test("system map sanitizes svg independently and omits unsafe markup", async (t)
   installSanitizers(t);
   const { renderProjectContent } = await importRenderModule(t);
   const project = fixtureProject({
-    systemMap: '<svg xmlns="http://www.w3.org/2000/svg" onload="unsafe()"><script>alert(1)</script><foreignObject>unsafe</foreignObject><g><path d="M0 0h1" /></g></svg>'
+    systemMap: '<svg xmlns="http://www.w3.org/2000/svg" onload="unsafe()"><script>alert(1)</script><foreignObject>unsafe</foreignObject><g><path d="M0 0h1" /></g></svg>',
+    systemMapData: {
+      project_id: "alpha",
+      title: "Routing contract map",
+      summary: "요청이 검증을 거쳐 결과로 바뀌는 경계를 설명한다.",
+      nodes: [
+        { id: "request", label: "요청", kind: "input", description: "사용자가 보내는 입력이다." },
+        { id: "router", label: "라우터", kind: "process", description: "지원되는 실행 경로를 고른다." }
+      ],
+      flows: [{ id: "route", from: "request", to: "router", label: "검증 후 전달" }],
+      decision_links: [{ node_ids: ["request", "router"], section_id: "retention", label: "입력 계약 고정" }]
+    }
   });
 
   const result = renderProjectContent(project, "system-map");
@@ -378,7 +390,11 @@ test("system map sanitizes svg independently and omits unsafe markup", async (t)
   assert.match(result.html, /data-system-map/);
   assert.match(result.html, /<svg/);
   assert.doesNotMatch(result.html, /script|foreignObject|onload/);
-  assert.equal(result.headings.length, 0);
+  assert.match(result.html, /Routing contract map/);
+  assert.match(result.html, /요청이 검증을 거쳐/);
+  assert.match(result.html, /사용자가 보내는 입력/);
+  assert.match(result.html, /href="\?tab=decisions#retention"/);
+  assert.deepEqual(result.headings, [{ id: "system-map-components", label: "구성 요소" }, { id: "system-map-decisions", label: "연결된 결정" }]);
 });
 
 test("timeline stays in stable date order without manufacturing missing dates", async (t) => {

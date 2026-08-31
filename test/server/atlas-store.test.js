@@ -41,6 +41,31 @@ test("loads structured v2 public project content without legacy fields", async (
   assert.equal(project.visualMap, undefined);
 });
 
+test("loads paired system map metadata and SVG with validated decision references", async (t) => {
+  const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-system-map-"));
+  t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+  await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+  const projectDir = path.join(temporaryRoot, "projects", "alpha");
+  await fsp.writeFile(path.join(projectDir, "system-map.json"), JSON.stringify({
+    project_id: "alpha",
+    title: "Routing contract map",
+    summary: "The request crosses a deterministic routing boundary.",
+    nodes: [
+      { id: "request", label: "Request", kind: "input", description: "The public input." },
+      { id: "router", label: "Router", kind: "process", description: "The routing decision." }
+    ],
+    flows: [{ id: "route", from: "request", to: "router", label: "validate" }],
+    decision_links: [{ node_ids: ["request", "router"], section_id: "routing", label: "Keep routing deterministic" }]
+  }));
+  await fsp.writeFile(path.join(projectDir, "system-map.svg"), '<svg xmlns="http://www.w3.org/2000/svg"><title>Map</title></svg>');
+
+  const project = await createAtlasStore({ bundleDir: temporaryRoot }).project("alpha");
+
+  assert.equal(project.systemMapData.title, "Routing contract map");
+  assert.equal(project.systemMapData.decision_links[0].section_id, "routing");
+  assert.match(project.systemMap, /<svg/);
+});
+
 test("rejects non-public evidence URLs in the v2 store loader", async (t) => {
   const cases = [
     "http://example.com/doc",

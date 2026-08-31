@@ -663,8 +663,31 @@ export function renderArticle(project) {
 
 export function renderSystemMap(project) {
   const svg = sanitizeSvg(project?.systemMap);
-  if (!svg) return renderEmptyState(contentStateMessage(project?.article?.readiness, "공개된 시스템 맵이 없습니다."));
-  return { html: `<div class="project-map" data-system-map>${svg}</div>`, headings: [] };
+  const data = project?.systemMapData;
+  if (!svg || !data) return renderEmptyState(contentStateMessage(project?.article?.readiness, "공개된 시스템 맵이 없습니다."));
+  const nodes = Array.isArray(data.nodes) ? data.nodes : [];
+  const decisions = Array.isArray(data.decision_links) ? data.decision_links : [];
+  const headings = [{ id: "system-map-components", label: "구성 요소" }];
+  if (decisions.length) headings.push({ id: "system-map-decisions", label: "연결된 결정" });
+  const decisionSection = decisions.length ? `<section id="system-map-decisions" class="system-map-section" data-article-section="system-map-decisions">
+    <h2>연결된 결정</h2>
+    <ul class="system-map-decisions">${decisions.map((decision) => `<li>
+      <a href="?tab=decisions#${escapeHtml(decision.section_id)}" data-route-link>${escapeHtml(decision.label)}</a>
+      <span>${(decision.node_ids || []).map((nodeId) => escapeHtml(nodes.find((node) => node.id === nodeId)?.label || nodeId)).join(" · ")}</span>
+    </li>`).join("")}</ul>
+  </section>` : "";
+  return {
+    html: `<article class="system-map-article" data-system-map>
+      <header class="system-map-intro"><h2>${escapeHtml(data.title)}</h2><div class="markdown-body">${renderMarkdown(data.summary)}</div></header>
+      <div class="project-map" role="img" aria-label="${escapeHtml(data.title)}">${svg}</div>
+      <section id="system-map-components" class="system-map-section" data-article-section="system-map-components">
+        <h2>구성 요소</h2>
+        <dl class="system-map-components">${nodes.map((node) => `<div><dt>${escapeHtml(node.label)}<span>${escapeHtml(node.kind)}</span></dt><dd>${escapeHtml(node.description)}</dd></div>`).join("")}</dl>
+      </section>
+      ${decisionSection}
+    </article>`,
+    headings
+  };
 }
 
 function timelineItems(records = []) {
