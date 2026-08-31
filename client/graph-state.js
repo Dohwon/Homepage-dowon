@@ -123,12 +123,17 @@ export function createGraphIndex(graph) {
 export function initialGraphState(index) {
   const visibleNodeIds = new Set(index.nodesByKind.get("KnowledgeFocus") || []);
   const visibleEdgeIds = new Set();
-  for (const edge of index.edges) {
-    if (edge.kind !== "HAS_FOCUS") continue;
-    if (!index.nodes.has(edge.source) || !index.nodes.has(edge.target)) continue;
-    visibleNodeIds.add(edge.source);
-    visibleNodeIds.add(edge.target);
-    visibleEdgeIds.add(edge.id);
+  const queue = [...visibleNodeIds];
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    const parentId = queue[cursor];
+    for (const edge of index.adjacency.get(parentId) || []) {
+      const followsTaxonomy = (edge.kind === "FOCUS_HAS_TAG" || edge.kind === "HAS_SUBTAG")
+        && edge.source === parentId;
+      if (!followsTaxonomy || !index.nodes.has(edge.target)) continue;
+      if (!visibleNodeIds.has(edge.target)) queue.push(edge.target);
+      visibleNodeIds.add(edge.target);
+      visibleEdgeIds.add(edge.id);
+    }
   }
 
   return freezeGraphState({
@@ -145,7 +150,7 @@ export function expandNode(state, nodeId, index) {
   const node = index.nodes.get(nodeId);
   const allowedKinds = node?.kind === "Project"
     ? PROJECT_EXPANSION
-    : new Set();
+    : new Set(["HAS_TAG"]);
   const visibleNodeIds = new Set(state.visibleNodeIds);
   const visibleEdgeIds = new Set(state.visibleEdgeIds);
 
@@ -169,6 +174,7 @@ export function expandNode(state, nodeId, index) {
   } else {
     for (const edge of index.adjacency.get(nodeId) || []) {
       if (!allowedKinds.has(edge.kind)) continue;
+      if (node?.kind !== "Project" && edge.target !== nodeId) continue;
       visibleNodeIds.add(edge.source);
       visibleNodeIds.add(edge.target);
       visibleEdgeIds.add(edge.id);

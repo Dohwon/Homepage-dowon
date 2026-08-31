@@ -45,16 +45,17 @@ function fixtureGraph() {
   };
 }
 
-test("initial graph shows only focuses and connected projects", async () => {
+test("initial graph shows the readable focus, domain, and tag taxonomy without projects or artifacts", async () => {
   const { createGraphIndex, initialGraphState, visibleGraph } = await importGraphStateModule();
   const index = createGraphIndex(fixtureGraph());
   const visible = visibleGraph(initialGraphState(index), index);
 
   assert.deepEqual(
     visible.nodes.map((item) => item.id).sort(),
-    ["focus:delivery", "project:alpha", "project:beta"],
+    ["domain:routing", "focus:delivery", "tag:routing"],
   );
-  assert.deepEqual(new Set(visible.links.map((link) => link.kind)), new Set(["HAS_FOCUS"]));
+  assert.deepEqual(new Set(visible.links.map((link) => link.kind)), new Set(["FOCUS_HAS_TAG", "HAS_SUBTAG"]));
+  assert.equal(visible.nodes.some((item) => item.kind === "Artifact"), false);
 });
 
 test("initial graph hides direct relations between visible projects until expansion", async () => {
@@ -66,12 +67,26 @@ test("initial graph hides direct relations between visible projects until expans
 
   assert.deepEqual(
     visibleGraph(initial, index).links.map((link) => link.id).sort(),
-    ["has-focus:alpha", "has-focus:beta"],
+    ["domain-subtag", "focus-domain"],
   );
 
   const expanded = expandNode(initial, "project:alpha", index);
   assert.equal(visibleGraph(expanded, index).links.some((link) => link.id === "evolved:alpha-beta"), true);
   assert.equal(visibleGraph(expanded, index).links.some((link) => link.id === "produces:beta"), false);
+});
+
+test("tag expansion reveals its connected projects before project details", async () => {
+  const { createGraphIndex, initialGraphState, expandNode, visibleGraph } = await importGraphStateModule();
+  const index = createGraphIndex(fixtureGraph());
+  const state = expandNode(initialGraphState(index), "tag:routing", index);
+  const visible = visibleGraph(state, index);
+
+  assert.deepEqual(
+    visible.nodes.map((item) => item.id).sort(),
+    ["domain:routing", "focus:delivery", "project:alpha", "tag:routing"],
+  );
+  assert.equal(visible.nodes.some((item) => item.kind === "Artifact"), false);
+  assert.equal(visible.links.some((item) => item.id === "has-tag:alpha"), true);
 });
 
 test("project expansion adds only its exact allowed one-hop neighbors", async () => {
@@ -84,9 +99,9 @@ test("project expansion adds only its exact allowed one-hop neighbors", async ()
     visibleGraph(state, index).nodes.map((item) => item.id).sort(),
     [
       "artifact:alpha:report",
+      "domain:routing",
       "focus:delivery",
       "project:alpha",
-      "project:beta",
       "tag:routing",
       "technology:python",
     ],
@@ -104,11 +119,11 @@ test("focus expansion follows projector topology to reveal domains and their tag
 
   assert.deepEqual(
     visibleGraph(state, index).nodes.map((item) => item.id).sort(),
-    ["domain:routing", "focus:delivery", "project:alpha", "project:beta", "tag:routing"],
+    ["domain:routing", "focus:delivery", "tag:routing"],
   );
   assert.deepEqual(
     visibleGraph(state, index).links.map((item) => item.id).sort(),
-    ["domain-subtag", "focus-domain", "has-focus:alpha", "has-focus:beta"],
+    ["domain-subtag", "focus-domain"],
   );
 });
 
@@ -168,12 +183,12 @@ test("search reveals the deterministic shortest path through a cyclic graph", as
   assert.deepEqual(state.revealedPath, ["focus:root", "domain:z", "tag:target"]);
   assert.deepEqual(
     [...state.visibleNodeIds].sort(),
-    ["domain:z", "focus:root", "project:a", "tag:target"],
+    ["domain:z", "focus:root", "tag:target"],
   );
   assert.equal(state.selectedId, "tag:target");
   assert.deepEqual(
     visibleGraph(state, index).links.map((link) => link.id).sort(),
-    ["domain-target", "focus-domain", "focus-project"],
+    ["domain-target", "focus-domain"],
   );
 });
 
@@ -191,9 +206,9 @@ test("project search reveals its path before expanding one exact neighborhood", 
     visibleGraph(expanded, index).nodes.map((item) => item.id).sort(),
     [
       "artifact:alpha:report",
+      "domain:routing",
       "focus:delivery",
       "project:alpha",
-      "project:beta",
       "tag:routing",
       "technology:python",
     ],
@@ -253,18 +268,18 @@ test("visible projection marks the selected neighborhood active and leaves sourc
   const projectedLinks = new Map(visible.links.map((item) => [item.id, item]));
 
   assert.equal(projectedNodes.get("project:alpha").active, true);
-  assert.equal(projectedNodes.get("focus:delivery").active, true);
+  assert.equal(projectedNodes.get("focus:delivery").dimmed, true);
   assert.equal(projectedNodes.get("technology:python").active, true);
-  assert.equal(projectedNodes.get("project:beta").dimmed, true);
-  assert.equal(projectedLinks.get("has-focus:alpha").active, true);
-  assert.equal(projectedLinks.get("has-focus:beta").dimmed, true);
+  assert.equal(projectedNodes.has("project:beta"), false);
+  assert.equal(projectedLinks.has("has-focus:alpha"), false);
+  assert.equal(projectedLinks.get("has-tag:alpha").active, true);
   assert.deepEqual(graph, sourceSnapshot);
   assert.equal("active" in graph.nodes[0], false);
   assert.equal("dimmed" in graph.edges[0], false);
   assert.notStrictEqual(visible.nodes[0], graph.nodes.find((item) => item.id === visible.nodes[0].id));
   assert.notStrictEqual(visible.links[0], graph.edges.find((item) => item.id === visible.links[0].id));
   assert.equal(Object.isFrozen(initial), true);
-  assert.deepEqual([...initial.visibleNodeIds].sort(), ["focus:delivery", "project:alpha", "project:beta"]);
+  assert.deepEqual([...initial.visibleNodeIds].sort(), ["domain:routing", "focus:delivery", "tag:routing"]);
 });
 
 test("public state collections reject mutation without changing earlier snapshots", async () => {
