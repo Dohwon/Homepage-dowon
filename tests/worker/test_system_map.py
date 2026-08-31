@@ -110,6 +110,7 @@ def test_svg_wraps_long_project_context_instead_of_clipping_it(tmp_path):
         "처음 보는 사람도 프로젝트의 출발 문제와 구현 경계를 읽을 수 있도록 "
         "긴 설명을 여러 줄로 나누어 표시한다."
     )
+    value["nodes"][0]["description"] = "한글 설명이 노드 폭을 넘어가지 않도록 " * 12
     _write_map(tmp_path, value)
     system_map = load_project_system_map(
         make_project_ref(tmp_path), _article(), _evidence(), _gate()
@@ -119,6 +120,8 @@ def test_svg_wraps_long_project_context_instead_of_clipping_it(tmp_path):
 
     assert svg.count("<tspan") >= 2
     assert "긴 설명을 여러 줄로" in svg
+    assert "..." in svg
+    assert ("한글 설명이 노드 폭을 넘어가지 않도록 " * 4) not in svg
 
 
 @pytest.mark.parametrize(

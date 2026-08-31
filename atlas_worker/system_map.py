@@ -106,7 +106,7 @@ def render_system_map_svg(system_map: ProjectSystemMap) -> str:
     for index, node in enumerate(system_map.nodes, 1):
         y = start_y + (index - 1) * row_step
         positions[node.node_id] = y
-        description = _truncate_svg_text(node.description, 104)
+        description = _truncate_svg_text(node.description, 68)
         node_markup.append(
             f'<g data-node="{escape(node.node_id)}">'
             f'<rect x="{node_x}" y="{y}" width="{node_width}" height="{node_height}" rx="6" '
