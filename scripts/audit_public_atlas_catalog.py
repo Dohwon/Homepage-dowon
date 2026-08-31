@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import re
 import secrets
 import sys
 import tempfile
@@ -21,12 +22,15 @@ if REPOSITORY_ROOT not in sys.path:
 from atlas_worker.article import load_project_article, load_project_evidence
 from atlas_worker.bundle import build_candidate_bundle, validate_bundle
 from atlas_worker.cli import (
+    _build_input_digest,
     _bundle_context,
     _discover,
+    _global_dependency_hashes,
     _load_runtime_config,
     _public_project_audits,
 )
 from atlas_worker.content_audit import audit_curated_project_content
+from atlas_worker.fs_safety import read_confined_text
 from atlas_worker.kg import load_project_relations
 from atlas_worker.models import EvidenceRecord
 from atlas_worker.privacy import PrivacyGate
@@ -103,6 +107,8 @@ class CatalogAudit:
     similarity_edges: tuple[str, ...]
     inferred_relations: tuple[str, ...]
     map_diary_ownership_findings: tuple[str, ...]
+    input_digest: str = ""
+    bundle_version: str = ""
 
     @property
     def ready(self) -> bool:
@@ -122,9 +128,29 @@ class CatalogAudit:
 
     def to_dict(self) -> dict[str, object]:
         value = asdict(self)
+        value.pop("input_digest", None)
+        value.pop("bundle_version", None)
+        for key in (
+            "review_required",
+            "insufficient_evidence",
+            "generic_decision_documents",
+            "invalid_evidence",
+            "unreferenced_svgs",
+            "similarity_edges",
+            "inferred_relations",
+            "map_diary_ownership_findings",
+        ):
+            value[key] = [_public_finding(item) for item in value[key]]
         value["project_count"] = len(self.project_ids)
         value["ready"] = self.ready
         return value
+
+
+_PUBLIC_FINDING = re.compile(r"^[a-z0-9-]+(?::[a-z0-9-]+)?$")
+
+
+def _public_finding(value: str) -> str:
+    return value if _PUBLIC_FINDING.fullmatch(value) else "catalog:finding-redacted"
 
 
 def audit_project_id_set(project_ids: Sequence[str]) -> ProjectSetAudit:
@@ -154,14 +180,15 @@ def validate_evidence_owner(project_root: Path, evidence: EvidenceRecord) -> tup
         return ("invalid-evidence-locator",)
     if tuple(path.parts[:2]) == ("project_memory", "project-atlas"):
         return ("self-authored-atlas-evidence",)
-    source = Path(project_root).joinpath(*path.parts)
     try:
-        metadata = source.lstat()
-        if source.is_symlink() or not source.is_file():
-            return ("evidence-source-unavailable",)
-        content = source.read_bytes()
-        lines = content.decode("utf-8").splitlines()
-    except (OSError, UnicodeError):
+        text = read_confined_text(
+            Path(project_root).joinpath(*path.parts),
+            Path(project_root),
+            max_bytes=16 * 1024 * 1024,
+        )
+        content = text.encode("utf-8")
+        lines = text.splitlines()
+    except (OSError, UnicodeError, ValueError):
         return ("evidence-source-unavailable",)
     findings: list[str] = []
     if hashlib.sha256(content).hexdigest() != evidence.content_hash:
@@ -192,6 +219,9 @@ def audit_public_catalog(workspace: Path) -> CatalogAudit:
         for item in discovery.projects
         if item.publication == "public" and item.project_id not in ambiguous
     }
+    project_refs, audit_hashes = _public_project_audits(discovery)
+    dependency_hashes = _global_dependency_hashes(config, project_refs)
+    input_digest = _build_input_digest(audit_hashes, dependency_hashes)
     project_set = audit_project_id_set(tuple(public_refs))
     review_required: set[str] = set()
     insufficient: set[str] = set()
@@ -208,7 +238,7 @@ def audit_public_catalog(workspace: Path) -> CatalogAudit:
         if ref is None:
             continue
         if project_id in _MAP_DIARY_PATHS and ref.relative_path != _MAP_DIARY_PATHS[project_id]:
-            map_findings.add(project_id)
+            map_findings.add(f"{project_id}:map-diary-ownership")
         atlas_root = ref.root / "project_memory" / "project-atlas"
         try:
             manifest = build_source_manifest(ref, runner)
@@ -225,12 +255,12 @@ def audit_public_catalog(workspace: Path) -> CatalogAudit:
             review_required.add(project_id)
         for record in evidence:
             for code in validate_evidence_owner(ref.root, record):
-                invalid_evidence.add(f"{project_id}:{record.evidence_id}:{code}")
+                invalid_evidence.add(f"{project_id}:{code}")
         evidence_ids_by_project[project_id] = {record.evidence_id for record in evidence}
         relations_by_project[project_id] = relations
         for relative in _GENERIC_CURATED_PATHS:
             if (atlas_root / relative).exists() or (atlas_root / relative).is_symlink():
-                generic.add(f"{project_id}:{relative}")
+                generic.add(f"{project_id}:generic-decision-document")
         referenced = set()
         if article is not None:
             referenced = {
@@ -243,7 +273,7 @@ def audit_public_catalog(workspace: Path) -> CatalogAudit:
             for svg in visuals.glob("*.svg"):
                 relative = svg.relative_to(ref.root).as_posix()
                 if relative not in referenced:
-                    unreferenced_svgs.add(f"{project_id}:{svg.name}")
+                    unreferenced_svgs.add(f"{project_id}:unreferenced-svg")
 
     for project_id, relations in relations_by_project.items():
         for relation in relations:
@@ -259,9 +289,9 @@ def audit_public_catalog(workspace: Path) -> CatalogAudit:
 
     similarity_edges: set[str] = set()
     inferred_relations: set[str] = set()
+    bundle_version = ""
     if not project_set.missing_project_ids and not project_set.unexpected_project_ids:
         try:
-            project_refs, audit_hashes = _public_project_audits(discovery)
             context = _bundle_context(
                 root,
                 project_refs,
@@ -274,18 +304,27 @@ def audit_public_catalog(workspace: Path) -> CatalogAudit:
             with tempfile.TemporaryDirectory(prefix="project-atlas-catalog-audit-") as temporary:
                 candidate = Path(temporary) / "candidate"
                 build_candidate_bundle(context, candidate)
-                validate_bundle(candidate, gate)
+                bundle_version = validate_bundle(candidate, gate).version
             for edge in context.graph.edges:
                 if edge.kind == "project-similarity":
-                    similarity_edges.add(edge.edge_id)
+                    similarity_edges.add("catalog:similarity-edge")
                 if (
                     edge.source_id.startswith("project:")
                     and edge.target_id.startswith("project:")
                     and (edge.kind not in _DIRECT_RELATIONS or not edge.evidence_links)
                 ):
-                    inferred_relations.add(edge.edge_id)
+                    inferred_relations.add("catalog:inferred-project-relation")
         except Exception:
             review_required.add("catalog-graph")
+
+    try:
+        final_discovery = _discover(root, config, source_gate=gate)
+        final_refs, final_audit_hashes = _public_project_audits(final_discovery)
+        final_dependency_hashes = _global_dependency_hashes(config, final_refs)
+        if _build_input_digest(final_audit_hashes, final_dependency_hashes) != input_digest:
+            review_required.add("catalog:source-drift")
+    except Exception:
+        review_required.add("catalog:source-drift")
 
     return CatalogAudit(
         project_ids=project_set.project_ids,
@@ -299,6 +338,8 @@ def audit_public_catalog(workspace: Path) -> CatalogAudit:
         similarity_edges=tuple(sorted(similarity_edges)),
         inferred_relations=tuple(sorted(inferred_relations)),
         map_diary_ownership_findings=tuple(sorted(map_findings)),
+        input_digest=input_digest,
+        bundle_version=bundle_version,
     )
 
 

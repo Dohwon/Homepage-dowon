@@ -447,6 +447,8 @@ def _command_publish(args: argparse.Namespace) -> dict[str, object]:
             dry_run=False,
             runtime_state=runtime_state,
             changed_only=bool(args.changed_only),
+            expected_input_digest=catalog.input_digest,
+            expected_bundle_version=catalog.bundle_version,
         )
         promotion = PromotionResult(
             changed=bool(build["changed"]),
@@ -1011,6 +1013,8 @@ def _execute_build(
     dry_run: bool,
     runtime_state: RuntimeState | None = None,
     changed_only: bool = False,
+    expected_input_digest: str | None = None,
+    expected_bundle_version: str | None = None,
 ) -> dict[str, object]:
     if not dry_run and (runtime_state is None or not runtime_state.is_locked):
         raise OSError("Project Atlas bundle writer requires the runtime lock")
@@ -1019,6 +1023,11 @@ def _execute_build(
     previous_manifest = validate_bundle(public_dir, gate) if public_dir.is_dir() else None
     project_refs, audit_hashes = _public_project_audits(discovery)
     dependency_hashes = _global_dependency_hashes(runtime_config, project_refs)
+    if expected_input_digest is not None and expected_input_digest != _build_input_digest(
+        audit_hashes,
+        dependency_hashes,
+    ):
+        raise ConfigError("/catalog-input")
     affected_projects = tuple(ref.project_id for ref in project_refs)
     previous_state: Mapping[str, object] = {}
     reuse_last_good = False
@@ -1056,6 +1065,17 @@ def _execute_build(
         staging = Path(temporary) / "candidate"
         manifest = build_candidate_bundle(context, staging)
         validated = validate_bundle(staging, gate)
+        if expected_bundle_version is not None and validated.version != expected_bundle_version:
+            raise ConfigError("/catalog-bundle")
+        if expected_input_digest is not None:
+            final_discovery = _discover(workspace, runtime_config, source_gate=gate)
+            final_refs, final_audit_hashes = _public_project_audits(final_discovery)
+            final_dependency_hashes = _global_dependency_hashes(runtime_config, final_refs)
+            if expected_input_digest != _build_input_digest(
+                final_audit_hashes,
+                final_dependency_hashes,
+            ):
+                raise ConfigError("/catalog-input")
         changed = False
         changed_projects: list[str] = []
         if not dry_run:
@@ -1081,7 +1101,6 @@ def _execute_build(
             promotion = promote_bundle(staging, public_dir, gate, finalize=finalize)
             changed = promotion.changed
             changed_projects = list(promotion.changed_projects)
-            validated = validate_bundle(public_dir, gate)
     return {
         "affected_projects": list(affected_projects),
         "changed": changed,
@@ -1170,6 +1189,18 @@ def _global_dependency_hashes(
 def _canonical_digest(value: object) -> str:
     encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _build_input_digest(
+    audit_hashes: Mapping[str, str],
+    dependency_hashes: Mapping[str, str],
+) -> str:
+    return _canonical_digest(
+        {
+            "audit_hashes": dict(sorted(audit_hashes.items())),
+            "dependency_hashes": dict(sorted(dependency_hashes.items())),
+        }
+    )
 
 
 def _public_project(ref: ProjectRef, memory: ProjectMemory) -> PublicProject:

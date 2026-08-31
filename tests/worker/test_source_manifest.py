@@ -187,14 +187,13 @@ def test_predecessor_reader_fails_closed_when_article_is_replaced_after_open(tmp
     original_open = os.open
     article_opens = 0
 
-    def replace_on_confined_read(path, flags, *args):
+    def replace_on_confined_read(path, flags, mode=0o777, *, dir_fd=None):
         nonlocal article_opens
-        descriptor = original_open(path, flags, *args)
-        if Path(path) == article:
+        if path == "article.yaml" and dir_fd is not None:
             article_opens += 1
             if article_opens == 2:
                 replacement.replace(article)
-        return descriptor
+        return original_open(path, flags, mode, dir_fd=dir_fd)
 
     monkeypatch.setattr(fs_safety_module.os, "open", replace_on_confined_read)
 

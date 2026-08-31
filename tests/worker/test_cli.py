@@ -1751,6 +1751,98 @@ def test_state_error_after_persist_restores_bundle_and_prior_runtime_state(
     assert "injected" not in capsys.readouterr().err
 
 
+def test_no_fallible_public_validation_runs_after_state_persistence(
+    tmp_path, monkeypatch, capsys
+):
+    workspace = make_workspace_fixture(tmp_path)
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+    invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+    write_project_profile(
+        workspace / "projects" / "alpha",
+        summary="Alpha candidate with transaction-bound validation",
+    )
+    persisted = False
+    post_persist_validation_calls = 0
+    real_save = RuntimeState.save_success
+    real_validate = cli_module.validate_bundle
+
+    def track_save(self, **kwargs):
+        nonlocal persisted
+        real_save(self, **kwargs)
+        persisted = True
+
+    def reject_post_persist_validation(*args, **kwargs):
+        nonlocal post_persist_validation_calls
+        if persisted:
+            post_persist_validation_calls += 1
+            raise OSError("validation escaped promotion transaction")
+        return real_validate(*args, **kwargs)
+
+    monkeypatch.setattr(RuntimeState, "save_success", track_save)
+    monkeypatch.setattr(cli_module, "validate_bundle", reject_post_persist_validation)
+
+    code = main(["run", "--workspace", str(workspace), "--changed-only"])
+
+    assert code == EXIT_OK
+    assert post_persist_validation_calls == 0
+    assert "escaped" not in capsys.readouterr().err
+
+
+def test_release_build_rejects_source_drift_after_candidate_validation(
+    tmp_path, monkeypatch
+):
+    workspace = make_workspace_fixture(tmp_path)
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+    config = cli_module._load_runtime_config(workspace)
+    runtime_state = RuntimeState.open(workspace)
+    gate = cli_module._privacy_gate(
+        workspace,
+        config,
+        ephemeral=False,
+        runtime_state=runtime_state,
+    )
+    discovery = cli_module._discover(workspace, config, source_gate=gate)
+    baseline = cli_module._execute_build(
+        workspace,
+        config,
+        discovery,
+        gate,
+        dry_run=True,
+    )
+    refs, audit_hashes = cli_module._public_project_audits(discovery)
+    dependency_hashes = cli_module._global_dependency_hashes(config, refs)
+    expected_input = cli_module._build_input_digest(audit_hashes, dependency_hashes)
+    real_validate = cli_module.validate_bundle
+    source_changed = False
+
+    def validate_then_change_source(path, privacy_gate):
+        nonlocal source_changed
+        manifest = real_validate(path, privacy_gate)
+        if not source_changed and path.name == "candidate":
+            source_changed = True
+            write_project_profile(
+                workspace / "projects" / "alpha",
+                summary="Alpha changed after candidate validation",
+            )
+        return manifest
+
+    monkeypatch.setattr(cli_module, "validate_bundle", validate_then_change_source)
+
+    with runtime_state.lock(), pytest.raises(cli_module.ConfigError):
+        cli_module._execute_build(
+            workspace,
+            config,
+            discovery,
+            gate,
+            dry_run=False,
+            runtime_state=runtime_state,
+            expected_input_digest=expected_input,
+            expected_bundle_version=str(baseline["version"]),
+        )
+
+    assert not (workspace / "portfolio-homepage" / "public-bundle").exists()
+
+
 def test_build_dry_run_blocks_encoded_route_without_leaking_value_or_writing(tmp_path, capsys):
     workspace = make_workspace_fixture(tmp_path)
     raw_value = "%252Ftmp/private-secret"

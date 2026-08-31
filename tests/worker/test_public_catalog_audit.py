@@ -1,6 +1,8 @@
 import hashlib
 import json
+import os
 
+import atlas_worker.fs_safety as fs_safety
 from atlas_worker.models import EvidenceRecord
 from scripts.audit_public_atlas_catalog import (
     CatalogAudit,
@@ -107,6 +109,90 @@ def test_git_evidence_must_reference_a_tracked_owner_file(tmp_path):
     assert validate_evidence_owner(project, evidence) == ("git-evidence-untracked",)
     git(project, "add", "--", "decision.txt")
     assert validate_evidence_owner(project, evidence) == ()
+
+
+def test_evidence_owner_cannot_follow_an_intermediate_symlink(tmp_path):
+    project = tmp_path / "project"
+    project.mkdir()
+    external = tmp_path / "external"
+    external.mkdir()
+    source = external / "owner.py"
+    source.write_text("external_claim = True\n", encoding="utf-8")
+    (project / "linked").symlink_to(external, target_is_directory=True)
+    evidence = EvidenceRecord(
+        evidence_id="external-proof",
+        project_id="alpha",
+        label="External proof",
+        source_type="code",
+        source_locator="linked/owner.py:1",
+        observed_at="2026-08-31T00:00:00Z",
+        privacy_class="public-safe",
+        content_hash=hashlib.sha256(source.read_bytes()).hexdigest(),
+    )
+
+    assert validate_evidence_owner(project, evidence) == (
+        "evidence-source-unavailable",
+    )
+
+
+def test_evidence_owner_rejects_an_intermediate_directory_path_swap(
+    tmp_path, monkeypatch
+):
+    project = tmp_path / "project"
+    owner_dir = project / "owned"
+    owner_dir.mkdir(parents=True)
+    source = owner_dir / "owner.py"
+    source.write_text("internal_claim = True\n", encoding="utf-8")
+    external = tmp_path / "external"
+    external.mkdir()
+    (external / "owner.py").write_text("external_claim = True\n", encoding="utf-8")
+    evidence = EvidenceRecord(
+        evidence_id="swap-proof",
+        project_id="alpha",
+        label="Swap proof",
+        source_type="code",
+        source_locator="owned/owner.py:1",
+        observed_at="2026-08-31T00:00:00Z",
+        privacy_class="public-safe",
+        content_hash=hashlib.sha256(source.read_bytes()).hexdigest(),
+    )
+    original_open = os.open
+    swapped = False
+
+    def swap_before_file_open(path, flags, mode=0o777, *, dir_fd=None):
+        nonlocal swapped
+        if path == "owner.py" and dir_fd is not None and not swapped:
+            swapped = True
+            owner_dir.rename(project / "original-owned")
+            owner_dir.symlink_to(external, target_is_directory=True)
+        return original_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(fs_safety.os, "open", swap_before_file_open)
+
+    assert validate_evidence_owner(project, evidence) == (
+        "evidence-source-unavailable",
+    )
+
+
+def test_catalog_payload_redacts_unsafe_finding_details():
+    audit = CatalogAudit(
+        project_ids=EXPECTED_PROJECT_IDS,
+        missing_project_ids=(),
+        unexpected_project_ids=(),
+        review_required=(),
+        insufficient_evidence=(),
+        generic_decision_documents=("alpha:/private/generic.md",),
+        invalid_evidence=("alpha:secret-evidence:/private/source.py",),
+        unreferenced_svgs=("alpha:private-diagram.svg",),
+        similarity_edges=("edge:/private",),
+        inferred_relations=(),
+        map_diary_ownership_findings=(),
+    )
+
+    payload = json.dumps(audit.to_dict())
+
+    assert "/private" not in payload
+    assert "secret-evidence" not in payload
 
 
 def test_catalog_cli_sanitizes_unexpected_failures(monkeypatch, capsys, tmp_path):

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import errno
+import hashlib
 import os
 from pathlib import Path
 import stat
@@ -55,10 +57,10 @@ def read_confined_text(
     *,
     max_bytes: int | None = None,
 ) -> str:
-    return _read_confined_bytes(path, root, gate, max_bytes=max_bytes).decode("utf-8")
+    return read_confined_bytes(path, root, gate, max_bytes=max_bytes).decode("utf-8")
 
 
-def _read_confined_bytes(
+def read_confined_bytes(
     path: Path,
     root: Path,
     gate: PrivacyGate | None = None,
@@ -68,41 +70,143 @@ def _read_confined_bytes(
     if max_bytes is not None and (not isinstance(max_bytes, int) or max_bytes < 0):
         raise ValueError("max_bytes must be a non-negative integer")
     candidate = _confined_absolute(path, root)
-    require_no_symlink_path(candidate)
+    boundary = _absolute(root)
     if gate is not None:
         gate.require_allowed_source(candidate)
-    before = candidate.lstat()
+    descriptor = _open_confined_regular(candidate, boundary)
+    before = os.fstat(descriptor)
     if not stat.S_ISREG(before.st_mode):
+        os.close(descriptor)
         raise ValueError("curated source is not a regular file")
     if max_bytes is not None and before.st_size > max_bytes:
+        os.close(descriptor)
         raise ValueError("curated source exceeds byte limit")
 
-    flags = os.O_RDONLY
-    if hasattr(os, "O_CLOEXEC"):
-        flags |= os.O_CLOEXEC
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    descriptor = os.open(candidate, flags)
     try:
-        opened = os.fstat(descriptor)
-        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (
-            before.st_dev,
-            before.st_ino,
-        ):
-            raise ValueError("curated source changed during no-follow open")
         with os.fdopen(descriptor, "rb") as handle:
             descriptor = -1
             content = handle.read() if max_bytes is None else handle.read(max_bytes + 1)
             if max_bytes is not None and len(content) > max_bytes:
                 raise ValueError("curated source exceeds byte limit")
+            after = os.fstat(handle.fileno())
     finally:
         if descriptor >= 0:
             os.close(descriptor)
 
-    after = candidate.lstat()
-    if (after.st_dev, after.st_ino) != (before.st_dev, before.st_ino):
+    if _file_identity(after) != _file_identity(before):
         raise ValueError("curated source changed during read")
+    visible_descriptor = _open_confined_regular(candidate, boundary)
+    try:
+        if _file_identity(os.fstat(visible_descriptor)) != _file_identity(before):
+            raise ValueError("curated source changed during read")
+    finally:
+        os.close(visible_descriptor)
     return content
+
+
+def hash_confined_file(path: Path, root: Path) -> str:
+    candidate = _confined_absolute(path, root)
+    boundary = _absolute(root)
+    descriptor = _open_confined_regular(candidate, boundary)
+    before = os.fstat(descriptor)
+    digest = hashlib.sha256()
+    try:
+        with os.fdopen(descriptor, "rb") as handle:
+            descriptor = -1
+            while chunk := handle.read(1024 * 1024):
+                digest.update(chunk)
+            after = os.fstat(handle.fileno())
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    if _file_identity(after) != _file_identity(before):
+        raise ValueError("curated source changed during read")
+    visible_descriptor = _open_confined_regular(candidate, boundary)
+    try:
+        if _file_identity(os.fstat(visible_descriptor)) != _file_identity(before):
+            raise ValueError("curated source changed during read")
+    finally:
+        os.close(visible_descriptor)
+    return digest.hexdigest()
+
+
+def _open_confined_regular(candidate: Path, boundary: Path) -> int:
+    relative = candidate.relative_to(boundary)
+    if not relative.parts:
+        raise ValueError("curated source must name a file")
+    directory_descriptor = _open_absolute_directory(boundary)
+    try:
+        try:
+            for part in relative.parts[:-1]:
+                child = os.open(part, _directory_open_flags(), dir_fd=directory_descriptor)
+                os.close(directory_descriptor)
+                directory_descriptor = child
+            descriptor = os.open(
+                relative.parts[-1],
+                _regular_open_flags(),
+                dir_fd=directory_descriptor,
+            )
+        except OSError as error:
+            _raise_unsafe_path(error)
+    finally:
+        os.close(directory_descriptor)
+    if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+        os.close(descriptor)
+        raise ValueError("curated source is not a regular file")
+    return descriptor
+
+
+def _open_absolute_directory(path: Path) -> int:
+    absolute = _absolute(path)
+    descriptor = os.open(absolute.anchor, _directory_open_flags())
+    try:
+        for part in absolute.parts[1:]:
+            try:
+                child = os.open(part, _directory_open_flags(), dir_fd=descriptor)
+            except OSError as error:
+                _raise_unsafe_path(error)
+            os.close(descriptor)
+            descriptor = child
+        return descriptor
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def _raise_unsafe_path(error: OSError) -> None:
+    if error.errno in {errno.ELOOP, errno.ENOTDIR}:
+        raise ValueError("curated source path contains a symlink or non-directory") from None
+    raise error
+
+
+def _directory_open_flags() -> int:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    return flags
+
+
+def _regular_open_flags() -> int:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    return flags
+
+
+def _file_identity(metadata: os.stat_result) -> tuple[int, int, int, int, int]:
+    return (
+        metadata.st_dev,
+        metadata.st_ino,
+        metadata.st_size,
+        metadata.st_mtime_ns,
+        metadata.st_ctime_ns,
+    )
 
 
 def direct_regular_files(
@@ -197,7 +301,7 @@ def _destination_snapshot(path: Path, root: Path) -> _FileSnapshot | None:
     if not stat.S_ISREG(mode):
         raise ValueError("write destination is not a regular file")
     return _FileSnapshot(
-        content=_read_confined_bytes(path, root),
+        content=read_confined_bytes(path, root),
         mode=stat.S_IMODE(mode),
     )
 

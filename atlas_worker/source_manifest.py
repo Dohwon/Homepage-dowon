@@ -14,7 +14,7 @@ from typing import Protocol
 
 import yaml
 
-from .fs_safety import read_confined_text, require_confined_directory
+from .fs_safety import hash_confined_file, read_confined_text, require_confined_directory
 from .manifest import canonical_hash, require_no_symlink_path
 from .models import ProjectRef
 
@@ -105,10 +105,11 @@ class SourceManifest:
 def build_source_manifest(project: ProjectRef, runner: GitRunner) -> SourceManifest:
     """Hash a project's regular files without exposing local paths or Git values."""
     root = project.root
+    read_boundary = root.parent if project.standalone_asset else root
     files = tuple(
         SourceFile(
             relative_path=relative_path,
-            content_hash=_content_hash(path),
+            content_hash=_content_hash(path, read_boundary),
             source_class=_source_class(relative_path),
             project_id=project.project_id,
         )
@@ -183,34 +184,8 @@ def _walk_project_files(
         yield path.relative_to(root).as_posix(), path
 
 
-def _content_hash(path: Path) -> str:
-    require_no_symlink_path(path)
-    before = path.lstat()
-    flags = os.O_RDONLY
-    if hasattr(os, "O_CLOEXEC"):
-        flags |= os.O_CLOEXEC
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    descriptor = os.open(path, flags)
-    try:
-        opened = os.fstat(descriptor)
-        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (
-            before.st_dev,
-            before.st_ino,
-        ):
-            raise ValueError("source manifest file changed during no-follow open")
-        digest = hashlib.sha256()
-        with os.fdopen(descriptor, "rb") as handle:
-            descriptor = -1
-            while chunk := handle.read(1024 * 1024):
-                digest.update(chunk)
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
-    after = path.lstat()
-    if (after.st_dev, after.st_ino) != (before.st_dev, before.st_ino):
-        raise ValueError("source manifest file changed during read")
-    return digest.hexdigest()
+def _content_hash(path: Path, root: Path) -> str:
+    return hash_confined_file(path, root)
 
 
 def _source_class(relative_path: str) -> str:

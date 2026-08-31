@@ -47,6 +47,21 @@ def test_hmac_key_symlink_cannot_redirect_secret_read(tmp_path):
     assert external.read_bytes() == b"x" * 32
 
 
+def test_hmac_key_parent_symlink_is_rejected_without_external_directory_creation(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    external = tmp_path / "external-config"
+    external.mkdir()
+    config_link = tmp_path / "linked-config"
+    config_link.symlink_to(external, target_is_directory=True)
+    state = RuntimeState.open(workspace, config_home=config_link)
+
+    with pytest.raises((OSError, ValueError)):
+        state.load_hmac_key()
+
+    assert not (external / "project-atlas").exists()
+
+
 def test_second_worker_cannot_take_lock(tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()

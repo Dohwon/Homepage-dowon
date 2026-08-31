@@ -85,8 +85,7 @@ class RuntimeState:
 
     def load_hmac_key(self) -> bytes:
         parent = self.hmac_key_path.parent
-        parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        with _open_directory_chain(parent) as parent_descriptor:
+        with _open_directory_chain(parent, create=True) as parent_descriptor:
             os.fchmod(parent_descriptor, 0o700)
             try:
                 descriptor = _open_regular_at(
@@ -352,7 +351,7 @@ def _regular_open_flags(flags: int) -> int:
 
 
 @contextmanager
-def _open_directory_chain(path: Path) -> Iterator[int]:
+def _open_directory_chain(path: Path, *, create: bool = False) -> Iterator[int]:
     candidate = Path(path).expanduser()
     if not candidate.is_absolute():
         candidate = Path.cwd() / candidate
@@ -362,7 +361,16 @@ def _open_directory_chain(path: Path) -> Iterator[int]:
     descriptor = os.open(parts[0], _directory_open_flags())
     try:
         for part in parts[1:]:
-            child = os.open(part, _directory_open_flags(), dir_fd=descriptor)
+            try:
+                child = os.open(part, _directory_open_flags(), dir_fd=descriptor)
+            except FileNotFoundError:
+                if not create:
+                    raise
+                try:
+                    os.mkdir(part, mode=0o700, dir_fd=descriptor)
+                except FileExistsError:
+                    pass
+                child = os.open(part, _directory_open_flags(), dir_fd=descriptor)
             os.close(descriptor)
             descriptor = child
         yield descriptor

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
 from dataclasses import dataclass
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -100,39 +100,80 @@ def publish_bundle(
     repository = Path(repo).resolve()
     git = runner or GitRunner()
     retried_push = _retry_pending_push(repository, git) if push else False
-    if not promotion.changed:
+    bundle_work = git.lines(
+        repository,
+        "status",
+        "--porcelain",
+        "--untracked-files=all",
+        "--",
+        PUBLISH_ROOT,
+    )
+    if not bundle_work:
         return PublishResult(False, retried_push, ())
 
     preexisting = git.lines(repository, "diff", "--cached", "--name-only")
-    if preexisting:
+    if any(
+        path != PUBLISH_ROOT and not path.startswith(f"{PUBLISH_ROOT}/")
+        for path in preexisting
+    ):
         return PublishResult(False, False, (), deferred=True)
 
     tracked = git.lines(repository, "ls-files", "--", PUBLISH_ROOT)
     if not (repository / PUBLISH_ROOT).exists() and not tracked:
         return PublishResult(False, False, ())
-    with _isolated_index(repository, git) as index_env:
-        git.run(repository, "add", "--", PUBLISH_ROOT, env=index_env)
-        staged = git.lines(
-            repository,
-            "diff",
-            "--cached",
-            "--name-only",
-            env=index_env,
-        )
+    git.run(repository, "add", "--", PUBLISH_ROOT)
+    staged = git.lines(repository, "diff", "--cached", "--name-only")
+    try:
         _require_bundle_only(staged)
         if not staged:
             return PublishResult(False, retried_push, ())
-        message = _commit_message(promotion.changed_projects)
-        git.run(
+        base = git.run(repository, "rev-parse", "HEAD")
+        branch_ref = git.run(repository, "symbolic-ref", "--quiet", "HEAD")
+        if not branch_ref.startswith("refs/heads/"):
+            raise PublishError("publication requires an attached branch")
+        if push:
+            _write_pending_marker(
+                repository,
+                git,
+                {"phase": "commit", "base": base, "ref": branch_ref},
+            )
+        tree = git.run(repository, "write-tree")
+        tree_paths = git.lines(
+            repository,
+            "diff-tree",
+            "--no-commit-id",
+            "--name-only",
+            "-r",
+            base,
+            tree,
+        )
+        _require_bundle_only(tree_paths)
+        committed = git.run(
             repository,
             "-c",
-            "core.hooksPath=/dev/null",
-            "commit",
-            "--no-gpg-sign",
+            "commit.gpgSign=false",
+            "commit-tree",
+            tree,
+            "-p",
+            base,
             "-m",
-            message,
-            env=index_env,
+            _commit_message(promotion.changed_projects),
         )
+        if push:
+            _write_pending_marker(
+                repository,
+                git,
+                {
+                    "phase": "advance",
+                    "base": base,
+                    "commit": committed,
+                    "ref": branch_ref,
+                },
+            )
+        git.run(repository, "update-ref", branch_ref, committed, base)
+    except BaseException:
+        git.run(repository, "restore", "--staged", "--source=HEAD", "--", PUBLISH_ROOT)
+        raise
 
     committed_paths = git.lines(
         repository,
@@ -140,34 +181,17 @@ def publish_bundle(
         "--no-commit-id",
         "--name-only",
         "-r",
-        "HEAD",
+        committed,
     )
     _require_bundle_only(committed_paths)
-    git.run(repository, "add", "--", PUBLISH_ROOT)
-    if git.lines(repository, "diff", "--cached", "--name-only"):
-        raise PublishError("real Git index did not synchronize after publication")
     if push:
-        _record_pending_push(repository, git)
+        _write_pending_marker(
+            repository,
+            git,
+            {"phase": "push", "commit": committed, "ref": branch_ref},
+        )
         _push_pending(repository, git)
     return PublishResult(True, push, staged)
-
-
-@contextmanager
-def _isolated_index(repo: Path, git: GitRunner):
-    index_path = _git_path(repo, git, "index")
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix="project-atlas-index-",
-        dir=index_path.parent,
-    )
-    os.close(descriptor)
-    temporary = Path(temporary_name)
-    temporary.unlink()
-    environment = {"GIT_INDEX_FILE": str(temporary)}
-    try:
-        git.run(repo, "read-tree", "HEAD", env=environment)
-        yield environment
-    finally:
-        temporary.unlink(missing_ok=True)
 
 
 def _require_bundle_only(paths: Sequence[str]) -> None:
@@ -184,21 +208,26 @@ def _pending_path(repo: Path, git: GitRunner) -> Path:
     return _git_path(repo, git, _PENDING_PUSH)
 
 
-def _record_pending_push(repo: Path, git: GitRunner) -> None:
+def _write_pending_marker(repo: Path, git: GitRunner, payload: dict[str, str]) -> None:
     target = _pending_path(repo, git)
-    if target.is_symlink():
-        raise PublishError("pending push marker must not be a symlink")
-    head = git.run(repo, "rev-parse", "HEAD")
+    if target.is_symlink() or (target.exists() and not target.is_file()):
+        raise PublishError("pending push marker is invalid")
     descriptor, temporary_name = tempfile.mkstemp(prefix=f".{_PENDING_PUSH}.", dir=target.parent)
     temporary = Path(temporary_name)
     try:
         os.fchmod(descriptor, 0o600)
         with os.fdopen(descriptor, "w", encoding="ascii") as handle:
             descriptor = -1
-            handle.write(f"{head}\n")
+            json.dump(payload, handle, sort_keys=True, separators=(",", ":"))
+            handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, target)
+        directory_descriptor = os.open(target.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory_descriptor)
+        finally:
+            os.close(directory_descriptor)
     finally:
         if descriptor >= 0:
             os.close(descriptor)
@@ -213,22 +242,75 @@ def _retry_pending_push(repo: Path, git: GitRunner) -> bool:
         return False
     if not target.is_file():
         raise PublishError("pending push marker is invalid")
-    expected = target.read_text(encoding="ascii").strip()
-    if not expected or expected != git.run(repo, "rev-parse", "HEAD"):
-        raise PublishError("pending push no longer matches HEAD")
+    try:
+        payload = json.loads(target.read_text(encoding="ascii"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise PublishError("pending push marker is invalid") from error
+    if not isinstance(payload, dict) or payload.get("phase") not in {
+        "commit",
+        "advance",
+        "push",
+    }:
+        raise PublishError("pending push marker is invalid")
+    branch_ref = payload.get("ref")
+    if not isinstance(branch_ref, str) or not branch_ref.startswith("refs/heads/"):
+        raise PublishError("pending push marker is invalid")
+    if payload["phase"] == "commit":
+        base = payload.get("base")
+        if not isinstance(base, str) or not base:
+            raise PublishError("pending push marker is invalid")
+        if git.run(repo, "symbolic-ref", "--quiet", "HEAD") != branch_ref:
+            raise PublishError("pending push branch changed")
+        head = git.run(repo, "rev-parse", "HEAD")
+        if head == base:
+            return False
+        raise PublishError("pending publication commit is ambiguous")
+    if payload["phase"] == "advance":
+        base = payload.get("base")
+        commit = payload.get("commit")
+        if not isinstance(base, str) or not isinstance(commit, str) or not base or not commit:
+            raise PublishError("pending push marker is invalid")
+        if git.run(repo, "symbolic-ref", "--quiet", "HEAD") != branch_ref:
+            raise PublishError("pending push branch changed")
+        if git.run(repo, "rev-parse", f"{commit}^") != base:
+            raise PublishError("pending publication commit is invalid")
+        _require_bundle_only(
+            git.lines(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", commit)
+        )
+        head = git.run(repo, "rev-parse", "HEAD")
+        if head == base:
+            git.run(repo, "update-ref", branch_ref, commit, base)
+        elif head != commit:
+            raise PublishError("pending publication commit is ambiguous")
+        payload = {"phase": "push", "commit": commit, "ref": branch_ref}
+        _write_pending_marker(repo, git, payload)
+    commit = payload.get("commit")
+    if not isinstance(commit, str) or not commit:
+        raise PublishError("pending push marker is invalid")
     _require_bundle_only(
-        git.lines(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD")
+        git.lines(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", commit)
     )
     _push_pending(repo, git)
     return True
 
 
 def _push_pending(repo: Path, git: GitRunner) -> None:
-    git.run(repo, "push", "origin", "HEAD")
+    target = _pending_path(repo, git)
+    try:
+        payload = json.loads(target.read_text(encoding="ascii"))
+        commit = payload["commit"]
+        branch_ref = payload["ref"]
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise PublishError("pending push marker is invalid") from error
+    if not isinstance(commit, str) or not isinstance(branch_ref, str):
+        raise PublishError("pending push marker is invalid")
+    git.run(repo, "push", "origin", f"{commit}:{branch_ref}")
     _pending_path(repo, git).unlink(missing_ok=True)
 
 
 def _commit_message(project_ids: Sequence[str]) -> str:
+    if not project_ids:
+        return "content: update project atlas"
     listed = ", ".join(project_ids[:3])
     suffix = "" if len(project_ids) <= 3 else f" +{len(project_ids) - 3}"
     return f"content: update project atlas ({listed}{suffix})"

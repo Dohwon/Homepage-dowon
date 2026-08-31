@@ -161,7 +161,7 @@ def test_automated_commit_cannot_run_hook_that_stages_unrelated_work(tmp_path):
 
 class _FailCommitRunner(GitRunner):
     def run(self, repo: Path, *args: str, **kwargs) -> str:
-        if "commit" in args:
+        if "commit-tree" in args:
             raise PublishError("injected commit failure")
         return super().run(repo, *args, **kwargs)
 
@@ -210,6 +210,290 @@ def test_failed_push_is_retried_on_the_next_unchanged_run(tmp_path):
     assert git(remote, "rev-parse", "refs/heads/master") == local_head
 
 
+def test_deferred_bundle_is_committed_after_staged_work_is_cleared(tmp_path):
+    repo = init_repo(tmp_path / "repo")
+    write(repo / "server.js", "staged user edit\n")
+    git(repo, "add", "--", "server.js")
+    write(repo / "public-bundle" / "manifest.json", '{"version":"v2"}\n')
+
+    deferred = publish_bundle(
+        repo,
+        PromotionResult(changed=True, changed_projects=("alpha",)),
+        push=False,
+    )
+    git(repo, "restore", "--staged", "--", "server.js")
+    retried = publish_bundle(
+        repo,
+        PromotionResult(changed=False, changed_projects=()),
+        push=False,
+    )
+
+    assert deferred.deferred
+    assert retried.committed
+    assert git(repo, "show", "--name-only", "--format=", "HEAD") == (
+        "public-bundle/manifest.json"
+    )
+
+
+def test_commit_failure_is_retried_after_the_index_is_restored(tmp_path):
+    repo = init_repo(tmp_path / "repo")
+    write(repo / "public-bundle" / "manifest.json", '{"version":"v2"}\n')
+
+    with pytest.raises(PublishError):
+        publish_bundle(
+            repo,
+            PromotionResult(changed=True, changed_projects=("alpha",)),
+            push=False,
+            runner=_FailCommitRunner(),
+        )
+    retried = publish_bundle(
+        repo,
+        PromotionResult(changed=False, changed_projects=()),
+        push=False,
+    )
+
+    assert retried.committed
+    assert git(repo, "diff", "--cached", "--name-only") == ""
+
+
+def test_bundle_stage_left_by_an_interrupted_run_is_recovered(tmp_path):
+    repo = init_repo(tmp_path / "repo")
+    write(repo / "public-bundle" / "manifest.json", '{"version":"v2"}\n')
+    git(repo, "add", "--", "public-bundle")
+
+    result = publish_bundle(
+        repo,
+        PromotionResult(changed=False, changed_projects=()),
+        push=False,
+    )
+
+    assert result.committed
+    assert git(repo, "diff", "--cached", "--name-only") == ""
+    assert git(repo, "show", "--name-only", "--format=", "HEAD") == (
+        "public-bundle/manifest.json"
+    )
+
+
+class _StageUnrelatedBeforeCommitRunner(GitRunner):
+    def run(self, repo: Path, *args: str, **kwargs) -> str:
+        if "commit-tree" in args:
+            write(repo / "server.js", "concurrent staged edit\n")
+            super().run(repo, "add", "--", "server.js")
+        return super().run(repo, *args, **kwargs)
+
+
+def test_concurrent_unrelated_stage_cannot_enter_the_atlas_commit(tmp_path):
+    repo = init_repo(tmp_path / "repo")
+    write(repo / "public-bundle" / "manifest.json", '{"version":"v2"}\n')
+
+    result = publish_bundle(
+        repo,
+        PromotionResult(changed=True, changed_projects=("alpha",)),
+        push=False,
+        runner=_StageUnrelatedBeforeCommitRunner(),
+    )
+
+    assert result.committed
+    assert git(repo, "show", "--name-only", "--format=", "HEAD") == (
+        "public-bundle/manifest.json"
+    )
+    assert git(repo, "diff", "--cached", "--name-only") == "server.js"
+
+
+class _ChangeBundleAfterStageRunner(GitRunner):
+    def run(self, repo: Path, *args: str, **kwargs) -> str:
+        if args and args[0] == "write-tree":
+            write(repo / "public-bundle" / "manifest.json", '{"version":"v3"}\n')
+        return super().run(repo, *args, **kwargs)
+
+
+def test_bundle_worktree_change_after_stage_cannot_enter_the_commit(tmp_path):
+    repo = init_repo(tmp_path / "repo")
+    write(repo / "public-bundle" / "manifest.json", '{"version":"v2"}\n')
+
+    result = publish_bundle(
+        repo,
+        PromotionResult(changed=True, changed_projects=("alpha",)),
+        push=False,
+        runner=_ChangeBundleAfterStageRunner(),
+    )
+
+    assert result.committed
+    assert git(repo, "show", "HEAD:public-bundle/manifest.json") == '{"version":"v2"}'
+    assert (repo / "public-bundle" / "manifest.json").read_text(encoding="utf-8") == (
+        '{"version":"v3"}\n'
+    )
+
+
+class _AdvanceBranchBeforeCasRunner(GitRunner):
+    def run(self, repo: Path, *args: str, **kwargs) -> str:
+        if args and args[0] == "update-ref":
+            write(repo / "later.txt", "concurrent local commit\n")
+            super().run(repo, "add", "--", "later.txt")
+            super().run(
+                repo,
+                "-c",
+                "core.hooksPath=/dev/null",
+                "commit",
+                "--no-gpg-sign",
+                "--only",
+                "-m",
+                "test: concurrent local commit",
+                "--",
+                "later.txt",
+            )
+        return super().run(repo, *args, **kwargs)
+
+
+def test_branch_advance_before_cas_cannot_become_an_atlas_commit_ancestor(tmp_path):
+    repo = init_repo(tmp_path / "repo")
+    write(repo / "public-bundle" / "manifest.json", '{"version":"v2"}\n')
+
+    with pytest.raises(PublishError):
+        publish_bundle(
+            repo,
+            PromotionResult(changed=True, changed_projects=("alpha",)),
+            push=False,
+            runner=_AdvanceBranchBeforeCasRunner(),
+        )
+
+    assert git(repo, "show", "--name-only", "--format=", "HEAD") == "later.txt"
+    assert "public-bundle/manifest.json" not in git(
+        repo, "show", "--name-only", "--format=", "HEAD"
+    )
+
+
+class _CommitCompetingBundleBeforeCasRunner(GitRunner):
+    def run(self, repo: Path, *args: str, **kwargs) -> str:
+        if args and args[0] == "update-ref":
+            super().run(
+                repo,
+                "-c",
+                "core.hooksPath=/dev/null",
+                "commit",
+                "--no-gpg-sign",
+                "-m",
+                "content: competing bundle commit",
+            )
+        return super().run(repo, *args, **kwargs)
+
+
+def test_cas_race_cannot_push_a_different_bundle_only_commit(tmp_path):
+    repo = init_repo(tmp_path / "repo")
+    remote = tmp_path / "remote.git"
+    subprocess.run(("git", "init", "--bare", "--quiet", str(remote)), check=True)
+    git(repo, "remote", "add", "origin", str(remote))
+    write(repo / "public-bundle" / "manifest.json", '{"version":"v2"}\n')
+
+    with pytest.raises(PublishError):
+        publish_bundle(
+            repo,
+            PromotionResult(changed=True, changed_projects=("alpha",)),
+            push=True,
+            runner=_CommitCompetingBundleBeforeCasRunner(),
+        )
+    competing = git(repo, "rev-parse", "HEAD")
+
+    with pytest.raises(PublishError):
+        publish_bundle(
+            repo,
+            PromotionResult(changed=False, changed_projects=()),
+            push=True,
+        )
+
+    assert git(repo, "rev-parse", "HEAD") == competing
+    remote_head = subprocess.run(
+        ("git", "--git-dir", str(remote), "rev-parse", "--verify", "refs/heads/master"),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert remote_head.returncode != 0
+
+
+class _FailAfterBranchAdvanceRunner(GitRunner):
+    def __init__(self):
+        self.advanced = False
+
+    def run(self, repo: Path, *args: str, **kwargs) -> str:
+        if args and args[0] == "update-ref":
+            result = super().run(repo, *args, **kwargs)
+            self.advanced = True
+            return result
+        if self.advanced and args and args[0] == "diff-tree":
+            self.advanced = False
+            raise PublishError("injected post-advance failure")
+        return super().run(repo, *args, **kwargs)
+
+
+def test_advance_marker_recovers_the_exact_commit_after_a_post_cas_crash(tmp_path):
+    repo = init_repo(tmp_path / "repo")
+    remote = tmp_path / "remote.git"
+    subprocess.run(("git", "init", "--bare", "--quiet", str(remote)), check=True)
+    git(repo, "remote", "add", "origin", str(remote))
+    write(repo / "public-bundle" / "manifest.json", '{"version":"v2"}\n')
+
+    with pytest.raises(PublishError, match="post-advance"):
+        publish_bundle(
+            repo,
+            PromotionResult(changed=True, changed_projects=("alpha",)),
+            push=True,
+            runner=_FailAfterBranchAdvanceRunner(),
+        )
+    committed = git(repo, "rev-parse", "HEAD")
+
+    recovered = publish_bundle(
+        repo,
+        PromotionResult(changed=False, changed_projects=()),
+        push=True,
+    )
+
+    assert recovered.pushed
+    assert not recovered.committed
+    assert git(remote, "rev-parse", "refs/heads/master") == committed
+
+
+class _MoveHeadBeforePushRunner(GitRunner):
+    def __init__(self):
+        self.validated_head = ""
+
+    def run(self, repo: Path, *args: str, **kwargs) -> str:
+        if args and args[0] == "push":
+            self.validated_head = super().run(repo, "rev-parse", "HEAD")
+            write(repo / "later.txt", "later local commit\n")
+            super().run(repo, "add", "--", "later.txt")
+            super().run(
+                repo,
+                "-c",
+                "core.hooksPath=/dev/null",
+                "commit",
+                "--no-gpg-sign",
+                "-m",
+                "test: later local commit",
+            )
+        return super().run(repo, *args, **kwargs)
+
+
+def test_push_uses_the_recorded_commit_even_if_head_moves(tmp_path):
+    repo = init_repo(tmp_path / "repo")
+    remote = tmp_path / "remote.git"
+    subprocess.run(("git", "init", "--bare", "--quiet", str(remote)), check=True)
+    git(repo, "remote", "add", "origin", str(remote))
+    write(repo / "public-bundle" / "manifest.json", '{"version":"v2"}\n')
+    runner = _MoveHeadBeforePushRunner()
+
+    result = publish_bundle(
+        repo,
+        PromotionResult(changed=True, changed_projects=("alpha",)),
+        push=True,
+        runner=runner,
+    )
+
+    assert result.pushed
+    assert git(remote, "rev-parse", "refs/heads/master") == runner.validated_head
+    assert git(repo, "rev-parse", "HEAD") != runner.validated_head
+
+
 def test_publication_test_gate_fails_closed_on_a_nonzero_test_command(tmp_path):
     repo = init_repo(tmp_path / "repo")
 
@@ -249,3 +533,31 @@ def test_publish_command_stops_before_build_when_release_tests_fail(
     assert code == 2
     assert not (workspace / "portfolio-homepage" / "public-bundle").exists()
     assert "traceback" not in capsys.readouterr().err.casefold()
+
+
+def test_publish_rejects_source_drift_after_catalog_and_tests(
+    tmp_path, monkeypatch, capsys
+):
+    workspace = make_workspace_fixture(tmp_path)
+
+    class StaleCatalog:
+        ready = True
+        project_ids = tuple(f"project-{index}" for index in range(33))
+        input_digest = "stale-catalog-input"
+        bundle_version = "stale-catalog-bundle"
+
+    monkeypatch.setattr(
+        "scripts.audit_public_atlas_catalog.audit_public_catalog",
+        lambda _workspace: StaleCatalog(),
+    )
+    monkeypatch.setattr(cli_module, "run_publication_tests", lambda _repo: None)
+    monkeypatch.setenv(
+        "PROJECT_ATLAS_HMAC_KEY",
+        "0123456789abcdef0123456789abcdef",
+    )
+
+    code = cli_module.main(["publish", "--workspace", str(workspace)])
+
+    assert code == 2
+    assert not (workspace / "portfolio-homepage" / "public-bundle").exists()
+    assert "stale-catalog-input" not in capsys.readouterr().err
