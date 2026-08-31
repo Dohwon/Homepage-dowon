@@ -335,6 +335,9 @@ svg { display: block; }
 .project-title-row { display: flex; align-items: start; justify-content: space-between; gap: 24px; }
 .project-title-row h1 { margin: 0; max-inline-size: 880px; font-size: 42px; line-height: 1.12; overflow-wrap: anywhere; }
 .project-summary { max-inline-size: 820px; margin: 14px 0 0; color: var(--muted); font-size: 17px; }
+.project-cover { margin: 30px 0 0; }
+.project-cover img { display: block; inline-size: 100%; max-block-size: min(68vh, 760px); border: 1px solid var(--line); object-fit: contain; background: var(--surface-subtle); }
+.project-cover figcaption { margin-top: 8px; color: var(--muted); font-size: 12px; }
 .project-tabs {
   display: flex;
   align-items: stretch;

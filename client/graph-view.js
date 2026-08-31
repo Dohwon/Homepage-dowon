@@ -119,6 +119,10 @@ function renderSvg(graph) {
   };
 }
 
+function clampScroll(value, maximum) {
+  return Math.max(0, Math.min(Number.isFinite(value) ? value : 0, Math.max(0, maximum)));
+}
+
 export function supportsSvg(documentRef = globalThis.document) {
   try {
     if (typeof documentRef?.createElementNS !== "function") return false;
@@ -203,7 +207,22 @@ export function createGraphView(container, graph, {
       const target = container.querySelector?.(`[data-node-id="${String(node.id).replace(/"/g, "")}"]`);
       if (!target) return false;
       record("focus", node.id);
-      target.scrollIntoView?.({ block: "center", inline: "center", behavior: motionReduced ? "auto" : "smooth" });
+      const containerRect = container.getBoundingClientRect?.() || { left: 0, top: 0 };
+      const targetRect = target.getBoundingClientRect?.();
+      const position = layout?.positions.get(node.id);
+      const targetCenterX = targetRect
+        ? (container.scrollLeft || 0) + targetRect.left - (containerRect.left || 0) + targetRect.width / 2
+        : (position?.x || 0) + NODE_WIDTH / 2;
+      const targetCenterY = targetRect
+        ? (container.scrollTop || 0) + targetRect.top - (containerRect.top || 0) + targetRect.height / 2
+        : (position?.y || 0) + NODE_HEIGHT / 2;
+      const visibleWidth = container.clientWidth || containerRect.width || 0;
+      const visibleHeight = container.clientHeight || containerRect.height || 0;
+      container.scrollTo?.({
+        left: clampScroll(targetCenterX - visibleWidth / 2, (container.scrollWidth || GRAPH_WIDTH) - visibleWidth),
+        top: clampScroll(targetCenterY - visibleHeight / 2, (container.scrollHeight || layout?.height || 0) - visibleHeight),
+        behavior: motionReduced ? "auto" : "smooth",
+      });
       return true;
     },
     fit() {

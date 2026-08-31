@@ -803,6 +803,15 @@ export function renderProjectToc(headings) {
     </div>`;
 }
 
+export function renderProjectCover(project) {
+  const expected = `/api/atlas/projects/${encodeURIComponent(project?.id || "")}/cover`;
+  if (project?.cover?.src !== expected || !project.cover.alt) return "";
+  return `<figure class="project-cover">
+    <img src="${escapeHtml(expected)}" alt="${escapeHtml(project.cover.alt)}" loading="eager" decoding="async">
+    ${project.cover.caption ? `<figcaption>${escapeHtml(project.cover.caption)}</figcaption>` : ""}
+  </figure>`;
+}
+
 function renderProject(state) {
   const project = state.project;
   if (!project) return `<div class="content-shell"><div class="error-state"><h1>프로젝트를 찾지 못했습니다.</h1><p>공개 목록에서 제거됐거나 주소가 변경됐습니다.</p></div></div>`;
@@ -821,6 +830,7 @@ function renderProject(state) {
           <div><p class="eyebrow">${escapeHtml(project.lifecycle)}</p><h1>${escapeHtml(project.name || project.id)}</h1><p class="project-summary">${escapeHtml(project.summary)}</p></div>
         </div>
         <div class="tag-row">${tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div>
+        ${renderProjectCover(project)}
       </header>
       <nav class="project-tabs project-tab-rail" data-project-tab-rail role="tablist" aria-label="프로젝트 문서">${projectTabs(project, route.tab)}</nav>
       <div class="project-layout">

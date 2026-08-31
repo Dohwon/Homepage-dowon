@@ -34,19 +34,34 @@ function expandedGraph() {
 
 function container({ width = 960, height = 620 } = {}) {
   const listeners = new Map();
-  const state = { html: "", replacements: 0, scrollCalls: 0, width, height };
-  const nodeElement = { scrollIntoView() { state.scrollCalls += 1; } };
+  const state = {
+    html: "",
+    replacements: 0,
+    scrollCalls: 0,
+    nodeScrollCalls: 0,
+    scrollOptions: [],
+    width,
+    height,
+  };
+  const nodeElement = {
+    getBoundingClientRect() { return { left: 542, top: 82, width: 208, height: 52 }; },
+    scrollIntoView() { state.nodeScrollCalls += 1; },
+  };
   return {
     state,
     dataset: {},
+    clientWidth: width,
+    clientHeight: height,
+    scrollWidth: 1292,
+    scrollHeight: 620,
     get innerHTML() { return state.html; },
     set innerHTML(value) { state.html = value; },
-    getBoundingClientRect() { return { width, height }; },
+    getBoundingClientRect() { return { left: 0, top: 0, width, height }; },
     addEventListener(type, listener) { listeners.set(type, listener); },
     removeEventListener(type, listener) { if (listeners.get(type) === listener) listeners.delete(type); },
     replaceChildren() { state.replacements += 1; state.html = ""; },
     querySelector(selector) { return selector.includes("data-node-id") ? nodeElement : null; },
-    scrollTo() { state.scrollCalls += 1; },
+    scrollTo(options) { state.scrollCalls += 1; state.scrollOptions.push(options); },
     emit(type, event) { listeners.get(type)?.(event); },
     hasListener(type) { return listeners.has(type); },
   };
@@ -118,6 +133,8 @@ test("fit, focus, reset, motion, and inspection remain available to the route bi
   const snapshot = view.inspect();
 
   assert.equal(element.state.scrollCalls, 3);
+  assert.equal(element.state.nodeScrollCalls, 0);
+  assert.deepEqual(element.state.scrollOptions[0], { left: 166, top: 0, behavior: "smooth" });
   assert.equal(snapshot.reducedMotion, true);
   assert.equal(snapshot.layout, "layered-2d");
   assert.deepEqual(snapshot.visibleKinds, ["KnowledgeDomain", "KnowledgeFocus", "KnowledgeTag"]);

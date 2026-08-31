@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["alt", "caption", "content_type", "content_hex"],
+  "properties": {
+    "alt": {"type": "string", "minLength": 1},
+    "caption": {"type": "string", "minLength": 1},
+    "content_type": {"enum": ["image/png", "image/jpeg", "image/webp"]},
+    "content_hex": {"type": "string", "minLength": 8, "maxLength": 4194304, "pattern": "^[0-9a-f]+$"}
+  }
+}

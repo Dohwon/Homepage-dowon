@@ -7,6 +7,11 @@ UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 SERVICE="project-atlas.service"
 TIMER="project-atlas.timer"
 
+if ! systemctl --user show-environment >/dev/null 2>&1; then
+  printf 'A user systemd manager is unavailable; using Windows Task Scheduler.\n'
+  exec "$ROOT/scripts/install_project_atlas_schedule.sh" "$@"
+fi
+
 check_templates() {
   grep -Fq 'scripts/project_atlas.py publish --workspace /home/dowon/securedir/git/codex --changed-only --push' "$SOURCE_DIR/$SERVICE"
   grep -Fq 'OnBootSec=5m' "$SOURCE_DIR/$TIMER"

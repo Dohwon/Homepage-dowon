@@ -189,6 +189,22 @@ function fixtureProject(overrides = {}) {
   };
 }
 
+test("renders only the project-owned representative cover route", async (t) => {
+  installSanitizers(t);
+  const { renderProjectCover } = await importRenderModule(t);
+
+  assert.match(renderProjectCover(fixtureProject({
+    cover: {
+      src: "/api/atlas/projects/alpha/cover",
+      alt: "Alpha implementation screen",
+      caption: "Actual implementation"
+    }
+  })), /<img[^>]+Alpha implementation screen/);
+  assert.equal(renderProjectCover(fixtureProject({
+    cover: { src: "https://evil.example/cover.png", alt: "unsafe" }
+  })), "");
+});
+
 test("renders every article section in order and places figures after prose", async (t) => {
   installSanitizers(t);
   const { renderProjectContent } = await importRenderModule(t);

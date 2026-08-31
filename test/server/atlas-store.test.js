@@ -41,6 +41,32 @@ test("loads structured v2 public project content without legacy fields", async (
   assert.equal(project.visualMap, undefined);
 });
 
+test("loads reviewed cover metadata separately from image bytes", async (t) => {
+  const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-cover-"));
+  t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+  await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+  const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), Buffer.from("fixture")]);
+  await fsp.writeFile(path.join(temporaryRoot, "projects", "alpha", "cover.json"), JSON.stringify({
+    alt: "Alpha implementation screen",
+    caption: "Actual implementation",
+    content_type: "image/png",
+    content_hex: png.toString("hex")
+  }));
+  const store = createAtlasStore({ bundleDir: temporaryRoot });
+
+  const project = await store.project("alpha");
+  const cover = await store.cover("alpha");
+
+  assert.deepEqual(project.cover, {
+    src: "/api/atlas/projects/alpha/cover",
+    alt: "Alpha implementation screen",
+    caption: "Actual implementation"
+  });
+  assert.equal(project.coverData, undefined);
+  assert.equal(cover.contentType, "image/png");
+  assert.deepEqual(cover.bytes, png);
+});
+
 test("loads paired system map metadata and SVG with validated decision references", async (t) => {
   const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-system-map-"));
   t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));

@@ -127,6 +127,26 @@ python3 -m venv .venv
 .venv/bin/python scripts/project_atlas.py run --workspace /home/dowon/securedir/git/codex --dry-run
 ```
 
+구현 화면을 공개할 프로젝트는 `project_memory/project-atlas/cover.png|jpg|jpeg|webp` 중
+하나만 둘 수 있다. Worker가 이미지 형식, 크기, 공개 번들을 검증하고 프로젝트 상세에
+대표 화면으로 연결한다. 비공개 정보가 보이는 캡처는 저장하지 않는다.
+
+변경 감지와 공개 번들 갱신은 Windows 작업 스케줄러에 등록할 수 있다. WSL에서 아래를
+실행하면 15분 주기의 `Dowon Project Atlas Sync` 작업을 설치하며, 실제 배포는 GitHub
+`main` push를 통해 이어진다.
+
+```bash
+scripts/install_project_atlas_schedule.sh
+scripts/install_project_atlas_schedule.sh --check
+```
+
+수동 실행이나 로그 확인은 아래를 사용한다.
+
+```bash
+scripts/project_atlas_scheduled_publish.sh
+tail -35 .knowledge-worker/project-atlas-schedule.log
+```
+
 기존 33개 curated article의 문제 정의를 Orientation으로 승격하고 대응하는 System Map
 source를 재생성할 때는 아래 migration을 사용한다. 이 명령은 정확히 33개를 요구하는
 기존 카탈로그 migration이며 새 프로젝트 초기화 명령이 아니다.
