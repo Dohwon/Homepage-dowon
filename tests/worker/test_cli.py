@@ -135,11 +135,13 @@ def _write_ready_article(
     readiness: str = "ready",
     *,
     project_id: str = "alpha",
+    project_relative_path: str | None = None,
     article_title: str = "Routing record",
     evidence_id: str | None = None,
 ) -> None:
     evidence_id = evidence_id or f"{project_id}-proof"
-    source = workspace / "projects" / project_id / "project_memory" / "project-atlas"
+    project_root = workspace / (project_relative_path or f"projects/{project_id}")
+    source = project_root / "project_memory" / "project-atlas"
     source.mkdir(parents=True)
     (source / "article.yaml").write_text(
         yaml.safe_dump(
@@ -1540,6 +1542,63 @@ def test_changed_only_loads_private_project_inputs_only_for_affected_projects(
     }
 
 
+def test_changed_relation_target_invalidates_the_relation_owner(tmp_path, monkeypatch):
+    workspace = make_workspace_fixture(tmp_path)
+    _write_ready_article(workspace, project_id="alpha", evidence_id="alpha-proof")
+    _write_ready_article(
+        workspace,
+        project_id="beta",
+        project_relative_path="projects/finish/beta",
+        evidence_id="beta-proof",
+    )
+    atlas = workspace / "projects" / "alpha" / "project_memory" / "project-atlas"
+    (atlas / "relations.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "relations": [{
+                    "type": "EVOLVED_FROM",
+                    "target": "beta",
+                    "evidence_ids": ["beta-proof"],
+                }]
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+    invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+    beta_evidence = (
+        workspace
+        / "projects"
+        / "finish"
+        / "beta"
+        / "project_memory"
+        / "project-atlas"
+        / "evidence.yaml"
+    )
+    payload = yaml.safe_load(beta_evidence.read_text(encoding="utf-8"))
+    payload[0]["label"] = "Updated target-owned relation proof"
+    beta_evidence.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    output = invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+    edges = json.loads(
+        (
+            workspace
+            / "portfolio-homepage"
+            / "public-bundle"
+            / "graph"
+            / "edges.json"
+        ).read_text(encoding="utf-8")
+    )
+    relation = next(edge for edge in edges if edge["kind"] == "EVOLVED_FROM")
+
+    assert output["affected_projects"] == ["alpha", "beta"]
+    assert relation["evidence_links"] == [{
+        "label": "Updated target-owned relation proof",
+        "url": "/projects/beta?tab=evidence",
+    }]
+
+
 def test_runtime_config_dependency_change_recomputes_every_project(tmp_path, monkeypatch):
     workspace = make_workspace_fixture(tmp_path)
     monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
@@ -1580,6 +1639,35 @@ def test_changed_only_dry_run_previews_affected_projects_without_state_mutation(
     assert output["affected_projects"] == ["alpha"]
     assert output["build"]["projects"] == ["alpha", "beta"]
     assert _snapshot(workspace) == before
+
+
+def test_changed_only_dry_run_reuses_existing_default_key_for_privacy_checks(
+    tmp_path, monkeypatch, capsys
+):
+    workspace = make_workspace_fixture(tmp_path)
+    config_home = tmp_path / ".config"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config_home))
+    monkeypatch.delenv("PROJECT_ATLAS_HMAC_KEY", raising=False)
+    monkeypatch.delenv("PROJECT_ATLAS_HMAC_KEY_PATH", raising=False)
+    invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+    key = (config_home / "project-atlas" / "hmac.key").read_bytes()
+    write_project_profile(
+        workspace / "projects" / "alpha",
+        summary=f"encoded secret {key.hex().upper()}",
+    )
+    before = _snapshot(workspace)
+
+    code = main([
+        "run",
+        "--workspace",
+        str(workspace),
+        "--changed-only",
+        "--dry-run",
+    ])
+
+    assert code == EXIT_PRIVACY
+    assert _snapshot(workspace) == before
+    assert key.hex().upper() not in capsys.readouterr().err
 
 
 def test_failed_changed_only_run_preserves_last_good_bundle_and_runtime_state(
@@ -1624,6 +1712,36 @@ def test_state_write_failure_after_promotion_restores_bundle_and_last_good_state
         raise OSError("injected post-promotion state failure")
 
     monkeypatch.setattr(RuntimeState, "save_success", fail_state_write)
+
+    code = main(["run", "--workspace", str(workspace), "--changed-only"])
+
+    assert code == EXIT_IO
+    assert _snapshot(public) == before_bundle
+    assert state_path.read_bytes() == before_state
+    assert "injected" not in capsys.readouterr().err
+
+
+def test_state_error_after_persist_restores_bundle_and_prior_runtime_state(
+    tmp_path, monkeypatch, capsys
+):
+    workspace = make_workspace_fixture(tmp_path)
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+    invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+    public = workspace / "portfolio-homepage" / "public-bundle"
+    state_path = workspace / ".knowledge-worker" / "runtime-state.json"
+    before_bundle = _snapshot(public)
+    before_state = state_path.read_bytes()
+    write_project_profile(
+        workspace / "projects" / "alpha",
+        summary="Alpha candidate persisted before injected failure",
+    )
+    real_save = RuntimeState.save_success
+
+    def persist_then_fail(self, **kwargs):
+        real_save(self, **kwargs)
+        raise OSError("injected failure after state persistence")
+
+    monkeypatch.setattr(RuntimeState, "save_success", persist_then_fail)
 
     code = main(["run", "--workspace", str(workspace), "--changed-only"])
 

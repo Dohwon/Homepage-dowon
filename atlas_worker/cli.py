@@ -66,7 +66,7 @@ from .models import (
     validate_schema,
 )
 from .privacy import MIN_ALIAS_KEY_BYTES, PrivacyGate, PrivacyViolation
-from .publish import publish_bundle
+from .publish import publish_bundle, run_publication_tests
 from .runtime_state import RuntimeState, read_hmac_key_file
 from .session_index import index_session, map_session_trace, merge_child_evidence
 from .source_manifest import SubprocessGitRunner, build_source_manifest, resolve_git_owner
@@ -431,6 +431,7 @@ def _command_publish(args: argparse.Namespace) -> dict[str, object]:
         catalog = audit_public_catalog(workspace)
         if not catalog.ready:
             raise ConfigError("/catalog-audit")
+        run_publication_tests(_service_root(workspace, config))
         gate = _privacy_gate(
             workspace,
             config,
@@ -1027,6 +1028,10 @@ def _execute_build(
             audit_hashes=audit_hashes,
             dependency_hashes=dependency_hashes,
         )
+        affected_projects = _include_relation_dependents(
+            affected_projects,
+            previous_state.get("relation_dependencies", {}),
+        )
         current_ids = {ref.project_id for ref in project_refs}
         prior_sources = previous_state.get("source_hashes", {})
         if (
@@ -1055,17 +1060,23 @@ def _execute_build(
         changed_projects: list[str] = []
         if not dry_run:
             assert runtime_state is not None
+            success_before = runtime_state.load_success()
 
             def finalize(candidate_manifest):
                 public_manifest = validate_bundle(public_dir, gate)
                 if public_manifest.to_dict() != candidate_manifest.to_dict():
                     raise ValueError("promoted bundle does not match candidate")
-                runtime_state.save_success(
-                    source_hashes=context.source_hashes,
-                    audit_hashes=context.audit_hashes,
-                    dependency_hashes=dependency_hashes,
-                    manifest=public_manifest.to_dict(),
-                )
+                try:
+                    runtime_state.save_success(
+                        source_hashes=context.source_hashes,
+                        audit_hashes=context.audit_hashes,
+                        dependency_hashes=dependency_hashes,
+                        relation_dependencies=context.relation_dependencies,
+                        manifest=public_manifest.to_dict(),
+                    )
+                except BaseException:
+                    runtime_state.restore_success(success_before)
+                    raise
 
             promotion = promote_bundle(staging, public_dir, gate, finalize=finalize)
             changed = promotion.changed
@@ -1102,6 +1113,30 @@ def _public_project_audits(
         for ref in refs
     }
     return refs, audit_hashes
+
+
+def _include_relation_dependents(
+    affected_project_ids: Sequence[str],
+    relation_dependencies: object,
+) -> tuple[str, ...]:
+    affected = set(affected_project_ids)
+    if not isinstance(relation_dependencies, Mapping):
+        return tuple(sorted(affected))
+    changed = True
+    while changed:
+        changed = False
+        for source, targets in relation_dependencies.items():
+            if (
+                not isinstance(source, str)
+                or not isinstance(targets, Sequence)
+                or isinstance(targets, (str, bytes))
+                or not all(isinstance(target, str) for target in targets)
+            ):
+                raise ValueError("invalid Project Atlas relation dependencies")
+            if source not in affected and affected.intersection(targets):
+                affected.add(source)
+                changed = True
+    return tuple(sorted(affected))
 
 
 def _global_dependency_hashes(
@@ -1400,9 +1435,11 @@ def _bundle_context(
     articles: dict[str, ProjectArticle] = {}
     evidence_by_project: dict[str, tuple[EvidenceRecord, ...]] = {}
     relations_by_project: dict[str, tuple[dict[str, object], ...]] = {}
+    relation_dependencies: dict[str, tuple[str, ...]] = {}
     system_maps: dict[str, str] = {}
     source_hashes: dict[str, str] = {}
     prior_sources = previous_state.get("source_hashes", {})
+    prior_relations = previous_state.get("relation_dependencies", {})
     if previous_public_dir is not None and not isinstance(prior_sources, Mapping):
         raise ValueError("invalid Project Atlas runtime state")
 
@@ -1421,6 +1458,11 @@ def _bundle_context(
             source_hash = prior_sources.get(ref.project_id)
             if not isinstance(source_hash, str):
                 raise ValueError("invalid Project Atlas runtime state")
+            targets = prior_relations.get(ref.project_id, []) if isinstance(prior_relations, Mapping) else []
+            if not isinstance(targets, list) or any(not isinstance(target, str) for target in targets):
+                raise ValueError("invalid Project Atlas runtime state")
+            if targets:
+                relation_dependencies[ref.project_id] = tuple(targets)
         else:
             memory = load_project_memory(ref, gate)
             project = _public_project(ref, memory)
@@ -1433,6 +1475,9 @@ def _bundle_context(
                 relations = load_project_relations(ref.root, gate)
                 if relations:
                     relations_by_project[ref.project_id] = relations
+                    relation_dependencies[ref.project_id] = tuple(
+                        sorted({str(relation["target"]) for relation in relations})
+                    )
             source_manifest = source_manifests[ref.project_id]
             if article is not None:
                 audit = audit_curated_project_content(ref, source_manifest, (), gate)
@@ -1490,6 +1535,7 @@ def _bundle_context(
         source_hashes=source_hashes,
         previous_manifest=previous_manifest,
         audit_hashes=dict(audit_hashes),
+        relation_dependencies=relation_dependencies,
         privacy_gate=gate,
         project_articles=articles,
         project_evidence=evidence_by_project,
@@ -1582,7 +1628,13 @@ def _privacy_gate(
     key = _runtime_alias_key(workspace, runtime_config)
     if key is None:
         if ephemeral:
-            key = secrets.token_bytes(32)
+            state = runtime_state or RuntimeState.open(workspace)
+            try:
+                key = read_hmac_key_file(state.hmac_key_path)
+            except FileNotFoundError:
+                key = secrets.token_bytes(32)
+            except (OSError, ValueError):
+                raise ConfigError("/alias-key") from None
         else:
             state = runtime_state or RuntimeState.open(workspace)
             try:

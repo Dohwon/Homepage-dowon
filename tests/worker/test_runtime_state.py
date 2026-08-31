@@ -89,6 +89,21 @@ def test_worker_lock_symlink_cannot_redirect_lock_descriptor(tmp_path):
     assert external.read_bytes() == b"outside"
 
 
+def test_replacing_worker_lock_cannot_create_a_second_lock_domain(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    first = RuntimeState.open(workspace, config_home=tmp_path / ".config")
+    second = RuntimeState.open(workspace, config_home=tmp_path / ".config")
+
+    with first.lock():
+        lock_path = first.state_root / "worker.lock"
+        lock_path.unlink()
+        lock_path.write_bytes(b"replacement")
+        with pytest.raises(WorkerAlreadyRunning, match="already running"):
+            with second.lock(blocking=False):
+                pass
+
+
 def test_changed_projects_compare_source_and_audit_hashes(tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()

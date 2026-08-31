@@ -19,7 +19,13 @@ if REPOSITORY_ROOT not in sys.path:
     sys.path.insert(0, REPOSITORY_ROOT)
 
 from atlas_worker.article import load_project_article, load_project_evidence
-from atlas_worker.cli import _bundle_context, _discover, _load_runtime_config
+from atlas_worker.bundle import build_candidate_bundle, validate_bundle
+from atlas_worker.cli import (
+    _bundle_context,
+    _discover,
+    _load_runtime_config,
+    _public_project_audits,
+)
 from atlas_worker.content_audit import audit_curated_project_content
 from atlas_worker.kg import load_project_relations
 from atlas_worker.models import EvidenceRecord
@@ -105,7 +111,6 @@ class CatalogAudit:
                 self.missing_project_ids,
                 self.unexpected_project_ids,
                 self.review_required,
-                self.insufficient_evidence,
                 self.generic_decision_documents,
                 self.invalid_evidence,
                 self.unreferenced_svgs,
@@ -163,6 +168,16 @@ def validate_evidence_owner(project_root: Path, evidence: EvidenceRecord) -> tup
         findings.append("evidence-content-hash-mismatch")
     if line_number > len(lines) or not lines[line_number - 1].strip():
         findings.append("evidence-claim-line-invalid")
+    if evidence.source_type == "git":
+        tracked = SubprocessGitRunner().run(
+            Path(project_root),
+            "ls-files",
+            "--error-unmatch",
+            "--",
+            path.as_posix(),
+        )
+        if not tracked:
+            findings.append("git-evidence-untracked")
     return tuple(findings)
 
 
@@ -246,7 +261,20 @@ def audit_public_catalog(workspace: Path) -> CatalogAudit:
     inferred_relations: set[str] = set()
     if not project_set.missing_project_ids and not project_set.unexpected_project_ids:
         try:
-            context = _bundle_context(root, discovery, gate)
+            project_refs, audit_hashes = _public_project_audits(discovery)
+            context = _bundle_context(
+                root,
+                project_refs,
+                gate,
+                audit_hashes=audit_hashes,
+                affected_project_ids=frozenset(EXPECTED_PROJECT_IDS),
+                previous_public_dir=None,
+                previous_state={},
+            )
+            with tempfile.TemporaryDirectory(prefix="project-atlas-catalog-audit-") as temporary:
+                candidate = Path(temporary) / "candidate"
+                build_candidate_bundle(context, candidate)
+                validate_bundle(candidate, gate)
             for edge in context.graph.edges:
                 if edge.kind == "project-similarity":
                     similarity_edges.add(edge.edge_id)
@@ -299,8 +327,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    result = audit_public_catalog(args.workspace)
-    payload = result.to_dict()
+    try:
+        result = audit_public_catalog(args.workspace)
+        payload = result.to_dict()
+    except Exception:
+        payload = {"error": "catalog-audit-failed", "ready": False}
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+        return 2
     if args.output is not None:
         _write_atomic(args.output, payload)
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))

@@ -14,9 +14,6 @@ import secrets
 import stat
 from typing import Iterator
 
-from .manifest import require_no_symlink_path
-
-
 class WorkerAlreadyRunning(OSError):
     """Raised when another worker owns the workspace lock."""
 
@@ -63,37 +60,33 @@ class RuntimeState:
         state_descriptor = self._open_state_directory(create=True)
         lock_descriptor = -1
         try:
+            mode = fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB)
+            try:
+                fcntl.flock(state_descriptor, mode)
+            except BlockingIOError as error:
+                raise WorkerAlreadyRunning("Project Atlas worker already running") from error
             lock_descriptor = _open_regular_at(
                 state_descriptor,
                 "worker.lock",
                 os.O_RDWR | os.O_CREAT,
                 mode=0o600,
             )
-            mode = fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB)
-            try:
-                fcntl.flock(lock_descriptor, mode)
-            except BlockingIOError as error:
-                raise WorkerAlreadyRunning("Project Atlas worker already running") from error
             _require_same_directory_entry(state_descriptor, "worker.lock", lock_descriptor)
             self._state_dir_fd = state_descriptor
-            self._lock_fd = lock_descriptor
+            self._lock_fd = state_descriptor
             yield
         finally:
             self._lock_fd = None
             self._state_dir_fd = None
             if lock_descriptor >= 0:
-                try:
-                    fcntl.flock(lock_descriptor, fcntl.LOCK_UN)
-                finally:
-                    os.close(lock_descriptor)
+                os.close(lock_descriptor)
+            fcntl.flock(state_descriptor, fcntl.LOCK_UN)
             os.close(state_descriptor)
 
     def load_hmac_key(self) -> bytes:
         parent = self.hmac_key_path.parent
         parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        require_no_symlink_path(parent)
-        parent_descriptor = os.open(parent, _directory_open_flags())
-        try:
+        with _open_directory_chain(parent) as parent_descriptor:
             os.fchmod(parent_descriptor, 0o700)
             try:
                 descriptor = _open_regular_at(
@@ -138,8 +131,6 @@ class RuntimeState:
             finally:
                 if descriptor >= 0:
                     os.close(descriptor)
-        finally:
-            os.close(parent_descriptor)
 
     def changed_project_ids(
         self,
@@ -199,6 +190,14 @@ class RuntimeState:
                 for project_id, digest in hashes.items()
             ):
                 raise ValueError("invalid Project Atlas runtime state")
+        relation_dependencies = value.get("relation_dependencies", {})
+        if not isinstance(relation_dependencies, dict) or any(
+            not isinstance(project_id, str)
+            or not isinstance(targets, list)
+            or any(not isinstance(target, str) for target in targets)
+            for project_id, targets in relation_dependencies.items()
+        ):
+            raise ValueError("invalid Project Atlas runtime state")
         manifest = value.get("last_good_manifest", {})
         if not isinstance(manifest, dict):
             raise ValueError("invalid Project Atlas runtime state")
@@ -211,13 +210,32 @@ class RuntimeState:
         audit_hashes: Mapping[str, str],
         manifest: Mapping[str, object],
         dependency_hashes: Mapping[str, str] | None = None,
+        relation_dependencies: Mapping[str, tuple[str, ...]] | None = None,
     ) -> None:
         payload = {
             "audit_hashes": _validated_hashes(audit_hashes),
             "dependency_hashes": _validated_hashes(dependency_hashes or {}),
             "last_good_manifest": dict(manifest),
+            "relation_dependencies": {
+                project_id: list(targets)
+                for project_id, targets in sorted((relation_dependencies or {}).items())
+            },
             "source_hashes": _validated_hashes(source_hashes),
         }
+        self._write_payload(payload)
+
+    def restore_success(self, payload: Mapping[str, object]) -> None:
+        if not payload:
+            with self._state_directory(create=True) as state_descriptor:
+                try:
+                    os.unlink("runtime-state.json", dir_fd=state_descriptor)
+                except FileNotFoundError:
+                    pass
+                os.fsync(state_descriptor)
+            return
+        self._write_payload(dict(payload))
+
+    def _write_payload(self, payload: Mapping[str, object]) -> None:
         encoded = (
             json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
             + "\n"
@@ -294,22 +312,15 @@ class RuntimeState:
 
 def read_hmac_key_file(path: Path, *, strip_line_endings: bool = False) -> bytes:
     """Read an existing owner-only HMAC key without following the final path."""
-    candidate = Path(path)
-    require_no_symlink_path(candidate)
-    before = candidate.lstat()
-    descriptor = os.open(candidate, _regular_open_flags(os.O_RDONLY))
-    try:
-        opened = os.fstat(descriptor)
-        _require_regular_hmac_metadata(opened)
-        if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
-            raise ValueError("HMAC key changed during no-follow open")
-        key = _read_key_descriptor(descriptor, strip_line_endings=strip_line_endings)
-    finally:
-        os.close(descriptor)
-    after = candidate.lstat()
-    if (after.st_dev, after.st_ino) != (before.st_dev, before.st_ino):
-        raise ValueError("HMAC key changed during read")
-    return key
+    candidate = Path(path).expanduser()
+    with _open_directory_chain(candidate.parent) as parent_descriptor:
+        descriptor = _open_regular_at(parent_descriptor, candidate.name, os.O_RDONLY)
+        try:
+            key = _read_key_descriptor(descriptor, strip_line_endings=strip_line_endings)
+            _require_same_directory_entry(parent_descriptor, candidate.name, descriptor)
+            return key
+        finally:
+            os.close(descriptor)
 
 
 def _validated_hashes(value: Mapping[str, str]) -> dict[str, str]:
@@ -338,6 +349,25 @@ def _regular_open_flags(flags: int) -> int:
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
     return flags
+
+
+@contextmanager
+def _open_directory_chain(path: Path) -> Iterator[int]:
+    candidate = Path(path).expanduser()
+    if not candidate.is_absolute():
+        candidate = Path.cwd() / candidate
+    parts = candidate.parts
+    if not parts or any(part in {".", ".."} for part in parts[1:]):
+        raise ValueError("HMAC key parent path is invalid")
+    descriptor = os.open(parts[0], _directory_open_flags())
+    try:
+        for part in parts[1:]:
+            child = os.open(part, _directory_open_flags(), dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = child
+        yield descriptor
+    finally:
+        os.close(descriptor)
 
 
 def _open_regular_at(

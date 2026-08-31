@@ -10,5 +10,6 @@ ExecStart=/usr/bin/env OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 /usr/bin/nice -n
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/home/dowon/securedir/git/codex /home/dowon/.config/project-atlas
-
+UMask=0077
+ReadWritePaths=/home/dowon/securedir/git/codex/.knowledge-worker /home/dowon/securedir/git/codex/portfolio-homepage
+ReadOnlyPaths=/home/dowon/.config/project-atlas
