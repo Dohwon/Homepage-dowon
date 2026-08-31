@@ -132,7 +132,7 @@ python3 -m venv .venv
 대표 화면으로 연결한다. 비공개 정보가 보이는 캡처는 저장하지 않는다.
 
 변경 감지와 공개 번들 갱신은 Windows 작업 스케줄러에 등록할 수 있다. WSL에서 아래를
-실행하면 15분 주기의 `Dowon Project Atlas Sync` 작업을 설치하며, 실제 배포는 GitHub
+실행하면 하루 1회의 `Dowon Project Atlas Sync` 작업을 설치하며, 실제 배포는 GitHub
 `main` push를 통해 이어진다.
 
 ```bash

@@ -27,7 +27,7 @@ def test_publish_cli_exposes_changed_only_and_explicit_push():
     assert args.push
 
 
-def test_user_timer_has_the_bounded_fifteen_minute_contract():
+def test_user_timer_has_the_bounded_daily_contract():
     root = Path(__file__).parents[2]
     service = (root / "deploy/systemd-user/project-atlas.service").read_text(
         encoding="utf-8"
@@ -45,8 +45,8 @@ def test_user_timer_has_the_bounded_fifteen_minute_contract():
     assert "ReadWritePaths=/home/dowon/securedir/git/codex/.knowledge-worker /home/dowon/securedir/git/codex/portfolio-homepage" in service
     assert "ReadOnlyPaths=/home/dowon/.config/project-atlas" in service
     assert "ReadWritePaths=/home/dowon/securedir/git/codex /" not in service
-    assert "OnBootSec=5m" in timer
-    assert "OnUnitActiveSec=15m" in timer
+    assert "OnBootSec=1h" in timer
+    assert "OnUnitActiveSec=1d" in timer
     assert "RandomizedDelaySec=60" in timer
     assert "Persistent=true" in timer
 

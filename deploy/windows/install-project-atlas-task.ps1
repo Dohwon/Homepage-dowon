@@ -29,9 +29,9 @@ if ($Mode -eq "Check") {
 
 $arguments = "-d `"$Distro`" --user `"$WslUser`" --exec bash `"$ScriptPath`""
 $action = New-ScheduledTaskAction -Execute "wsl.exe" -Argument $arguments
-$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration (New-TimeSpan -Days 3650)
+$trigger = New-ScheduledTaskTrigger -Daily -At (Get-Date).Date.AddHours(3)
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew
 
-Register-ScheduledTask -TaskName $taskName -Description "Validate and publish Project Atlas changes from WSL every 15 minutes." -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
+Register-ScheduledTask -TaskName $taskName -Description "Validate and publish Project Atlas changes from WSL once a day." -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
 
 Write-Output "Installed Windows task: $taskName"
