@@ -34,6 +34,7 @@ from .models import (
     GraphData,
     ProjectEvent,
     ProjectArticle,
+    ProjectSystemMap,
     ProjectMemory,
     ProjectRef,
     PromotionResult,
@@ -42,6 +43,7 @@ from .models import (
     validate_schema,
 )
 from .privacy import PrivacyGate
+from .system_map import render_system_map_svg
 from .graph import TAG_WEIGHTS
 from .taxonomy import display_tag_label, normalize_tag_label
 
@@ -56,6 +58,7 @@ _V2_OPTIONAL_PROJECT_FILES = (
     "article.json",
     "evidence.json",
     "timeline.json",
+    "system-map.json",
     "system-map.svg",
 )
 _MANDATORY_FILES = frozenset(
@@ -111,7 +114,7 @@ class BundleContext:
     relation_dependencies: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     project_articles: Mapping[str, ProjectArticle] = field(default_factory=dict)
     project_evidence: Mapping[str, tuple[EvidenceRecord, ...]] = field(default_factory=dict)
-    project_system_maps: Mapping[str, str] = field(default_factory=dict)
+    project_system_maps: Mapping[str, ProjectSystemMap] = field(default_factory=dict)
 
 
 def build_candidate_bundle(context: BundleContext, staging_dir: Path) -> BundleManifest:
@@ -323,7 +326,7 @@ def _write_v2_project_content(
     article: ProjectArticle,
     evidence: tuple[EvidenceRecord, ...],
     events: tuple[ProjectEvent, ...],
-    system_map: str | None,
+    system_map: ProjectSystemMap | None,
     gate: PrivacyGate,
 ) -> None:
     if article.project_id != project_id:
@@ -357,8 +360,12 @@ def _write_v2_project_content(
         _write_json(project_dir / "timeline.json", timeline, gate)
 
     if system_map is not None:
-        _validate_svg(system_map)
-        _write_text(project_dir / "system-map.svg", system_map, gate)
+        system_map_payload = system_map.to_public_dict()
+        validate_schema(system_map_payload, "public-system-map")
+        _write_json(project_dir / "system-map.json", system_map_payload, gate)
+        system_map_svg = render_system_map_svg(system_map)
+        _validate_svg(system_map_svg)
+        _write_text(project_dir / "system-map.svg", system_map_svg, gate)
 
 
 def _event_to_public(event: ProjectEvent) -> dict[str, str]:
@@ -768,7 +775,7 @@ def _project_artifacts(
             evidence_ids = {item["id"] for item in evidence}
             if len(evidence_ids) != len(evidence):
                 raise ValueError("public evidence IDs must be unique")
-        referenced_evidence = {
+        referenced_evidence = set(article.get("orientation_evidence_ids", [])) | {
             evidence_id
             for section in article["sections"]
             for evidence_id in section["evidence_ids"]
@@ -783,6 +790,23 @@ def _project_artifacts(
         if timeline_path in tree:
             validate_schema(_parse_json(tree, timeline_path), "public-timeline")
         system_map_path = f"projects/{project_id}/system-map.svg"
+        system_map_data_path = f"projects/{project_id}/system-map.json"
+        if (system_map_path in tree) != (system_map_data_path in tree):
+            raise ValueError("system map JSON and SVG must be published together")
+        if system_map_data_path in tree:
+            system_map = _parse_json(tree, system_map_data_path)
+            validate_schema(system_map, "public-system-map")
+            if system_map["project_id"] != project_id:
+                raise ValueError("system map project ID must match bundle path")
+            map_nodes = {node["id"] for node in system_map["nodes"]}
+            if len(map_nodes) != len(system_map["nodes"]):
+                raise ValueError("system map node IDs must be unique")
+            if any(flow["from"] not in map_nodes or flow["to"] not in map_nodes for flow in system_map["flows"]):
+                raise ValueError("system map flow references missing node")
+            if any(link["section_id"] not in section_id_set for link in system_map["decision_links"]):
+                raise ValueError("system map decision references missing article section")
+            if any(not set(link["node_ids"]).issubset(map_nodes) for link in system_map["decision_links"]):
+                raise ValueError("system map decision references missing node")
         if system_map_path in tree:
             _validate_svg(tree[system_map_path])
         for diagram_id in diagram_ids:

@@ -149,6 +149,8 @@ def _write_ready_article(
                 "project_id": project_id,
                 "title": article_title,
                 "summary": "Public routing decision",
+                "orientation": "This project defines the routing problem and the contract used to resolve it.",
+                "orientation_evidence_ids": [evidence_id],
                 "readiness": readiness,
                 "sections": [{
                     "id": "routing",
@@ -1493,7 +1495,7 @@ def test_changed_only_loads_private_project_inputs_only_for_affected_projects(
     real_load_memory = cli_module.load_project_memory
     real_load_article = cli_module.load_project_article
     real_load_evidence = cli_module.load_project_evidence
-    real_load_system_map = cli_module.load_system_map
+    real_load_system_map = cli_module.load_project_system_map
     real_load_relations = cli_module.load_project_relations
 
     def track_memory(ref, gate):
@@ -1508,9 +1510,9 @@ def test_changed_only_loads_private_project_inputs_only_for_affected_projects(
         calls.append(("evidence", ref.project_id))
         return real_load_evidence(ref, gate)
 
-    def track_system_map(ref, gate):
+    def track_system_map(ref, article, evidence, gate):
         calls.append(("system-map", ref.project_id))
-        return real_load_system_map(ref, gate)
+        return real_load_system_map(ref, article, evidence, gate)
 
     def track_relations(root, gate):
         calls.append(("relations", Path(root).name))
@@ -1519,7 +1521,7 @@ def test_changed_only_loads_private_project_inputs_only_for_affected_projects(
     monkeypatch.setattr(cli_module, "load_project_memory", track_memory)
     monkeypatch.setattr(cli_module, "load_project_article", track_article)
     monkeypatch.setattr(cli_module, "load_project_evidence", track_evidence)
-    monkeypatch.setattr(cli_module, "load_system_map", track_system_map)
+    monkeypatch.setattr(cli_module, "load_project_system_map", track_system_map)
     monkeypatch.setattr(cli_module, "load_project_relations", track_relations)
 
     unchanged = invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])

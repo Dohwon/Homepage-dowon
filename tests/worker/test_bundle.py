@@ -28,8 +28,12 @@ from atlas_worker.models import (
     GraphNode,
     ProjectEvent,
     ProjectArticle,
+    ProjectSystemMap,
     ProjectMemory,
     PublicProject,
+    SystemMapDecisionLink,
+    SystemMapFlow,
+    SystemMapNode,
 )
 from atlas_worker.privacy import PrivacyGate, PrivacyViolation
 from tests.worker.helpers import (
@@ -251,6 +255,8 @@ def _article(project_id: str = "alpha") -> ProjectArticle:
         project_id=project_id,
         title="Routing decision record",
         summary="Public routing decisions",
+        orientation="The routing problem requires a deterministic public contract.",
+        orientation_evidence_ids=("routing-proof",),
         readiness="ready",
         sections=(
             ArticleSection(
@@ -270,6 +276,27 @@ def _article(project_id: str = "alpha") -> ProjectArticle:
                 ),
             ),
         ),
+    )
+
+
+def _system_map(project_id: str = "alpha") -> ProjectSystemMap:
+    return ProjectSystemMap(
+        project_id=project_id,
+        title="Routing contract map",
+        summary="A request crosses validation before it reaches the routed output.",
+        nodes=(
+            SystemMapNode("request", "Request", "input", "The public request payload."),
+            SystemMapNode("router", "Router", "process", "Selects the supported route."),
+            SystemMapNode("result", "Result", "output", "The validated routed result."),
+        ),
+        flows=(
+            SystemMapFlow("route", "request", "router", "validate"),
+            SystemMapFlow("respond", "router", "result", "emit"),
+        ),
+        decision_links=(
+            SystemMapDecisionLink(("request", "router"), "routing", "Keep routing deterministic"),
+        ),
+        evidence_ids=("routing-proof",),
     )
 
 
@@ -302,6 +329,26 @@ def test_bundle_writes_v2_article_and_only_referenced_figures(tmp_path):
     assert not (project_dir / "decisions.md").exists()
     assert not (project_dir / "visuals" / "problem-solving.svg").exists()
     assert "projects/alpha/article.json" in manifest.files
+
+
+def test_bundle_writes_structured_system_map_and_generated_svg_together(tmp_path):
+    context = replace(
+        _context(),
+        project_articles={"alpha": _article()},
+        project_evidence={"alpha": (_evidence(),)},
+        project_system_maps={"alpha": _system_map()},
+    )
+
+    manifest = build_candidate_bundle(context, tmp_path / "candidate")
+    project_dir = tmp_path / "candidate" / "projects" / "alpha"
+    payload = json.loads((project_dir / "system-map.json").read_text(encoding="utf-8"))
+    svg = (project_dir / "system-map.svg").read_text(encoding="utf-8")
+
+    assert payload["project_id"] == "alpha"
+    assert payload["decision_links"][0]["section_id"] == "routing"
+    assert "Routing contract map" in svg
+    assert "projects/alpha/system-map.json" in manifest.files
+    assert "projects/alpha/system-map.svg" in manifest.files
 
 
 def test_bundle_rejects_duplicate_article_section_ids(tmp_path):

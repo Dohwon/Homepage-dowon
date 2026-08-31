@@ -414,6 +414,73 @@ class ProjectArticle:
 
 
 @dataclass(frozen=True)
+class SystemMapNode:
+    node_id: str
+    label: str
+    kind: str
+    description: str
+
+    def to_public_dict(self) -> dict[str, str]:
+        return {
+            "id": self.node_id,
+            "label": self.label,
+            "kind": self.kind,
+            "description": self.description,
+        }
+
+
+@dataclass(frozen=True)
+class SystemMapFlow:
+    flow_id: str
+    source_id: str
+    target_id: str
+    label: str
+
+    def to_public_dict(self) -> dict[str, str]:
+        return {
+            "id": self.flow_id,
+            "from": self.source_id,
+            "to": self.target_id,
+            "label": self.label,
+        }
+
+
+@dataclass(frozen=True)
+class SystemMapDecisionLink:
+    node_ids: tuple[str, ...]
+    section_id: str
+    label: str
+
+    def to_public_dict(self) -> dict[str, object]:
+        return {
+            "node_ids": list(self.node_ids),
+            "section_id": self.section_id,
+            "label": self.label,
+        }
+
+
+@dataclass(frozen=True)
+class ProjectSystemMap:
+    project_id: str
+    title: str
+    summary: str
+    nodes: tuple[SystemMapNode, ...]
+    flows: tuple[SystemMapFlow, ...]
+    decision_links: tuple[SystemMapDecisionLink, ...]
+    evidence_ids: tuple[str, ...]
+
+    def to_public_dict(self) -> dict[str, object]:
+        return {
+            "project_id": self.project_id,
+            "title": self.title,
+            "summary": self.summary,
+            "nodes": [node.to_public_dict() for node in self.nodes],
+            "flows": [flow.to_public_dict() for flow in self.flows],
+            "decision_links": [link.to_public_dict() for link in self.decision_links],
+        }
+
+
+@dataclass(frozen=True)
 class ContentAudit:
     project_id: str
     readiness: Readiness

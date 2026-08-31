@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project_id", "title", "summary", "nodes", "flows", "decision_links", "evidence_ids"],
+  "properties": {
+    "project_id": {"$ref": "#/$defs/stableId"},
+    "title": {"type": "string", "minLength": 1},
+    "summary": {"type": "string", "minLength": 1},
+    "nodes": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/node"}},
+    "flows": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/flow"}},
+    "decision_links": {"type": "array", "items": {"$ref": "#/$defs/decisionLink"}},
+    "evidence_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/stableId"}}
+  },
+  "$defs": {
+    "stableId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "kind", "description"],
+      "properties": {
+        "id": {"$ref": "#/$defs/stableId"},
+        "label": {"type": "string", "minLength": 1, "maxLength": 40},
+        "kind": {"enum": ["actor", "input", "interface", "process", "state", "service", "output", "guardrail"]},
+        "description": {"type": "string", "minLength": 1}
+      }
+    },
+    "flow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "from", "to", "label"],
+      "properties": {
+        "id": {"$ref": "#/$defs/stableId"},
+        "from": {"$ref": "#/$defs/stableId"},
+        "to": {"$ref": "#/$defs/stableId"},
+        "label": {"type": "string", "minLength": 1, "maxLength": 60}
+      }
+    },
+    "decisionLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_ids", "section_id", "label"],
+      "properties": {
+        "node_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/stableId"}},
+        "section_id": {"$ref": "#/$defs/stableId"},
+        "label": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

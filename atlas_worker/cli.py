@@ -26,7 +26,7 @@ from .backfill import (
     should_skip_session,
     updated_cursors,
 )
-from .article import load_project_article, load_project_evidence, load_system_map
+from .article import load_project_article, load_project_evidence
 from .bundle import (
     BundleContext,
     SearchDocument,
@@ -57,15 +57,20 @@ from .models import (
     GraphData,
     GraphEdge,
     ProjectArticle,
+    ProjectSystemMap,
     ProjectEvent,
     ProjectMemory,
     ProjectRef,
     PromotionResult,
     PublicProject,
     TagSet,
+    SystemMapDecisionLink,
+    SystemMapFlow,
+    SystemMapNode,
     validate_schema,
 )
 from .privacy import MIN_ALIAS_KEY_BYTES, PrivacyGate, PrivacyViolation
+from .system_map import load_project_system_map
 from .publish import publish_bundle, run_publication_tests
 from .runtime_state import RuntimeState, read_hmac_key_file
 from .session_index import index_session, map_session_trace, merge_child_evidence
@@ -1266,11 +1271,7 @@ def _load_reusable_project_inputs(
     article = _load_reusable_article(project_root, public_dir, project_id, gate)
     evidence = _load_reusable_evidence(project_root, public_dir, project_id, gate)
     events = _load_reusable_events(project_root, public_dir, gate)
-    system_map = _read_optional_public_text(
-        project_root / "system-map.svg",
-        public_dir,
-        gate,
-    )
+    system_map = _load_reusable_system_map(project_root, public_dir, project_id, gate)
     return (
         project,
         ProjectMemory(profile=project.to_dict(), events=events),
@@ -1341,6 +1342,38 @@ def _load_reusable_article(
         orientation_evidence_ids=tuple(payload.get("orientation_evidence_ids", ())),
         prior_context=payload.get("prior_context", ""),
         decision_index=decisions,
+    )
+
+
+def _load_reusable_system_map(
+    project_root: Path,
+    public_dir: Path,
+    project_id: str,
+    gate: PrivacyGate,
+) -> ProjectSystemMap | None:
+    payload = _read_optional_public_json(project_root / "system-map.json", public_dir, gate)
+    if payload is None:
+        return None
+    validate_schema(payload, "public-system-map")
+    if payload["project_id"] != project_id:
+        raise ValueError("reusable system map project does not match bundle path")
+    return ProjectSystemMap(
+        project_id=project_id,
+        title=payload["title"],
+        summary=payload["summary"],
+        nodes=tuple(
+            SystemMapNode(item["id"], item["label"], item["kind"], item["description"])
+            for item in payload["nodes"]
+        ),
+        flows=tuple(
+            SystemMapFlow(item["id"], item["from"], item["to"], item["label"])
+            for item in payload["flows"]
+        ),
+        decision_links=tuple(
+            SystemMapDecisionLink(tuple(item["node_ids"]), item["section_id"], item["label"])
+            for item in payload["decision_links"]
+        ),
+        evidence_ids=(),
     )
 
 
@@ -1469,7 +1502,7 @@ def _bundle_context(
     evidence_by_project: dict[str, tuple[EvidenceRecord, ...]] = {}
     relations_by_project: dict[str, tuple[dict[str, object], ...]] = {}
     relation_dependencies: dict[str, tuple[str, ...]] = {}
-    system_maps: dict[str, str] = {}
+    system_maps: dict[str, ProjectSystemMap] = {}
     source_hashes: dict[str, str] = {}
     prior_sources = previous_state.get("source_hashes", {})
     prior_relations = previous_state.get("relation_dependencies", {})
@@ -1516,7 +1549,7 @@ def _bundle_context(
                 audit = audit_curated_project_content(ref, source_manifest, (), gate)
                 if article.readiness != "ready" or audit.readiness != "ready":
                     raise ConfigError("/project-atlas/readiness")
-                system_map = load_system_map(ref, gate)
+                system_map = load_project_system_map(ref, article, evidence, gate)
             source_hash = _curated_source_hash(
                 project,
                 article,
@@ -1608,7 +1641,7 @@ def _curated_source_hash(
     article: ProjectArticle | None,
     evidence: tuple[EvidenceRecord, ...],
     events: tuple[ProjectEvent, ...],
-    system_map: str | None,
+    system_map: ProjectSystemMap | None,
     relations: Sequence[Mapping[str, object]],
 ) -> str:
     payload = {
@@ -1628,7 +1661,7 @@ def _curated_source_hash(
         ],
         "project": project.to_dict(),
         "relations": list(relations),
-        "system_map": system_map,
+        "system_map": system_map.to_public_dict() if system_map is not None else None,
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
