@@ -12,10 +12,10 @@ from pathlib import Path
 import posixpath
 import re
 import secrets
-import stat
 import sys
 import tempfile
 from typing import Any
+from urllib.parse import quote
 
 import yaml
 from yaml.error import YAMLError
@@ -48,9 +48,14 @@ from .kg import build_knowledge_graph, load_knowledge_taxonomy, load_project_rel
 from .memory import load_project_memory
 from .memory_writer import plan_project_memory_writes
 from .models import (
+    ArticleSection,
+    DecisionIndexEntry,
+    DiagramRef,
     DiscoveryReport,
     EvidenceRecord,
     EvidenceClaim,
+    GraphData,
+    GraphEdge,
     ProjectArticle,
     ProjectEvent,
     ProjectMemory,
@@ -62,7 +67,7 @@ from .models import (
 )
 from .privacy import MIN_ALIAS_KEY_BYTES, PrivacyGate, PrivacyViolation
 from .publish import publish_bundle
-from .runtime_state import RuntimeState
+from .runtime_state import RuntimeState, read_hmac_key_file
 from .session_index import index_session, map_session_trace, merge_child_evidence
 from .source_manifest import SubprocessGitRunner, build_source_manifest, resolve_git_owner
 
@@ -111,6 +116,7 @@ _REVIEWED_CLAIM_KEYS = frozenset(
 )
 _SAFE_ERROR_COMPONENT = re.compile(r"^[A-Za-z0-9_$.[\]-]+$")
 _WINDOWS_DRIVE = re.compile(r"^[A-Za-z]:")
+_PUBLIC_RELATION_KINDS = frozenset({"EVOLVED_FROM", "VALIDATES", "DEPLOYS", "REUSES_COMPONENT"})
 
 
 class ConfigError(ValueError):
@@ -280,9 +286,32 @@ def _command_backfill(args: argparse.Namespace) -> dict[str, object]:
 def _command_build(args: argparse.Namespace) -> dict[str, object]:
     workspace = _workspace(args.workspace)
     config = _load_runtime_config(workspace)
-    gate = _privacy_gate(workspace, config, ephemeral=bool(args.dry_run))
-    report = _discover(workspace, config, source_gate=gate)
-    return _execute_build(workspace, config, report, gate, dry_run=bool(args.dry_run))
+    if args.dry_run:
+        gate = _privacy_gate(workspace, config, ephemeral=True)
+        report = _discover(workspace, config, source_gate=gate)
+        return _execute_build(workspace, config, report, gate, dry_run=True)
+    runtime_state = RuntimeState.open(workspace)
+    configured_key = _runtime_alias_key(workspace, config)
+    if configured_key is not None:
+        gate = PrivacyGate(alias_key=configured_key)
+        report = _discover(workspace, config, source_gate=gate)
+        _execute_build(workspace, config, report, gate, dry_run=True)
+    with runtime_state.lock():
+        gate = _privacy_gate(
+            workspace,
+            config,
+            ephemeral=False,
+            runtime_state=runtime_state,
+        )
+        report = _discover(workspace, config, source_gate=gate)
+        return _execute_build(
+            workspace,
+            config,
+            report,
+            gate,
+            dry_run=False,
+            runtime_state=runtime_state,
+        )
 
 
 def _command_validate(args: argparse.Namespace) -> dict[str, object]:
@@ -304,7 +333,12 @@ def _command_run(args: argparse.Namespace) -> dict[str, object]:
     workspace = _workspace(args.workspace)
     config = _load_runtime_config(workspace)
     if args.dry_run:
-        return _execute_run(args, workspace, config, runtime_state=None)
+        return _execute_run(
+            args,
+            workspace,
+            config,
+            runtime_state=RuntimeState.open(workspace),
+        )
     runtime_state = RuntimeState.open(workspace)
     with runtime_state.lock():
         return _execute_run(args, workspace, config, runtime_state=runtime_state)
@@ -317,7 +351,12 @@ def _execute_run(
     *,
     runtime_state: RuntimeState | None,
 ) -> dict[str, object]:
-    gate = _privacy_gate(workspace, config, ephemeral=bool(args.dry_run))
+    gate = _privacy_gate(
+        workspace,
+        config,
+        ephemeral=bool(args.dry_run),
+        runtime_state=runtime_state,
+    )
     report = _discover(workspace, config, source_gate=gate)
     sessions_root = _sessions_root(workspace, config, args.sessions_root)
 
@@ -392,7 +431,12 @@ def _command_publish(args: argparse.Namespace) -> dict[str, object]:
         catalog = audit_public_catalog(workspace)
         if not catalog.ready:
             raise ConfigError("/catalog-audit")
-        gate = _privacy_gate(workspace, config, ephemeral=False)
+        gate = _privacy_gate(
+            workspace,
+            config,
+            ephemeral=False,
+            runtime_state=runtime_state,
+        )
         discovery = _discover(workspace, config, source_gate=gate)
         build = _execute_build(
             workspace,
@@ -501,10 +545,12 @@ def _workspace(value: Path) -> Path:
 
 def _load_runtime_config(workspace: Path) -> dict[str, object]:
     path = workspace / ".knowledge-worker" / "config.yaml"
-    if not path.is_file():
+    try:
+        content = read_confined_text(path, workspace, max_bytes=256 * 1024)
+    except FileNotFoundError:
         return {}
     try:
-        value = yaml.safe_load(path.read_text(encoding="utf-8"))
+        value = yaml.safe_load(content)
     except YAMLError:
         raise ConfigError("/runtime-config") from None
     if value is None:
@@ -965,22 +1011,42 @@ def _execute_build(
     runtime_state: RuntimeState | None = None,
     changed_only: bool = False,
 ) -> dict[str, object]:
+    if not dry_run and (runtime_state is None or not runtime_state.is_locked):
+        raise OSError("Project Atlas bundle writer requires the runtime lock")
     service_root = _service_root(workspace, runtime_config)
     public_dir = service_root / "public-bundle"
     previous_manifest = validate_bundle(public_dir, gate) if public_dir.is_dir() else None
+    project_refs, audit_hashes = _public_project_audits(discovery)
+    dependency_hashes = _global_dependency_hashes(runtime_config, project_refs)
+    affected_projects = tuple(ref.project_id for ref in project_refs)
+    previous_state: Mapping[str, object] = {}
+    reuse_last_good = False
+    if changed_only and runtime_state is not None and previous_manifest is not None:
+        previous_state = runtime_state.load_success()
+        affected_projects = runtime_state.changed_project_ids(
+            audit_hashes=audit_hashes,
+            dependency_hashes=dependency_hashes,
+        )
+        current_ids = {ref.project_id for ref in project_refs}
+        prior_sources = previous_state.get("source_hashes", {})
+        if (
+            previous_state.get("last_good_manifest") != previous_manifest.to_dict()
+            or not isinstance(prior_sources, Mapping)
+            or set(prior_sources) != current_ids
+        ):
+            affected_projects = tuple(sorted(current_ids))
+        else:
+            reuse_last_good = True
     context = _bundle_context(
         workspace,
-        discovery,
+        project_refs,
         gate,
+        audit_hashes=audit_hashes,
+        affected_project_ids=frozenset(affected_projects),
+        previous_public_dir=public_dir if reuse_last_good else None,
+        previous_state=previous_state,
         previous_manifest=previous_manifest,
     )
-    if changed_only and runtime_state is not None:
-        affected_projects = runtime_state.changed_project_ids(
-            source_hashes=context.source_hashes,
-            audit_hashes=context.audit_hashes,
-        )
-    else:
-        affected_projects = tuple(sorted(context.source_hashes))
     with tempfile.TemporaryDirectory(prefix=".project-atlas-staging-", dir=service_root) as temporary:
         staging = Path(temporary) / "candidate"
         manifest = build_candidate_bundle(context, staging)
@@ -988,16 +1054,23 @@ def _execute_build(
         changed = False
         changed_projects: list[str] = []
         if not dry_run:
-            promotion = promote_bundle(staging, public_dir, gate)
-            changed = promotion.changed
-            changed_projects = list(promotion.changed_projects)
-            validated = validate_bundle(public_dir, gate)
-            if runtime_state is not None:
+            assert runtime_state is not None
+
+            def finalize(candidate_manifest):
+                public_manifest = validate_bundle(public_dir, gate)
+                if public_manifest.to_dict() != candidate_manifest.to_dict():
+                    raise ValueError("promoted bundle does not match candidate")
                 runtime_state.save_success(
                     source_hashes=context.source_hashes,
                     audit_hashes=context.audit_hashes,
-                    manifest=validated.to_dict(),
+                    dependency_hashes=dependency_hashes,
+                    manifest=public_manifest.to_dict(),
                 )
+
+            promotion = promote_bundle(staging, public_dir, gate, finalize=finalize)
+            changed = promotion.changed
+            changed_projects = list(promotion.changed_projects)
+            validated = validate_bundle(public_dir, gate)
     return {
         "affected_projects": list(affected_projects),
         "changed": changed,
@@ -1009,81 +1082,380 @@ def _execute_build(
     }
 
 
+def _public_project_audits(
+    discovery: DiscoveryReport,
+) -> tuple[tuple[ProjectRef, ...], dict[str, str]]:
+    ambiguous_ids = {ref.project_id for ref in discovery.ambiguous}
+    refs = tuple(
+        sorted(
+            (
+                ref
+                for ref in discovery.projects
+                if ref.publication == "public" and ref.project_id not in ambiguous_ids
+            ),
+            key=lambda ref: ref.project_id,
+        )
+    )
+    runner = SubprocessGitRunner()
+    audit_hashes = {
+        ref.project_id: str(build_source_manifest(ref, runner).audit_payload()["content_hash"])
+        for ref in refs
+    }
+    return refs, audit_hashes
+
+
+def _global_dependency_hashes(
+    runtime_config: Mapping[str, object],
+    project_refs: tuple[ProjectRef, ...],
+) -> dict[str, str]:
+    package_root = Path(__file__).parent.parent
+    taxonomy = read_confined_text(
+        package_root / "data" / "knowledge-taxonomy.yaml",
+        package_root,
+        max_bytes=1024 * 1024,
+    )
+    schema_root = package_root / "schemas"
+    schemas = {
+        path.name: hashlib.sha256(
+            read_confined_text(path, package_root, max_bytes=1024 * 1024).encode("utf-8")
+        ).hexdigest()
+        for path in sorted(schema_root.glob("*.schema.json"), key=lambda item: item.name)
+    }
+    config_payload = {
+        "projects": [ref.project_id for ref in project_refs],
+        "runtime": dict(runtime_config),
+    }
+    return {
+        "config": _canonical_digest(config_payload),
+        "schema": _canonical_digest(schemas),
+        "taxonomy": hashlib.sha256(taxonomy.encode("utf-8")).hexdigest(),
+    }
+
+
+def _canonical_digest(value: object) -> str:
+    encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def _public_project(ref: ProjectRef, memory: ProjectMemory) -> PublicProject:
+    profile = memory.profile
+    if profile.get("id") != ref.project_id or profile.get("publication") != "public":
+        raise ConfigError("/project-profile/id")
+    tags = profile["tags"]
+    project = PublicProject(
+        project_id=ref.project_id,
+        display_name=ref.display_name,
+        lifecycle=ref.lifecycle,
+        summary=profile["summary"],
+        tags=TagSet(
+            domain=tuple(tags["domain"]),
+            problem=tuple(tags["problem"]),
+            pattern=tuple(tags["pattern"]),
+            technology=tuple(tags["technology"]),
+            outcome=tuple(tags["outcome"]),
+        ),
+        outcome=profile.get("outcome", ""),
+        aliases=(),
+    )
+    validate_schema(project.to_dict(), "public-project")
+    return project
+
+
+def _load_reusable_project_inputs(
+    public_dir: Path,
+    project_id: str,
+    gate: PrivacyGate,
+) -> tuple[
+    PublicProject,
+    ProjectMemory,
+    ProjectArticle | None,
+    tuple[EvidenceRecord, ...],
+    str | None,
+]:
+    project_root = public_dir / "projects" / project_id
+    project_payload = _read_public_json(
+        project_root / "project.json",
+        public_dir,
+        gate,
+    )
+    validate_schema(project_payload, "public-project")
+    if project_payload.get("id") != project_id:
+        raise ValueError("reusable project ID does not match bundle path")
+    tags = project_payload["tags"]
+    project = PublicProject(
+        project_id=project_id,
+        display_name=project_payload["name"],
+        lifecycle=project_payload["lifecycle"],
+        summary=project_payload["summary"],
+        tags=TagSet(
+            domain=tuple(tags["domain"]),
+            problem=tuple(tags["problem"]),
+            pattern=tuple(tags["pattern"]),
+            technology=tuple(tags["technology"]),
+            outcome=tuple(tags["outcome"]),
+        ),
+        outcome=project_payload.get("outcome", ""),
+        aliases=tuple(project_payload.get("aliases", ())),
+    )
+    article = _load_reusable_article(project_root, public_dir, project_id, gate)
+    evidence = _load_reusable_evidence(project_root, public_dir, project_id, gate)
+    events = _load_reusable_events(project_root, public_dir, gate)
+    system_map = _read_optional_public_text(
+        project_root / "system-map.svg",
+        public_dir,
+        gate,
+    )
+    return (
+        project,
+        ProjectMemory(profile=project.to_dict(), events=events),
+        article,
+        evidence,
+        system_map,
+    )
+
+
+def _load_reusable_article(
+    project_root: Path,
+    public_dir: Path,
+    project_id: str,
+    gate: PrivacyGate,
+) -> ProjectArticle | None:
+    payload = _read_optional_public_json(project_root / "article.json", public_dir, gate)
+    if payload is None:
+        return None
+    validate_schema(payload, "public-article")
+    if payload.get("project_id") != project_id:
+        raise ValueError("reusable article project does not match bundle path")
+    sections = []
+    for item in payload["sections"]:
+        diagrams = []
+        for diagram in item.get("diagrams", ()):
+            diagram_id = diagram["id"]
+            svg = read_confined_text(
+                project_root / "visuals" / f"{diagram_id}.svg",
+                public_dir,
+                max_bytes=4 * 1024 * 1024,
+            )
+            gate.require_safe(svg)
+            diagrams.append(
+                DiagramRef(
+                    diagram_id=diagram_id,
+                    source_path=f"projects/{project_id}/visuals/{diagram_id}.svg",
+                    caption=diagram["caption"],
+                    alt=diagram["alt"],
+                    svg=svg,
+                )
+            )
+        sections.append(
+            ArticleSection(
+                section_id=item["id"],
+                title=item["title"],
+                section_type=item["section_type"],
+                body=item["body"],
+                evidence_ids=tuple(item["evidence_ids"]),
+                diagrams=tuple(diagrams),
+            )
+        )
+    decisions = tuple(
+        DecisionIndexEntry(
+            decision_id=item["decision_id"],
+            section_id=item["section_id"],
+            status=item["status"],
+            evidence_ids=tuple(item["evidence_ids"]),
+        )
+        for item in payload.get("decision_index", ())
+    )
+    return ProjectArticle(
+        project_id=project_id,
+        title=payload["title"],
+        summary=payload["summary"],
+        sections=tuple(sections),
+        readiness=payload["readiness"],
+        prior_context=payload.get("prior_context", ""),
+        decision_index=decisions,
+    )
+
+
+def _load_reusable_evidence(
+    project_root: Path,
+    public_dir: Path,
+    project_id: str,
+    gate: PrivacyGate,
+) -> tuple[EvidenceRecord, ...]:
+    payload = _read_optional_public_json(project_root / "evidence.json", public_dir, gate)
+    if payload is None:
+        return ()
+    validate_schema(payload, "public-evidence")
+    return tuple(
+        EvidenceRecord(
+            evidence_id=item["id"],
+            project_id=project_id,
+            label=item["label"],
+            source_type=item["source_type"],
+            source_locator="",
+            observed_at=item["observed_at"],
+            privacy_class="public-safe",
+            content_hash=_canonical_digest(item),
+            url=item.get("url"),
+        )
+        for item in payload
+    )
+
+
+def _load_reusable_events(
+    project_root: Path,
+    public_dir: Path,
+    gate: PrivacyGate,
+) -> tuple[ProjectEvent, ...]:
+    payload = _read_optional_public_json(project_root / "timeline.json", public_dir, gate)
+    if payload is None:
+        return ()
+    validate_schema(payload, "public-timeline")
+    return tuple(
+        ProjectEvent(
+            event_id=item["event_id"],
+            date=item["date"],
+            title=item["title"],
+            context=item["context"],
+            decision=item["decision"],
+            outcome=item["outcome"],
+            stage=item["stage"],
+        )
+        for item in payload
+    )
+
+
+def _load_reusable_relation_edges(
+    public_dir: Path,
+    reusable_project_ids: frozenset[str],
+    gate: PrivacyGate,
+) -> tuple[GraphEdge, ...]:
+    if not reusable_project_ids:
+        return ()
+    payload = _read_public_json(public_dir / "graph" / "edges.json", public_dir, gate)
+    source_nodes = {
+        f"project:{quote(project_id, safe='')}"
+        for project_id in reusable_project_ids
+    }
+    return tuple(
+        GraphEdge(
+            source_id=item["source"],
+            target_id=item["target"],
+            kind=item["kind"],
+            weight=item["weight"],
+            evidence_links=tuple(dict(link) for link in item["evidence_links"]),
+        )
+        for item in payload
+        if item.get("kind") in _PUBLIC_RELATION_KINDS and item.get("source") in source_nodes
+    )
+
+
+def _read_public_json(
+    path: Path,
+    root: Path,
+    gate: PrivacyGate,
+) -> Any:
+    value = json.loads(read_confined_text(path, root, max_bytes=4 * 1024 * 1024))
+    gate.require_safe(value)
+    return value
+
+
+def _read_optional_public_json(
+    path: Path,
+    root: Path,
+    gate: PrivacyGate,
+) -> Any | None:
+    try:
+        return _read_public_json(path, root, gate)
+    except FileNotFoundError:
+        return None
+
+
+def _read_optional_public_text(
+    path: Path,
+    root: Path,
+    gate: PrivacyGate,
+) -> str | None:
+    try:
+        value = read_confined_text(path, root, max_bytes=4 * 1024 * 1024)
+    except FileNotFoundError:
+        return None
+    gate.require_safe(value)
+    return value
+
+
 def _bundle_context(
     workspace: Path,
-    discovery: DiscoveryReport,
+    project_refs: tuple[ProjectRef, ...],
     gate: PrivacyGate,
     *,
+    audit_hashes: Mapping[str, str],
+    affected_project_ids: frozenset[str],
+    previous_public_dir: Path | None,
+    previous_state: Mapping[str, object],
     previous_manifest: Any = None,
 ) -> BundleContext:
-    ambiguous_ids = {ref.project_id for ref in discovery.ambiguous}
     projects: list[PublicProject] = []
     memories: dict[str, ProjectMemory] = {}
-    articles = {}
-    evidence_by_project = {}
-    relations_by_project = {}
-    system_maps = {}
+    articles: dict[str, ProjectArticle] = {}
+    evidence_by_project: dict[str, tuple[EvidenceRecord, ...]] = {}
+    relations_by_project: dict[str, tuple[dict[str, object], ...]] = {}
+    system_maps: dict[str, str] = {}
     source_hashes: dict[str, str] = {}
-    audit_hashes: dict[str, str] = {}
-    git_runner = SubprocessGitRunner()
-    for ref in discovery.projects:
-        if ref.publication != "public" or ref.project_id in ambiguous_ids:
-            continue
-        memory = load_project_memory(ref, gate)
-        profile = memory.profile
-        if profile.get("id") != ref.project_id or profile.get("publication") != "public":
-            raise ConfigError("/project-profile/id")
-        tags = profile["tags"]
-        project = PublicProject(
-            project_id=ref.project_id,
-            display_name=ref.display_name,
-            lifecycle=ref.lifecycle,
-            summary=profile["summary"],
-            tags=TagSet(
-                domain=tuple(tags["domain"]),
-                problem=tuple(tags["problem"]),
-                pattern=tuple(tags["pattern"]),
-                technology=tuple(tags["technology"]),
-                outcome=tuple(tags["outcome"]),
-            ),
-            outcome=profile.get("outcome", ""),
-            aliases=(),
-        )
-        validate_schema(project.to_dict(), "public-project")
-        projects.append(project)
-        memories[ref.project_id] = memory
-        article = None
-        evidence = ()
-        if not ref.standalone_asset:
-            article = load_project_article(ref, gate)
-            evidence = load_project_evidence(ref, gate)
-            relations = load_project_relations(ref.root, gate)
-            if relations:
-                relations_by_project[ref.project_id] = relations
-        source_manifest = build_source_manifest(ref, git_runner)
-        audit_hashes[ref.project_id] = str(source_manifest.audit_payload()["content_hash"])
-        if article is not None:
-            audit = audit_curated_project_content(
-                ref,
-                source_manifest,
-                (),
+    prior_sources = previous_state.get("source_hashes", {})
+    if previous_public_dir is not None and not isinstance(prior_sources, Mapping):
+        raise ValueError("invalid Project Atlas runtime state")
+
+    source_manifests = {
+        ref.project_id: build_source_manifest(ref, SubprocessGitRunner())
+        for ref in project_refs
+        if ref.project_id in affected_project_ids
+    }
+    for ref in project_refs:
+        if previous_public_dir is not None and ref.project_id not in affected_project_ids:
+            project, memory, article, evidence, system_map = _load_reusable_project_inputs(
+                previous_public_dir,
+                ref.project_id,
                 gate,
             )
-            if article.readiness != "ready" or audit.readiness != "ready":
-                raise ConfigError("/project-atlas/readiness")
+            source_hash = prior_sources.get(ref.project_id)
+            if not isinstance(source_hash, str):
+                raise ValueError("invalid Project Atlas runtime state")
+        else:
+            memory = load_project_memory(ref, gate)
+            project = _public_project(ref, memory)
+            article = None
+            evidence = ()
+            system_map = None
+            if not ref.standalone_asset:
+                article = load_project_article(ref, gate)
+                evidence = load_project_evidence(ref, gate)
+                relations = load_project_relations(ref.root, gate)
+                if relations:
+                    relations_by_project[ref.project_id] = relations
+            source_manifest = source_manifests[ref.project_id]
+            if article is not None:
+                audit = audit_curated_project_content(ref, source_manifest, (), gate)
+                if article.readiness != "ready" or audit.readiness != "ready":
+                    raise ConfigError("/project-atlas/readiness")
+                system_map = load_system_map(ref, gate)
+            source_hash = _curated_source_hash(
+                project,
+                article,
+                evidence,
+                memory.events,
+                system_map,
+                relations_by_project.get(ref.project_id, ()),
+            )
+
+        projects.append(project)
+        memories[ref.project_id] = memory
+        source_hashes[ref.project_id] = source_hash
+        if article is not None:
             articles[ref.project_id] = article
             evidence_by_project[ref.project_id] = evidence
-            system_map = load_system_map(ref, gate)
-            if system_map is not None:
-                system_maps[ref.project_id] = system_map
-        source_hashes[ref.project_id] = _curated_source_hash(
-            project,
-            article,
-            evidence,
-            memory.events,
-            system_maps.get(ref.project_id),
-            relations_by_project.get(ref.project_id, ()),
-        )
+        if system_map is not None:
+            system_maps[ref.project_id] = system_map
 
     ordered = tuple(sorted(projects, key=lambda project: project.project_id))
     graph = build_knowledge_graph(
@@ -1093,6 +1465,13 @@ def _bundle_context(
         relations_by_project,
         load_knowledge_taxonomy(),
     )
+    if previous_public_dir is not None:
+        reusable_relations = _load_reusable_relation_edges(
+            previous_public_dir,
+            frozenset(project.project_id for project in ordered) - affected_project_ids,
+            gate,
+        )
+        graph = GraphData(graph.nodes, graph.edges + reusable_relations)
     search_documents = tuple(
         document
         for project in ordered
@@ -1110,7 +1489,7 @@ def _bundle_context(
         search_documents=search_documents,
         source_hashes=source_hashes,
         previous_manifest=previous_manifest,
-        audit_hashes=audit_hashes,
+        audit_hashes=dict(audit_hashes),
         privacy_gate=gate,
         project_articles=articles,
         project_evidence=evidence_by_project,
@@ -1198,12 +1577,18 @@ def _privacy_gate(
     runtime_config: Mapping[str, object],
     *,
     ephemeral: bool,
+    runtime_state: RuntimeState | None = None,
 ) -> PrivacyGate:
     key = _runtime_alias_key(workspace, runtime_config)
     if key is None:
-        if not ephemeral:
-            raise ConfigError("/alias-key")
-        key = secrets.token_bytes(32)
+        if ephemeral:
+            key = secrets.token_bytes(32)
+        else:
+            state = runtime_state or RuntimeState.open(workspace)
+            try:
+                key = state.load_hmac_key()
+            except (OSError, ValueError):
+                raise ConfigError("/alias-key") from None
     elif not ephemeral and len(key) < MIN_ALIAS_KEY_BYTES:
         raise ConfigError("/alias-key")
     return PrivacyGate(alias_key=key)
@@ -1226,31 +1611,10 @@ def _runtime_alias_key(
     path = Path(configured).expanduser()
     if not path.is_absolute():
         path = workspace / path
-    metadata = path.lstat()
-    if not stat.S_ISREG(metadata.st_mode) or stat.S_IMODE(metadata.st_mode) != 0o600:
-        raise ConfigError("/alias-key")
-    flags = os.O_RDONLY
-    if hasattr(os, "O_CLOEXEC"):
-        flags |= os.O_CLOEXEC
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    descriptor = os.open(path, flags)
     try:
-        opened = os.fstat(descriptor)
-        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (
-            metadata.st_dev,
-            metadata.st_ino,
-        ):
-            raise ConfigError("/alias-key")
-        with os.fdopen(descriptor, "rb") as source:
-            descriptor = -1
-            key = source.read().rstrip(b"\r\n")
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
-    if not key:
-        raise ConfigError("/alias-key")
-    return key
+        return read_hmac_key_file(path, strip_line_endings=True)
+    except (OSError, ValueError):
+        raise ConfigError("/alias-key") from None
 
 
 def _load_json(path: Path) -> object:

@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 import re
 import shutil
 import stat
-from typing import Mapping
+from typing import Callable, Mapping
 from urllib.parse import quote
 import xml.etree.ElementTree as ET
 
@@ -183,7 +183,13 @@ def build_candidate_bundle(context: BundleContext, staging_dir: Path) -> BundleM
     return manifest
 
 
-def promote_bundle(staging_dir: Path, public_dir: Path, gate: PrivacyGate) -> PromotionResult:
+def promote_bundle(
+    staging_dir: Path,
+    public_dir: Path,
+    gate: PrivacyGate,
+    *,
+    finalize: Callable[[BundleManifest], None] | None = None,
+) -> PromotionResult:
     """Validate a candidate completely, then promote it with rename rollback."""
     staging_dir = Path(staging_dir)
     public_dir = Path(public_dir)
@@ -200,6 +206,8 @@ def promote_bundle(staging_dir: Path, public_dir: Path, gate: PrivacyGate) -> Pr
     previous_hash = tree_hash(public_dir) if public_dir.exists() else None
     candidate_hash = tree_hash(staging_dir)
     if previous_hash == candidate_hash:
+        if finalize is not None:
+            finalize(candidate_manifest)
         return PromotionResult(changed=False, changed_projects=())
 
     _require_safe_destination(public_dir)
@@ -212,13 +220,30 @@ def promote_bundle(staging_dir: Path, public_dir: Path, gate: PrivacyGate) -> Pr
 
     if not public_dir.exists():
         _rename(staging_dir, public_dir)
+        try:
+            if finalize is not None:
+                finalize(candidate_manifest)
+        except BaseException:
+            _cleanup_tree(public_dir)
+            raise
         return PromotionResult(changed=True, changed_projects=changed_projects)
 
     _rename(public_dir, backup)
     try:
         _rename(staging_dir, public_dir)
-    except (OSError, ValueError):
-        _restore_backup(backup, public_dir, recovery, gate, previous_hash)
+        if finalize is not None:
+            finalize(candidate_manifest)
+    except BaseException:
+        if public_dir.exists():
+            _restore_after_finalize_failure(
+                backup,
+                public_dir,
+                recovery,
+                gate,
+                previous_hash,
+            )
+        else:
+            _restore_backup(backup, public_dir, recovery, gate, previous_hash)
         raise
     try:
         _cleanup_tree(backup)
@@ -1324,6 +1349,34 @@ def _restore_backup(
         _cleanup_tree(backup)
     except (OSError, ValueError):
         pass
+
+
+def _restore_after_finalize_failure(
+    backup: Path,
+    public_dir: Path,
+    recovery: Path,
+    gate: PrivacyGate,
+    last_good_hash: str | None,
+) -> None:
+    try:
+        _rename(public_dir, recovery)
+    except (OSError, ValueError) as move_error:
+        raise BundleRecoveryError("promoted candidate could not enter recovery") from move_error
+    try:
+        _restore_backup(backup, public_dir, recovery.parent / ".public-bundle.restore", gate, last_good_hash)
+        restored = _load_text_tree(public_dir)
+        gate.require_safe(_privacy_tree(restored))
+        _validate_bundle(public_dir, restored)
+        if last_good_hash is None or tree_hash(public_dir) != last_good_hash:
+            raise ValueError("restored bundle does not match last-good bytes")
+    except BaseException:
+        if not public_dir.exists() and recovery.exists():
+            try:
+                _rename(recovery, public_dir)
+            except (OSError, ValueError):
+                pass
+        raise
+    _best_effort_cleanup(recovery)
 
 
 def _copytree(source: Path, target: Path) -> None:

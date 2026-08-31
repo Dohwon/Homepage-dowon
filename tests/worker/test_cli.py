@@ -2,6 +2,7 @@ import importlib
 import json
 import os
 from pathlib import Path
+import stat
 import subprocess
 import sys
 
@@ -20,6 +21,7 @@ from atlas_worker.cli import (
     main,
 )
 from atlas_worker.models import SessionEvent, SessionTrace
+from atlas_worker.runtime_state import RuntimeState
 from tests.worker.helpers import (
     invoke_cli_json,
     make_workspace_fixture,
@@ -1330,14 +1332,19 @@ def test_build_dry_run_omits_private_ambiguous_and_unprofiled_projects(tmp_path)
     assert "unprofiled" not in json.dumps(output)
 
 
-def test_build_real_write_requires_explicit_runtime_alias_key(tmp_path, capsys):
+def test_build_real_write_uses_default_runtime_hmac_key_path(tmp_path, monkeypatch):
     workspace = make_workspace_fixture(tmp_path)
+    config_home = tmp_path / ".config"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config_home))
+    monkeypatch.delenv("PROJECT_ATLAS_HMAC_KEY", raising=False)
+    monkeypatch.delenv("PROJECT_ATLAS_HMAC_KEY_PATH", raising=False)
 
-    code = main(["build", "--workspace", str(workspace)])
+    output = invoke_cli_json(["build", "--workspace", str(workspace)])
 
-    assert code == EXIT_VALIDATION
-    assert not (workspace / "portfolio-homepage" / "public-bundle").exists()
-    assert "traceback" not in capsys.readouterr().err.casefold()
+    key_path = config_home / "project-atlas" / "hmac.key"
+    assert output["changed"]
+    assert len(key_path.read_bytes()) == 32
+    assert stat.S_IMODE(key_path.stat().st_mode) == 0o600
 
 
 def test_build_real_write_promotes_valid_public_profiles_without_unstructured_memory(tmp_path, monkeypatch):
@@ -1390,6 +1397,62 @@ def test_build_rejects_runtime_alias_key_file_without_owner_only_permissions(
     assert not (workspace / "portfolio-homepage" / "public-bundle").exists()
 
 
+@pytest.mark.parametrize("key_content", (b"short", b"x" * 31 + b"\n"))
+def test_build_rejects_runtime_alias_key_file_shorter_than_32_bytes(
+    tmp_path, capsys, key_content
+):
+    workspace = make_workspace_fixture(tmp_path)
+    key_path = tmp_path / "atlas-hmac.key"
+    key_path.write_bytes(key_content)
+    key_path.chmod(0o600)
+    runtime = workspace / ".knowledge-worker" / "config.yaml"
+    runtime.parent.mkdir()
+    runtime.write_text(yaml.safe_dump({"hmac_key_path": str(key_path)}), encoding="utf-8")
+
+    code = main(["build", "--workspace", str(workspace)])
+
+    assert code == EXIT_VALIDATION
+    assert json.loads(capsys.readouterr().err) == {
+        "error": {"category": "config", "pointer": "/alias-key"}
+    }
+    assert not (workspace / "portfolio-homepage" / "public-bundle").exists()
+
+
+def test_build_rejects_runtime_alias_key_file_symlink(tmp_path, capsys):
+    workspace = make_workspace_fixture(tmp_path)
+    external = tmp_path / "external-hmac.key"
+    external.write_bytes(PRODUCTION_ALIAS_KEY.encode("utf-8"))
+    external.chmod(0o600)
+    key_path = tmp_path / "atlas-hmac.key"
+    key_path.symlink_to(external)
+    runtime = workspace / ".knowledge-worker" / "config.yaml"
+    runtime.parent.mkdir()
+    runtime.write_text(yaml.safe_dump({"hmac_key_path": str(key_path)}), encoding="utf-8")
+
+    code = main(["build", "--workspace", str(workspace)])
+
+    assert code == EXIT_VALIDATION
+    assert json.loads(capsys.readouterr().err) == {
+        "error": {"category": "config", "pointer": "/alias-key"}
+    }
+    assert external.read_bytes() == PRODUCTION_ALIAS_KEY.encode("utf-8")
+
+
+@pytest.mark.parametrize("command", ("build", "run", "publish"))
+def test_every_bundle_writer_uses_the_runtime_state_lock(tmp_path, command, capsys):
+    workspace = make_workspace_fixture(tmp_path)
+    state = RuntimeState.open(workspace)
+
+    with state.lock():
+        code = main([command, "--workspace", str(workspace)])
+
+    assert code == EXIT_IO
+    assert json.loads(capsys.readouterr().err) == {
+        "error": {"category": "io", "pointer": "$"}
+    }
+    assert not (workspace / "portfolio-homepage" / "public-bundle").exists()
+
+
 def test_run_changed_only_tracks_affected_projects_but_builds_complete_candidate(
     tmp_path, monkeypatch
 ):
@@ -1418,6 +1481,107 @@ def test_run_changed_only_tracks_affected_projects_but_builds_complete_candidate
     assert third["build"]["changed_projects"] == ["alpha"]
 
 
+def test_changed_only_loads_private_project_inputs_only_for_affected_projects(
+    tmp_path, monkeypatch
+):
+    workspace = make_workspace_fixture(tmp_path)
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+    invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+    calls = []
+    real_load_memory = cli_module.load_project_memory
+    real_load_article = cli_module.load_project_article
+    real_load_evidence = cli_module.load_project_evidence
+    real_load_system_map = cli_module.load_system_map
+    real_load_relations = cli_module.load_project_relations
+
+    def track_memory(ref, gate):
+        calls.append(("memory", ref.project_id))
+        return real_load_memory(ref, gate)
+
+    def track_article(ref, gate):
+        calls.append(("article", ref.project_id))
+        return real_load_article(ref, gate)
+
+    def track_evidence(ref, gate):
+        calls.append(("evidence", ref.project_id))
+        return real_load_evidence(ref, gate)
+
+    def track_system_map(ref, gate):
+        calls.append(("system-map", ref.project_id))
+        return real_load_system_map(ref, gate)
+
+    def track_relations(root, gate):
+        calls.append(("relations", Path(root).name))
+        return real_load_relations(root, gate)
+
+    monkeypatch.setattr(cli_module, "load_project_memory", track_memory)
+    monkeypatch.setattr(cli_module, "load_project_article", track_article)
+    monkeypatch.setattr(cli_module, "load_project_evidence", track_evidence)
+    monkeypatch.setattr(cli_module, "load_system_map", track_system_map)
+    monkeypatch.setattr(cli_module, "load_project_relations", track_relations)
+
+    unchanged = invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+    assert unchanged["affected_projects"] == []
+    assert calls == []
+
+    write_project_profile(
+        workspace / "projects" / "alpha",
+        summary="Alpha changed public summary",
+    )
+    changed = invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+
+    assert changed["affected_projects"] == ["alpha"]
+    assert {project_id for _, project_id in calls} == {"alpha"}
+    assert {loader for loader, _ in calls} == {
+        "article",
+        "evidence",
+        "memory",
+        "relations",
+    }
+
+
+def test_runtime_config_dependency_change_recomputes_every_project(tmp_path, monkeypatch):
+    workspace = make_workspace_fixture(tmp_path)
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+    invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+    loaded = []
+    real_load_memory = cli_module.load_project_memory
+
+    def track_memory(ref, gate):
+        loaded.append(ref.project_id)
+        return real_load_memory(ref, gate)
+
+    monkeypatch.setattr(cli_module, "load_project_memory", track_memory)
+    runtime = workspace / ".knowledge-worker" / "config.yaml"
+    runtime.write_text(yaml.safe_dump({"registered_assets": []}), encoding="utf-8")
+
+    output = invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+
+    assert output["affected_projects"] == ["alpha", "beta"]
+    assert loaded == ["alpha", "beta"]
+
+
+def test_changed_only_dry_run_previews_affected_projects_without_state_mutation(
+    tmp_path, monkeypatch
+):
+    workspace = make_workspace_fixture(tmp_path)
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+    invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+    write_project_profile(
+        workspace / "projects" / "alpha",
+        summary="Alpha dry-run preview summary",
+    )
+    before = _snapshot(workspace)
+
+    output = invoke_cli_json(
+        ["run", "--workspace", str(workspace), "--changed-only", "--dry-run"]
+    )
+
+    assert output["affected_projects"] == ["alpha"]
+    assert output["build"]["projects"] == ["alpha", "beta"]
+    assert _snapshot(workspace) == before
+
+
 def test_failed_changed_only_run_preserves_last_good_bundle_and_runtime_state(
     tmp_path, monkeypatch, capsys
 ):
@@ -1439,6 +1603,34 @@ def test_failed_changed_only_run_preserves_last_good_bundle_and_runtime_state(
     assert public_manifest.read_bytes() == before_manifest
     assert state_path.read_bytes() == before_state
     assert "/home/private/source/session.jsonl" not in capsys.readouterr().err
+
+
+def test_state_write_failure_after_promotion_restores_bundle_and_last_good_state(
+    tmp_path, monkeypatch, capsys
+):
+    workspace = make_workspace_fixture(tmp_path)
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+    invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+    public = workspace / "portfolio-homepage" / "public-bundle"
+    state_path = workspace / ".knowledge-worker" / "runtime-state.json"
+    before_bundle = _snapshot(public)
+    before_state = state_path.read_bytes()
+    write_project_profile(
+        workspace / "projects" / "alpha",
+        summary="Alpha candidate that must roll back",
+    )
+
+    def fail_state_write(self, **kwargs):
+        raise OSError("injected post-promotion state failure")
+
+    monkeypatch.setattr(RuntimeState, "save_success", fail_state_write)
+
+    code = main(["run", "--workspace", str(workspace), "--changed-only"])
+
+    assert code == EXIT_IO
+    assert _snapshot(public) == before_bundle
+    assert state_path.read_bytes() == before_state
+    assert "injected" not in capsys.readouterr().err
 
 
 def test_build_dry_run_blocks_encoded_route_without_leaking_value_or_writing(tmp_path, capsys):
