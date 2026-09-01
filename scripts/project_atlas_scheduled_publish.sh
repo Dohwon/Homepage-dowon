@@ -34,6 +34,5 @@ fi
 cd "$ROOT"
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 nice -n 10 \
   prlimit --as=2147483648 --cpu=1800 -- \
-  "$python" scripts/project_atlas.py publish \
-  --workspace "$WORKSPACE" --changed-only --push
+  "$python" scripts/project_atlas_scheduled_publish.py "$WORKSPACE"
 printf '[%s] Project Atlas scheduled publish finished\n' "$(date --iso-8601=seconds)"
