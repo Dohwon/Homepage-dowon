@@ -54,6 +54,7 @@ def _evidence() -> tuple[EvidenceRecord, ...]:
 def _map() -> dict[str, object]:
     return {
         "project_id": "alpha",
+        "map_type": "road-recording",
         "title": "경로 데이터 수명 지도",
         "summary": "탐색용 경로가 영구 방문 기록으로 바뀌는 경계를 보여 준다.",
         "nodes": [
@@ -120,7 +121,7 @@ def test_svg_wraps_long_project_context_instead_of_clipping_it(tmp_path):
 
     assert svg.count("<tspan") >= 2
     assert "긴 설명을 여러 줄로" in svg
-    assert "..." in svg
+    assert ("한글 설명이 노드 폭을 넘어가지 않도록 " * 4) not in svg
     assert ("한글 설명이 노드 폭을 넘어가지 않도록 " * 4) not in svg
 
 

@@ -404,6 +404,7 @@ svg { display: block; }
 .project-map { overflow: hidden; }
 .project-map svg { display: block; inline-size: 100%; block-size: auto; }
 .system-map-intro { margin-bottom: 24px; }
+.system-map-type { margin: 0 0 8px; color: var(--focus); font: 700 11px/1.4 "JetBrains Mono", monospace; letter-spacing: 0; text-transform: uppercase; }
 .system-map-intro h2 { margin: 0 0 8px; font-size: 24px; }
 .system-map-section { margin-top: 40px; scroll-margin-top: calc(var(--reader-sticky-offset) + 8px); }
 .system-map-section > h2 { margin: 0 0 14px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 20px; }

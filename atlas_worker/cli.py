@@ -1368,6 +1368,7 @@ def _load_reusable_system_map(
         raise ValueError("reusable system map project does not match bundle path")
     return ProjectSystemMap(
         project_id=project_id,
+        map_type=payload["map_type"],
         title=payload["title"],
         summary=payload["summary"],
         nodes=tuple(

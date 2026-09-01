@@ -27,9 +27,10 @@ Project Atlas worker가 만든 검증된 `public-bundle/`만 공개 API로 읽�
 경우 해당 프로젝트의 Decisions 본문에서만 맥락으로 설명한다.
 
 각 프로젝트의 제목 없는 도입부는 `article.yaml`의 evidence-backed `orientation`을
-사용한다. System Map은 `system-map.yaml`에 있는 프로젝트별 실제 결정·구현·검증
-노드를 글 순서대로 보여 주며, 고정된 문제-결정-결과 개수에 맞춰 빈 단계를 만들지
-않는다.
+사용한다. System Map은 `system-map.yaml`에 정의한 프로젝트별 실제 구성 요소와
+데이터·사용자 흐름을 보여 준다. Decisions는 왜 그렇게 만들었는지, 어떤 대안을
+검토했는지와 롤백·검증 근거를 설명하며, 맵은 그 본문을 반복하지 않고 필요한 결정만
+링크한다. 프로젝트마다 필요한 노드 수와 흐름 형태는 근거에 따라 달라진다.
 
 ## 파일 구조
 
@@ -148,8 +149,10 @@ tail -35 .knowledge-worker/project-atlas-schedule.log
 ```
 
 기존 33개 curated article의 문제 정의를 Orientation으로 승격하고 대응하는 System Map
-source를 재생성할 때는 아래 migration을 사용한다. 이 명령은 정확히 33개를 요구하는
-기존 카탈로그 migration이며 새 프로젝트 초기화 명령이 아니다.
+source를 재생성할 때는 아래 migration을 사용한다. System Map은 기사 섹션을 순서대로
+복사하지 않고 `scripts/project_system_map_specs.py`의 프로젝트별 구성 요소·흐름
+사양을 사용한다. 이 명령은 정확히 33개를 요구하는 기존 카탈로그 migration이며 새
+프로젝트 초기화 명령이 아니다.
 
 ```bash
 .venv/bin/python scripts/backfill_project_atlas_content.py --workspace /home/dowon/securedir/git/codex --expected-count 33 --check

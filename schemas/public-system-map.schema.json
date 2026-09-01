@@ -2,9 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["project_id", "title", "summary", "nodes", "flows", "decision_links"],
+  "required": ["project_id", "map_type", "title", "summary", "nodes", "flows", "decision_links"],
   "properties": {
     "project_id": {"$ref": "#/$defs/stableId"},
+    "map_type": {"type": "string", "minLength": 1},
     "title": {"type": "string", "minLength": 1},
     "summary": {"type": "string", "minLength": 1},
     "nodes": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/node"}},

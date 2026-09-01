@@ -74,6 +74,7 @@ test("loads paired system map metadata and SVG with validated decision reference
   const projectDir = path.join(temporaryRoot, "projects", "alpha");
   await fsp.writeFile(path.join(projectDir, "system-map.json"), JSON.stringify({
     project_id: "alpha",
+    map_type: "routing-pipeline",
     title: "Routing contract map",
     summary: "The request crosses a deterministic routing boundary.",
     nodes: [

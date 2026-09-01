@@ -462,6 +462,7 @@ class SystemMapDecisionLink:
 @dataclass(frozen=True)
 class ProjectSystemMap:
     project_id: str
+    map_type: str
     title: str
     summary: str
     nodes: tuple[SystemMapNode, ...]
@@ -472,6 +473,7 @@ class ProjectSystemMap:
     def to_public_dict(self) -> dict[str, object]:
         return {
             "project_id": self.project_id,
+            "map_type": self.map_type,
             "title": self.title,
             "summary": self.summary,
             "nodes": [node.to_public_dict() for node in self.nodes],

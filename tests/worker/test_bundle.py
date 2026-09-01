@@ -283,6 +283,7 @@ def _article(project_id: str = "alpha") -> ProjectArticle:
 def _system_map(project_id: str = "alpha") -> ProjectSystemMap:
     return ProjectSystemMap(
         project_id=project_id,
+        map_type="road-recording",
         title="Routing contract map",
         summary="A request crosses validation before it reaches the routed output.",
         nodes=(

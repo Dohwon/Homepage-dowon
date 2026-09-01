@@ -101,45 +101,30 @@ def test_indexed_opening_is_kept_as_a_decision_without_repeating_the_full_intro(
     assert article["sections"][0]["body"].startswith("임시 경로는 하루 뒤")
 
 
-def test_system_map_uses_actual_article_steps_and_evidence():
+def test_system_map_uses_project_subjects_and_evidence():
     article = _article()
     promote_opening_to_orientation(article)
 
     system_map = build_system_map(article)
 
-    assert [node["id"] for node in system_map["nodes"]] == [
-        "split-lifetimes",
-        "server-boundary",
-        "implementation-flow",
-        "limitations",
-    ]
+    assert system_map["map_type"] == "documentation-publishing"
+    assert [node["id"] for node in system_map["nodes"]] == ["subject-00", "subject-01", "subject-02"]
     assert [node["label"] for node in system_map["nodes"]] == [
         "임시 경로와 영구 기록의 수명 분리",
         "외부 API를 서버 경계 뒤에 배치",
-        "경로 계산에서 기록 확정까지",
         "실기기 검증은 남아 있음",
     ]
-    assert [flow["to"] for flow in system_map["flows"]] == [
-        "server-boundary",
-        "implementation-flow",
-        "limitations",
-    ]
+    assert [flow["to"] for flow in system_map["flows"]] == ["subject-01", "subject-02"]
     assert system_map["decision_links"] == [
         {
-            "node_ids": ["split-lifetimes"],
+            "node_ids": ["subject-00"],
             "section_id": "split-lifetimes",
             "label": "임시 경로와 영구 기록의 수명 분리",
-        },
-        {
-            "node_ids": ["server-boundary"],
-            "section_id": "server-boundary",
-            "label": "외부 API를 서버 경계 뒤에 배치",
         },
     ]
     assert system_map["evidence_ids"] == [
         "ev-split",
         "ev-server",
-        "ev-flow",
         "ev-result",
     ]
 

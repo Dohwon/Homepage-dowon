@@ -410,7 +410,7 @@ test("system map sanitizes svg independently and omits unsafe markup", async (t)
   assert.match(result.html, /요청이 검증을 거쳐/);
   assert.match(result.html, /사용자가 보내는 입력/);
   assert.match(result.html, /href="\?tab=decisions#retention"/);
-  assert.deepEqual(result.headings, [{ id: "system-map-components", label: "구성 요소" }, { id: "system-map-decisions", label: "연결된 결정" }]);
+  assert.deepEqual(result.headings, [{ id: "system-map-components", label: "맵 구성 요소" }, { id: "system-map-decisions", label: "연결된 결정" }]);
 });
 
 test("timeline stays in stable date order without manufacturing missing dates", async (t) => {

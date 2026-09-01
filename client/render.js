@@ -676,10 +676,46 @@ export function renderSystemMap(project) {
   if (!svg || !data) return renderEmptyState(contentStateMessage(project?.article?.readiness, "공개된 시스템 맵이 없습니다."));
   const nodes = Array.isArray(data.nodes) ? data.nodes : [];
   const decisions = Array.isArray(data.decision_links) ? data.decision_links : [];
-  const headings = [{ id: "system-map-components", label: "구성 요소" }];
+  const mapTypeLabels = {
+    "agent-execution-control": "에이전트 실행 흐름",
+    "agent-routing": "에이전트 라우팅 흐름",
+    "agent-test-lifecycle": "에이전트 테스트 흐름",
+    "approval-workflow": "승인 업무 흐름",
+    "browser-extension-service": "브라우저 확장 흐름",
+    "browser-instrument": "브라우저 악기 흐름",
+    "cross-surface-ledger": "화면 간 기록 흐름",
+    "curation-workflow": "큐레이션 흐름",
+    "dataset-release-pipeline": "데이터셋 배포 흐름",
+    "documentation-publishing": "문서 출판 흐름",
+    "evaluation-pipeline": "평가 파이프라인",
+    "hybrid-drive-recording": "하이브리드 주행 기록 흐름",
+    "language-schema-pipeline": "언어 스키마 흐름",
+    "learning-loop": "학습 반복 흐름",
+    "local-desktop-app": "로컬 데스크톱 흐름",
+    "local-finance-app": "가계부 기록 흐름",
+    "log-analysis-pipeline": "로그 분석 흐름",
+    "memory-distribution": "메모리 배포 흐름",
+    "multiturn-evaluation": "멀티턴 평가 흐름",
+    "navigation-flow": "내비게이션 흐름",
+    "news-publishing": "뉴스 발행 흐름",
+    "operational-log-pipeline": "운영 로그 흐름",
+    "personal-agent-service": "개인 에이전트 흐름",
+    "planned-route-recording": "계획 경로 기록 흐름",
+    "private-content-service": "기록 접근 흐름",
+    "relationship-chat": "관계형 대화 흐름",
+    "retrieval-routing": "검색 라우팅 흐름",
+    "road-recording": "도로 기록 흐름",
+    "routing-pipeline": "라우팅 파이프라인",
+    "scan-confirmation": "스캔 확인 흐름",
+    "state-machine-ui": "상태 기반 UI 흐름",
+    "testset-generation": "테스트셋 생성 흐름",
+    "tool-registry": "도구 레지스트리 흐름"
+  };
+  const mapType = mapTypeLabels[data.map_type] || "프로젝트 작동 흐름";
+  const headings = [{ id: "system-map-components", label: "맵 구성 요소" }];
   if (decisions.length) headings.push({ id: "system-map-decisions", label: "연결된 결정" });
   const decisionSection = decisions.length ? `<section id="system-map-decisions" class="system-map-section" data-article-section="system-map-decisions">
-    <h2>연결된 결정</h2>
+    <h2>이 구조와 연결된 결정</h2>
     <ul class="system-map-decisions">${decisions.map((decision) => `<li>
       <a href="?tab=decisions#${escapeHtml(decision.section_id)}" data-route-link>${escapeHtml(decision.label)}</a>
       <span>${(decision.node_ids || []).map((nodeId) => escapeHtml(nodes.find((node) => node.id === nodeId)?.label || nodeId)).join(" · ")}</span>
@@ -687,7 +723,7 @@ export function renderSystemMap(project) {
   </section>` : "";
   return {
     html: `<article class="system-map-article" data-system-map>
-      <header class="system-map-intro"><h2>${escapeHtml(data.title)}</h2><div class="markdown-body">${renderMarkdown(data.summary)}</div></header>
+      <header class="system-map-intro"><p class="system-map-type">${escapeHtml(mapType)}</p><h2>${escapeHtml(data.title)}</h2><div class="markdown-body">${renderMarkdown(data.summary)}</div></header>
       <div class="project-map" role="img" aria-label="${escapeHtml(data.title)}">${svg}</div>
       <section id="system-map-components" class="system-map-section" data-article-section="system-map-components">
         <h2>구성 요소</h2>

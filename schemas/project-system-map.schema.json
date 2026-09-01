@@ -2,9 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["project_id", "title", "summary", "nodes", "flows", "decision_links", "evidence_ids"],
+  "required": ["project_id", "map_type", "title", "summary", "nodes", "flows", "decision_links", "evidence_ids"],
   "properties": {
     "project_id": {"$ref": "#/$defs/stableId"},
+    "map_type": {"enum": ["agent-execution-control", "agent-routing", "agent-test-lifecycle", "approval-workflow", "browser-extension-service", "browser-instrument", "cross-surface-ledger", "curation-workflow", "dataset-release-pipeline", "documentation-publishing", "evaluation-pipeline", "hybrid-drive-recording", "language-schema-pipeline", "learning-loop", "local-desktop-app", "local-finance-app", "log-analysis-pipeline", "memory-distribution", "multiturn-evaluation", "navigation-flow", "news-publishing", "operational-log-pipeline", "personal-agent-service", "planned-route-recording", "private-content-service", "relationship-chat", "retrieval-routing", "road-recording", "routing-pipeline", "scan-confirmation", "state-machine-ui", "testset-generation", "tool-registry"]},
     "title": {"type": "string", "minLength": 1},
     "summary": {"type": "string", "minLength": 1},
     "nodes": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/node"}},

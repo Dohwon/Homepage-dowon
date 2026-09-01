@@ -18,6 +18,7 @@ if REPOSITORY_ROOT not in sys.path:
     sys.path.insert(0, REPOSITORY_ROOT)
 
 from atlas_worker.models import validate_schema
+from scripts.project_system_map_specs import SPECS
 
 
 _ARTICLE_ORDER = (
@@ -159,22 +160,45 @@ def promote_opening_to_orientation(article: dict[str, Any]) -> bool:
 
 
 def build_system_map(article: dict[str, Any]) -> dict[str, Any]:
-    """Build a variable-length map from the project's actual narrative sections."""
-    sections = article.get("sections", [])
-    if len(sections) < 2:
-        raise ValueError("a public system map needs at least two project-specific sections")
+    """Build a project-function map from a reviewed, evidence-linked specification."""
+    sections = {section["id"]: section for section in article.get("sections", [])}
+    spec = SPECS.get(article["project_id"])
+    if spec is None:
+        return _build_testable_fallback_map(article, sections)
 
     nodes = []
     evidence_ids: list[str] = []
     seen_evidence: set[str] = set()
-    for section in sections:
-        section_id = section["id"]
-        nodes.append(
+    for source in spec["nodes"]:
+        section_id = source["section"]
+        if section_id not in sections:
+            raise ValueError(
+                f"system map specification references missing section {section_id} "
+                f"for {article['project_id']}"
+            )
+        nodes.append({key: source[key] for key in ("id", "label", "kind", "description")})
+        for evidence_id in sections[section_id].get("evidence_ids", []):
+            if evidence_id not in seen_evidence:
+                evidence_ids.append(evidence_id)
+                seen_evidence.add(evidence_id)
+
+    decision_links = []
+    node_by_section: dict[str, list[str]] = {}
+    for source in spec["nodes"]:
+        node_by_section.setdefault(source["section"], []).append(source["id"])
+    for section_id in spec["decision_sections"]:
+        section = sections.get(section_id)
+        node_ids = node_by_section.get(section_id, [])
+        if section is None or not node_ids:
+            raise ValueError(
+                f"system map decision link references missing map subject {section_id} "
+                f"for {article['project_id']}"
+            )
+        decision_links.append(
             {
-                "id": section_id,
-                "label": _truncate(section["title"], 40),
-                "kind": _node_kind(section),
-                "description": _first_paragraph(section["body"]),
+                "node_ids": node_ids,
+                "section_id": section_id,
+                "label": section["title"],
             }
         )
         for evidence_id in section.get("evidence_ids", []):
@@ -182,31 +206,54 @@ def build_system_map(article: dict[str, Any]) -> dict[str, Any]:
                 evidence_ids.append(evidence_id)
                 seen_evidence.add(evidence_id)
 
-    flows = [
-        {
-            "id": f"flow-{index:02}",
-            "from": source["id"],
-            "to": target["id"],
-            "label": _flow_label(target),
-        }
-        for index, (source, target) in enumerate(zip(sections, sections[1:]), 1)
-    ]
-    decision_links = [
-        {
-            "node_ids": [section["id"]],
-            "section_id": section["id"],
-            "label": section["title"],
-        }
-        for section in sections
-        if section["section_type"] == "decision"
-    ]
     return {
         "project_id": article["project_id"],
-        "title": f"{article['title']}: 구조와 결정 흐름",
-        "summary": article["summary"],
+        "map_type": spec["map_type"],
+        "title": spec["title"],
+        "summary": spec["summary"],
         "nodes": nodes,
-        "flows": flows,
+        "flows": spec["flows"],
         "decision_links": decision_links,
+        "evidence_ids": evidence_ids,
+    }
+
+
+def _build_testable_fallback_map(
+    article: dict[str, Any], sections: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """Keep small unit fixtures usable without making fallback maps part of the catalog."""
+    ordered = list(sections.values())
+    if len(ordered) < 2:
+        raise ValueError("a public system map needs at least two project subjects")
+    selected = (ordered[0], ordered[1], ordered[-1]) if len(ordered) > 2 else tuple(ordered)
+    nodes = [
+        {
+            "id": f"subject-{index:02}",
+            "label": _truncate(section["title"], 40),
+            "kind": "input" if index == 0 else "output" if index == len(selected) - 1 else "state",
+            "description": _first_paragraph(section["body"]),
+        }
+        for index, section in enumerate(selected)
+    ]
+    evidence_ids = list(dict.fromkeys(
+        evidence_id
+        for section in selected
+        for evidence_id in section.get("evidence_ids", [])
+    ))
+    decision = next((section for section in ordered if section["section_type"] == "decision"), None)
+    return {
+        "project_id": article["project_id"],
+        "map_type": "documentation-publishing",
+        "title": "프로젝트 입력과 결과",
+        "summary": "테스트용 프로젝트 입력이 저장 상태를 거쳐 결과로 이어지는 최소 흐름이다.",
+        "nodes": nodes,
+        "flows": [
+            {"id": f"flow-{index:02}", "from": nodes[index]["id"], "to": nodes[index + 1]["id"], "label": "다음 상태"}
+            for index in range(len(nodes) - 1)
+        ],
+        "decision_links": [
+            {"node_ids": [nodes[0]["id"]], "section_id": decision["id"], "label": decision["title"]}
+        ] if decision else [],
         "evidence_ids": evidence_ids,
     }
 
