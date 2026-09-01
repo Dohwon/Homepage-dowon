@@ -437,7 +437,9 @@ def _command_publish(args: argparse.Namespace) -> dict[str, object]:
         catalog = audit_public_catalog(workspace)
         if not catalog.ready:
             raise ConfigError("/catalog-audit")
-        run_publication_tests(_service_root(workspace, config))
+        service_root = _service_root(workspace, config)
+        if not args.changed_only:
+            run_publication_tests(service_root)
         gate = _privacy_gate(
             workspace,
             config,
@@ -456,6 +458,8 @@ def _command_publish(args: argparse.Namespace) -> dict[str, object]:
             expected_input_digest=catalog.input_digest,
             expected_bundle_version=catalog.bundle_version,
         )
+        if args.changed_only and build["changed"]:
+            run_publication_tests(service_root)
         promotion = PromotionResult(
             changed=bool(build["changed"]),
             changed_projects=tuple(str(item) for item in build["changed_projects"]),
