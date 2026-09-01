@@ -77,20 +77,29 @@ def run_publication_tests(
     environment = os.environ.copy()
     environment.update({"OPENBLAS_NUM_THREADS": "1", "OMP_NUM_THREADS": "1"})
     last_error: BaseException | None = None
-    for _attempt in range(2):
-        try:
-            subprocess.run(
-                test_command,
-                cwd=Path(repo),
-                check=True,
-                capture_output=True,
-                text=True,
-                env=environment,
-                timeout=1800,
-            )
-            return
-        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
-            last_error = error
+    environment.pop("PROJECT_ATLAS_HMAC_KEY", None)
+    environment.pop("PROJECT_ATLAS_HMAC_KEY_PATH", None)
+    with tempfile.TemporaryDirectory(prefix="project-atlas-test-config-") as config_home:
+        environment["XDG_CONFIG_HOME"] = config_home
+        for _attempt in range(2):
+            try:
+                subprocess.run(
+                    test_command,
+                    cwd=Path(repo),
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    env=environment,
+                    timeout=1800,
+                )
+                return
+            except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+                last_error = error
+    if isinstance(last_error, subprocess.CalledProcessError):
+        if last_error.stdout:
+            print(last_error.stdout, file=sys.stderr, end="")
+        if last_error.stderr:
+            print(last_error.stderr, file=sys.stderr, end="")
     raise PublishError("publication tests failed") from last_error
 
 
