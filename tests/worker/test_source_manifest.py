@@ -145,6 +145,25 @@ def test_manifest_skips_git_ignored_symlink(tmp_path):
     ]
 
 
+def test_manifest_skips_generated_and_bulk_data_directories(tmp_path):
+    root = tmp_path / "projects" / "alpha"
+    (root / "project_memory").mkdir(parents=True)
+    (root / "src").mkdir()
+    (root / "output").mkdir()
+    (root / "output" / "large.db").write_bytes(b"generated")
+    (root / "data").mkdir()
+    (root / "data" / "corpus.txt").write_bytes(b"bulk corpus")
+    (root / "project_memory" / "decisions.md").write_text("keep\n", encoding="utf-8")
+    (root / "src" / "main.py").write_text("keep\n", encoding="utf-8")
+
+    manifest = build_source_manifest(project_ref(root, "alpha"), FakeGitRunner())
+
+    assert [item.relative_path for item in manifest.files] == [
+        "project_memory/decisions.md",
+        "src/main.py",
+    ]
+
+
 def test_manifest_non_git_root_still_rejects_symlink(tmp_path):
     root = tmp_path / "projects/alpha"
     root.mkdir(parents=True)

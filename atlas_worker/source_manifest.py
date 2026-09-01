@@ -29,7 +29,24 @@ SOURCE_PATTERNS = (
 )
 
 _SKIPPED_DIRECTORIES = frozenset(
-    {".git", ".pytest_cache", "__pycache__", "node_modules"}
+    {
+        ".git",
+        ".pytest_cache",
+        "__pycache__",
+        ".venv",
+        "node_modules",
+        "dist",
+        "build",
+        "output",
+        "results",
+        "artifacts",
+        "DATA",
+        "data",
+        "REFERENCE",
+        "ref",
+        "resource",
+        "_backup",
+    }
 )
 _PREDECESSOR_ID = "project_id"
 
@@ -168,7 +185,7 @@ def _walk_project_files(
 ) -> Iterator[tuple[str, Path]]:
     for entry in sorted(os.scandir(directory), key=lambda item: item.name):
         path = Path(entry.path)
-        if entry.name == ".git":
+        if entry.name == ".git" or entry.name.startswith(".git_"):
             continue
         mode = entry.stat(follow_symlinks=False).st_mode
         if stat.S_ISLNK(mode):

@@ -75,7 +75,7 @@ container platform.
 
 ## 5. Project Atlas Publisher Timer
 
-The user timer runs the locked `publish --changed-only --push` pipeline every 15 minutes. The command first requires the exact 33-project catalog audit, builds and validates a complete candidate, promotes it atomically, and stages only `public-bundle/`. Pre-existing staged work defers publication.
+The user timer runs the locked daily publisher. It scans both direct children of `projects/` and direct children of `projects/finish/`, hashes each project folder, rebuilds a complete candidate, validates it, promotes it atomically, and stages only `public-bundle/`. A new folder is detected on the next run; it is published only after it has a reviewed public profile and Project Atlas article. Pre-existing staged work defers publication.
 
 Check the repository-owned unit definitions without installing them:
 
@@ -90,4 +90,4 @@ bash scripts/install_project_atlas_timer.sh
 bash scripts/install_project_atlas_timer.sh --remove
 ```
 
-The installer manages only `project-atlas.service` and `project-atlas.timer` under the user systemd directory. It does not modify the system-wide service.
+The installer manages only `project-atlas.service` and `project-atlas.timer` under the user systemd directory. It does not modify the system-wide service. The Windows fallback installs the same daily shell runner in Task Scheduler.

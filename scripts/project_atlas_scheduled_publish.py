@@ -12,11 +12,18 @@ def main() -> int:
     repository_root = Path(__file__).resolve().parents[1]
     if str(repository_root) not in sys.path:
         sys.path.insert(0, str(repository_root))
-    from atlas_worker.cli import build_parser, dispatch, _load_runtime_config, _service_root
+    from atlas_worker.cli import (
+        _load_runtime_config,
+        _service_root,
+        build_parser,
+        dispatch,
+    )
     from atlas_worker.models import PromotionResult
     from atlas_worker.publish import publish_bundle, run_publication_tests
 
     workspace = Path(sys.argv[1]).expanduser().resolve() if len(sys.argv) > 1 else repository_root.parent
+    discovery_args = build_parser().parse_args(["discover", "--workspace", str(workspace)])
+    discovery = dispatch(discovery_args)
     build_args = build_parser().parse_args(["build", "--workspace", str(workspace)])
     build = dispatch(build_args)
     if not build["validated"]:
@@ -35,6 +42,10 @@ def main() -> int:
     )
     result = {
         "build": build,
+        "discovery": {
+            "ambiguous": discovery["ambiguous"],
+            "projects": len(discovery["projects"]),
+        },
         "publication": {
             "committed": publication.committed,
             "deferred": publication.deferred,

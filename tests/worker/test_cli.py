@@ -1485,6 +1485,23 @@ def test_run_changed_only_tracks_affected_projects_but_builds_complete_candidate
     assert third["build"]["changed_projects"] == ["alpha"]
 
 
+def test_changed_only_detects_a_new_project_folder(tmp_path, monkeypatch):
+    workspace = make_workspace_fixture(tmp_path)
+    monkeypatch.setenv("PROJECT_ATLAS_HMAC_KEY", PRODUCTION_ALIAS_KEY)
+
+    invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+    gamma = workspace / "projects" / "gamma"
+    gamma.mkdir()
+    write_project_profile(gamma, id="gamma", name="Gamma", lifecycle="active")
+    (gamma / "README.md").write_text("A newly discovered project.\n", encoding="utf-8")
+
+    output = invoke_cli_json(["run", "--workspace", str(workspace), "--changed-only"])
+
+    assert "gamma" in output["affected_projects"]
+    assert output["build"]["projects"] == ["alpha", "beta", "gamma"]
+    assert "gamma" in output["build"]["changed_projects"]
+
+
 def test_changed_only_loads_private_project_inputs_only_for_affected_projects(
     tmp_path, monkeypatch
 ):
@@ -2238,8 +2255,11 @@ def test_run_dry_run_with_sessions_changes_no_durable_workspace_tree(tmp_path):
     assert str(workspace) not in json.dumps(output)
 
 
-def test_run_non_dry_key_guard_precedes_reviewed_backfill_writes(tmp_path):
+def test_run_non_dry_key_guard_precedes_reviewed_backfill_writes(tmp_path, monkeypatch):
     workspace = make_workspace_fixture(tmp_path)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / ".config"))
+    monkeypatch.delenv("PROJECT_ATLAS_HMAC_KEY", raising=False)
+    monkeypatch.delenv("PROJECT_ATLAS_HMAC_KEY_PATH", raising=False)
     sessions = tmp_path / "sessions"
     _write_session(sessions / "one.jsonl", workspace)
     dry = invoke_cli_json(

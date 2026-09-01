@@ -35,13 +35,13 @@ def test_user_timer_has_the_bounded_daily_contract():
     timer = (root / "deploy/systemd-user/project-atlas.timer").read_text(
         encoding="utf-8"
     )
-
-    assert (
-        "publish --workspace /home/dowon/securedir/git/codex --changed-only --push"
-        in service
+    runner = (root / "scripts/project_atlas_scheduled_publish.sh").read_text(
+        encoding="utf-8"
     )
-    assert "OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1" in service
-    assert "prlimit --as=2147483648 --cpu=1800" in service
+
+    assert "/home/dowon/securedir/git/codex/portfolio-homepage/scripts/project_atlas_scheduled_publish.sh" in service
+    assert "OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1" in runner
+    assert "prlimit --as=2147483648 --cpu=1800" in runner
     assert "ReadWritePaths=/home/dowon/securedir/git/codex/.knowledge-worker /home/dowon/securedir/git/codex/portfolio-homepage" in service
     assert "ReadOnlyPaths=/home/dowon/.config/project-atlas" in service
     assert "ReadWritePaths=/home/dowon/securedir/git/codex /" not in service

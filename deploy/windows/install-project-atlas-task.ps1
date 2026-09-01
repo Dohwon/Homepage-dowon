@@ -28,10 +28,11 @@ if ($Mode -eq "Check") {
 }
 
 $arguments = "-d `"$Distro`" --user `"$WslUser`" --exec bash `"$ScriptPath`""
-$action = New-ScheduledTaskAction -Execute "wsl.exe" -Argument $arguments
+$wslExecutable = Join-Path $env:WINDIR "System32\wsl.exe"
+$action = New-ScheduledTaskAction -Execute $wslExecutable -Argument $arguments
 $trigger = New-ScheduledTaskTrigger -Daily -At (Get-Date).Date.AddHours(3)
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew
 
-Register-ScheduledTask -TaskName $taskName -Description "Validate and publish Project Atlas changes from WSL once a day." -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
+Register-ScheduledTask -TaskName $taskName -Description "Detect and publish Project Atlas project-folder changes from WSL once a day." -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
 
 Write-Output "Installed Windows task: $taskName"

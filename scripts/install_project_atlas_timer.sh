@@ -13,9 +13,9 @@ if ! systemctl --user show-environment >/dev/null 2>&1; then
 fi
 
 check_templates() {
-  grep -Fq 'scripts/project_atlas.py publish --workspace /home/dowon/securedir/git/codex --changed-only --push' "$SOURCE_DIR/$SERVICE"
-  grep -Fq 'OnBootSec=5m' "$SOURCE_DIR/$TIMER"
-  grep -Fq 'OnUnitActiveSec=15m' "$SOURCE_DIR/$TIMER"
+  grep -Fq '/home/dowon/securedir/git/codex/portfolio-homepage/scripts/project_atlas_scheduled_publish.sh' "$SOURCE_DIR/$SERVICE"
+  grep -Fq 'OnBootSec=1h' "$SOURCE_DIR/$TIMER"
+  grep -Fq 'OnUnitActiveSec=1d' "$SOURCE_DIR/$TIMER"
   grep -Fq 'RandomizedDelaySec=60' "$SOURCE_DIR/$TIMER"
   grep -Fq 'Persistent=true' "$SOURCE_DIR/$TIMER"
   printf 'Project Atlas user-unit templates are valid.\n'

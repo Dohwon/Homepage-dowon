@@ -103,7 +103,7 @@ node --check admin.js
 
 ## Project Atlas Worker
 
-Worker는 로컬 workspace를 읽어 검토된 public profile과 직접 작성된 project memory만 `public-bundle/`로 만든다. 기본 출력은 key ordering이 고정된 JSON이며 absolute project root, raw session text, alias key, provenance를 출력하지 않는다.
+Worker는 로컬 workspace의 `projects/`와 `projects/finish/` 바로 아래 프로젝트 폴더를 매일 다시 탐색하고, 검토된 public profile과 직접 작성된 project memory만 `public-bundle/`로 만든다. 프로젝트 폴더의 파일 추가·수정·삭제와 새 프로젝트 폴더를 source hash로 감지한다. 기본 출력은 key ordering이 고정된 JSON이며 absolute project root, raw session text, alias key, provenance를 출력하지 않는다.
 
 ### 설치
 

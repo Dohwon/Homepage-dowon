@@ -362,6 +362,7 @@ def _execute_run(
         config,
         ephemeral=bool(args.dry_run),
         runtime_state=runtime_state,
+        require_existing_key=not args.dry_run and args.apply_reviewed_report is not None,
     )
     report = _discover(workspace, config, source_gate=gate)
     sessions_root = _sessions_root(workspace, config, args.sessions_root)
@@ -1709,6 +1710,7 @@ def _privacy_gate(
     *,
     ephemeral: bool,
     runtime_state: RuntimeState | None = None,
+    require_existing_key: bool = False,
 ) -> PrivacyGate:
     key = _runtime_alias_key(workspace, runtime_config)
     if key is None:
@@ -1723,7 +1725,12 @@ def _privacy_gate(
         else:
             state = runtime_state or RuntimeState.open(workspace)
             try:
-                key = state.load_hmac_key()
+                if require_existing_key:
+                    key = read_hmac_key_file(state.hmac_key_path)
+                else:
+                    key = state.load_hmac_key()
+            except FileNotFoundError:
+                raise ConfigError("/alias-key") from None
             except (OSError, ValueError):
                 raise ConfigError("/alias-key") from None
     elif not ephemeral and len(key) < MIN_ALIAS_KEY_BYTES:
