@@ -76,18 +76,22 @@ def run_publication_tests(
     )
     environment = os.environ.copy()
     environment.update({"OPENBLAS_NUM_THREADS": "1", "OMP_NUM_THREADS": "1"})
-    try:
-        subprocess.run(
-            test_command,
-            cwd=Path(repo),
-            check=True,
-            capture_output=True,
-            text=True,
-            env=environment,
-            timeout=1800,
-        )
-    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
-        raise PublishError("publication tests failed") from error
+    last_error: BaseException | None = None
+    for _attempt in range(2):
+        try:
+            subprocess.run(
+                test_command,
+                cwd=Path(repo),
+                check=True,
+                capture_output=True,
+                text=True,
+                env=environment,
+                timeout=1800,
+            )
+            return
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+            last_error = error
+    raise PublishError("publication tests failed") from last_error
 
 
 def publish_bundle(
