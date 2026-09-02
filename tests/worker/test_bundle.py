@@ -17,6 +17,7 @@ from atlas_worker.bundle import (
     validate_bundle,
 )
 from atlas_worker.cover import ProjectCover
+from atlas_worker.captures import ProjectCapture
 from atlas_worker.manifest import content_version, tree_hash
 from atlas_worker.models import (
     ArticleSection,
@@ -355,6 +356,32 @@ def test_bundle_writes_reviewed_project_cover_as_public_metadata(tmp_path):
     assert payload["content_type"] == "image/png"
     assert bytes.fromhex(payload["content_hex"]) == cover.content
     assert "projects/alpha/cover.json" in manifest.files
+
+
+def test_bundle_writes_reviewed_project_captures_as_public_metadata(tmp_path):
+    capture = ProjectCapture(
+        capture_id="home",
+        alt="Alpha home screen",
+        caption="The primary implementation screen",
+        role="overview",
+        content_type="image/png",
+        content=b"\x89PNG\r\n\x1a\nfixture",
+    )
+    context = replace(
+        _context(),
+        project_articles={"alpha": _article()},
+        project_evidence={"alpha": (_evidence(),)},
+        project_captures={"alpha": (capture,)},
+    )
+
+    manifest = build_candidate_bundle(context, tmp_path / "candidate")
+    payload = json.loads(
+        (tmp_path / "candidate" / "projects" / "alpha" / "captures.json").read_text(encoding="utf-8")
+    )
+
+    assert payload[0]["id"] == "home"
+    assert bytes.fromhex(payload[0]["content_hex"]) == capture.content
+    assert "projects/alpha/captures.json" in manifest.files
 
 
 def test_bundle_writes_structured_system_map_and_generated_svg_together(tmp_path):

@@ -34,6 +34,7 @@ from .bundle import (
     promote_bundle,
     validate_bundle,
 )
+from .captures import ProjectCapture, captures_from_public_dict, load_project_captures
 from .config import DiscoveryConfig
 from .content_audit import audit_curated_project_content
 from .cover import ProjectCover, cover_from_public_dict, load_project_cover
@@ -1249,6 +1250,7 @@ def _load_reusable_project_inputs(
     tuple[EvidenceRecord, ...],
     ProjectSystemMap | None,
     ProjectCover | None,
+    tuple[ProjectCapture, ...],
 ]:
     project_root = public_dir / "projects" / project_id
     project_payload = _read_public_json(
@@ -1281,6 +1283,8 @@ def _load_reusable_project_inputs(
     system_map = _load_reusable_system_map(project_root, public_dir, project_id, gate)
     cover_payload = _read_optional_public_json(project_root / "cover.json", public_dir, gate)
     cover = cover_from_public_dict(cover_payload) if cover_payload is not None else None
+    captures_payload = _read_optional_public_json(project_root / "captures.json", public_dir, gate)
+    captures = captures_from_public_dict(captures_payload) if captures_payload is not None else ()
     return (
         project,
         ProjectMemory(profile=project.to_dict(), events=events),
@@ -1288,6 +1292,7 @@ def _load_reusable_project_inputs(
         evidence,
         system_map,
         cover,
+        captures,
     )
 
 
@@ -1515,6 +1520,7 @@ def _bundle_context(
     relation_dependencies: dict[str, tuple[str, ...]] = {}
     system_maps: dict[str, ProjectSystemMap] = {}
     covers: dict[str, ProjectCover] = {}
+    captures_by_project: dict[str, tuple[ProjectCapture, ...]] = {}
     source_hashes: dict[str, str] = {}
     prior_sources = previous_state.get("source_hashes", {})
     prior_relations = previous_state.get("relation_dependencies", {})
@@ -1528,7 +1534,7 @@ def _bundle_context(
     }
     for ref in project_refs:
         if previous_public_dir is not None and ref.project_id not in affected_project_ids:
-            project, memory, article, evidence, system_map, cover = _load_reusable_project_inputs(
+            project, memory, article, evidence, system_map, cover, captures = _load_reusable_project_inputs(
                 previous_public_dir,
                 ref.project_id,
                 gate,
@@ -1548,6 +1554,7 @@ def _bundle_context(
             evidence = ()
             system_map = None
             cover = None
+            captures = ()
             if not ref.standalone_asset:
                 article = load_project_article(ref, gate)
                 evidence = load_project_evidence(ref, gate)
@@ -1564,6 +1571,7 @@ def _bundle_context(
                     raise ConfigError("/project-atlas/readiness")
                 system_map = load_project_system_map(ref, article, evidence, gate)
                 cover = load_project_cover(ref, gate)
+                captures = load_project_captures(ref, gate)
             source_hash = _curated_source_hash(
                 project,
                 article,
@@ -1572,6 +1580,7 @@ def _bundle_context(
                 system_map,
                 relations_by_project.get(ref.project_id, ()),
                 cover,
+                captures,
             )
 
         projects.append(project)
@@ -1584,6 +1593,8 @@ def _bundle_context(
             system_maps[ref.project_id] = system_map
         if cover is not None:
             covers[ref.project_id] = cover
+        if captures:
+            captures_by_project[ref.project_id] = captures
 
     ordered = tuple(sorted(projects, key=lambda project: project.project_id))
     graph = build_knowledge_graph(
@@ -1624,6 +1635,7 @@ def _bundle_context(
         project_evidence=evidence_by_project,
         project_system_maps=system_maps,
         project_covers=covers,
+        project_captures=captures_by_project,
     )
 
 
@@ -1662,6 +1674,7 @@ def _curated_source_hash(
     system_map: ProjectSystemMap | None,
     relations: Sequence[Mapping[str, object]],
     cover: ProjectCover | None,
+    captures: tuple[ProjectCapture, ...],
 ) -> str:
     payload = {
         "article": article.to_public_dict() if article is not None else None,
@@ -1682,6 +1695,7 @@ def _curated_source_hash(
         "relations": list(relations),
         "system_map": system_map.to_public_dict() if system_map is not None else None,
         "cover": cover.to_public_dict() if cover is not None else None,
+        "captures": [item.to_public_dict() for item in captures],
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()

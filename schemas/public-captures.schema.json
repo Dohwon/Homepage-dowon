@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "alt", "caption", "role", "content_type", "content_hex"],
+    "properties": {
+      "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+      "alt": {"type": "string", "minLength": 1},
+      "caption": {"type": "string", "minLength": 1},
+      "role": {"type": "string", "minLength": 1},
+      "content_type": {"enum": ["image/png", "image/jpeg", "image/webp"]},
+      "content_hex": {"type": "string", "minLength": 8, "maxLength": 4194304, "pattern": "^[0-9a-f]+$"}
+    }
+  }
+}

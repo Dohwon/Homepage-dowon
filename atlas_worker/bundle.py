@@ -44,6 +44,7 @@ from .models import (
 )
 from .privacy import PrivacyGate
 from .cover import ProjectCover
+from .captures import ProjectCapture
 from .system_map import render_system_map_svg
 from .graph import TAG_WEIGHTS
 from .taxonomy import display_tag_label, normalize_tag_label
@@ -62,6 +63,7 @@ _V2_OPTIONAL_PROJECT_FILES = (
     "system-map.json",
     "system-map.svg",
     "cover.json",
+    "captures.json",
 )
 _MANDATORY_FILES = frozenset(
     {
@@ -118,6 +120,7 @@ class BundleContext:
     project_evidence: Mapping[str, tuple[EvidenceRecord, ...]] = field(default_factory=dict)
     project_system_maps: Mapping[str, ProjectSystemMap] = field(default_factory=dict)
     project_covers: Mapping[str, ProjectCover] = field(default_factory=dict)
+    project_captures: Mapping[str, tuple[ProjectCapture, ...]] = field(default_factory=dict)
 
 
 def build_candidate_bundle(context: BundleContext, staging_dir: Path) -> BundleManifest:
@@ -139,6 +142,12 @@ def build_candidate_bundle(context: BundleContext, staging_dir: Path) -> BundleM
             cover_payload = cover.to_public_dict()
             validate_schema(cover_payload, "public-cover")
             _write_json(project_dir / "cover.json", cover_payload, context.privacy_gate)
+
+        captures = tuple((context.project_captures or {}).get(project.project_id, ()))
+        if captures:
+            captures_payload = [capture.to_public_dict() for capture in captures]
+            validate_schema(captures_payload, "public-captures")
+            _write_json(project_dir / "captures.json", captures_payload, context.privacy_gate)
 
         article = (context.project_articles or {}).get(project.project_id)
         if article is not None:
@@ -319,6 +328,7 @@ def _validate_context(
         ("project_evidence", context.project_evidence or {}),
         ("project_system_maps", context.project_system_maps or {}),
         ("project_covers", context.project_covers or {}),
+        ("project_captures", context.project_captures or {}),
     ):
         unknown = sorted(set(mapping) - known)
         if unknown:
@@ -822,6 +832,13 @@ def _project_artifacts(
         cover_path = f"projects/{project_id}/cover.json"
         if cover_path in tree:
             validate_schema(_parse_json(tree, cover_path), "public-cover")
+        captures_path = f"projects/{project_id}/captures.json"
+        if captures_path in tree:
+            captures = _parse_json(tree, captures_path)
+            validate_schema(captures, "public-captures")
+            capture_ids = [item["id"] for item in captures]
+            if len(capture_ids) != len(set(capture_ids)):
+                raise ValueError("public capture IDs must be unique")
         for diagram_id in diagram_ids:
             _validate_svg(_require_text(tree, f"projects/{project_id}/visuals/{diagram_id}.svg"))
         artifacts[project_id] = {"diagram_ids": diagram_ids}
