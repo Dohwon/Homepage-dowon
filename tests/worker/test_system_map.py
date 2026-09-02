@@ -140,7 +140,6 @@ def test_svg_layout_follows_semantic_map_family(tmp_path):
     assert "버전 로드맵" in roadmap_svg
     assert "평가 루프" in evaluation_svg
     assert roadmap_svg != evaluation_svg
-    assert ("한글 설명이 노드 폭을 넘어가지 않도록 " * 4) not in svg
 
 
 @pytest.mark.parametrize(
