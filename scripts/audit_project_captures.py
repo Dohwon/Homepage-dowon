@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Report reviewed covers and likely image candidates without publishing them."""
+"""Audit implementation-screen evidence without publishing unreviewed assets."""
 
 from __future__ import annotations
 
@@ -25,13 +25,14 @@ SKIPPED_DIRECTORIES = frozenset(
         "node_modules",
         "dist",
         "build",
-        "output",
         "results",
         "DATA",
         "data",
     }
 )
 CANDIDATE_WORDS = re.compile(r"capture|screenshot|screen|preview|demo|캡처|화면", re.IGNORECASE)
+REFERENCE_PARTS = frozenset({"ref", "reference", "design-ref", "branding", "resource", "resources", "REFERENCE"})
+DEPLOYMENT_NAMES = frozenset({"railway.json", "railway.toml"})
 
 
 def main() -> int:
@@ -64,8 +65,13 @@ def build_report(workspace: Path) -> dict[str, object]:
             ),
             None,
         )
+        manifest = ref.root / "project_memory" / "project-atlas" / "captures.yaml"
+        registered = _registered_capture_ids(manifest)
         candidates = _candidate_paths(ref)
-        if cover is not None:
+        deployment_files = _deployment_files(ref)
+        if registered:
+            status = "reviewed-captures"
+        elif cover is not None:
             status = "reviewed-cover"
         elif candidates:
             status = "candidate-needs-review"
@@ -77,6 +83,10 @@ def build_report(workspace: Path) -> dict[str, object]:
                 "name": ref.display_name,
                 "publication": ref.publication,
                 "status": status,
+                "registered_capture_count": len(registered),
+                "registered_capture_ids": registered,
+                "legacy_cover": cover.relative_to(ref.root).as_posix() if cover else None,
+                "deployment_evidence": deployment_files,
                 "candidate_count": len(candidates),
                 "candidate_examples": candidates[:5],
             }
@@ -86,6 +96,7 @@ def build_report(workspace: Path) -> dict[str, object]:
         "summary": {
             "projects": len(projects),
             "reviewed_covers": sum(item["status"] == "reviewed-cover" for item in projects),
+            "reviewed_capture_manifests": sum(item["status"] == "reviewed-captures" for item in projects),
             "candidate_needs_review": sum(
                 item["status"] == "candidate-needs-review" for item in projects
             ),
@@ -108,8 +119,41 @@ def _candidate_paths(ref: ProjectRef) -> list[str]:
             continue
         if relative.parts[:2] == ("project_memory", "project-atlas"):
             continue
-        if CANDIDATE_WORDS.search(relative.as_posix()):
+        if CANDIDATE_WORDS.search(relative.as_posix()) or _looks_like_product_screen(relative):
             found.append(relative.as_posix())
+    return found
+
+
+def _registered_capture_ids(manifest: Path) -> list[str]:
+    if not manifest.is_file():
+        return []
+    try:
+        import yaml
+
+        raw = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        return []
+    captures = raw.get("captures") if isinstance(raw, dict) else None
+    if not isinstance(captures, list):
+        return []
+    return [item["id"] for item in captures if isinstance(item, dict) and isinstance(item.get("id"), str)]
+
+
+def _looks_like_product_screen(relative: Path) -> bool:
+    parts = {part.casefold() for part in relative.parts[:-1]}
+    if parts & {"reference", "design-ref", "branding", "resource", "resources"}:
+        return False
+    return bool(parts & {"reports", "screens", "screen", "captures", "output", "outputs", "public"})
+
+
+def _deployment_files(ref: ProjectRef) -> list[str]:
+    found = []
+    for path in sorted(ref.root.rglob("*"), key=lambda item: item.as_posix()):
+        if not path.is_file() or path.name not in DEPLOYMENT_NAMES:
+            continue
+        if any(part in SKIPPED_DIRECTORIES for part in path.relative_to(ref.root).parts):
+            continue
+        found.append(path.relative_to(ref.root).as_posix())
     return found
 
 

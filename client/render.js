@@ -44,6 +44,14 @@ const GRAPH_KIND_LABELS = {
   Artifact: "산출물"
 };
 
+const SYSTEM_MAP_FAMILY_TYPES = {
+  "버전 로드맵": new Set(["hybrid-drive-recording", "navigation-flow", "planned-route-recording", "road-recording"]),
+  "상태 전이": new Set(["approval-workflow", "cross-surface-ledger", "personal-agent-service", "relationship-chat", "state-machine-ui"]),
+  "평가 루프": new Set(["agent-test-lifecycle", "dataset-release-pipeline", "evaluation-pipeline", "learning-loop", "multiturn-evaluation", "testset-generation"]),
+  "에이전트 오케스트레이션": new Set(["agent-execution-control", "agent-routing", "language-schema-pipeline", "memory-distribution", "retrieval-routing", "routing-pipeline", "tool-registry"]),
+  "서비스 경계": new Set(["browser-extension-service", "browser-instrument", "documentation-publishing", "local-desktop-app", "local-finance-app", "private-content-service"]),
+};
+
 const GRAPH_RELATION_LABELS = {
   HAS_FOCUS: "핵심 주제",
   FOCUS_HAS_TAG: "주제 분류",
@@ -670,48 +678,32 @@ export function renderArticle(project) {
   };
 }
 
+export function renderProjectCaptures(project) {
+  const captures = Array.isArray(project?.captures) && project.captures.length
+    ? project.captures
+    : project?.cover?.src
+      ? [{ id: "cover", src: project.cover.src, alt: project.cover.alt, caption: project.cover.caption, role: "overview" }]
+      : [];
+  if (!captures.length) return "";
+  return `<section id="project-captures" class="project-captures" data-project-captures>
+    <h2>구현 화면</h2>
+    <div class="project-capture-grid">${captures.map((capture) => {
+      const src = capture.src || `/api/atlas/projects/${encodeURIComponent(project.id)}/captures/${encodeURIComponent(capture.id)}`;
+      return `<figure class="project-capture" data-capture-id="${escapeHtml(capture.id)}">
+        <img src="${escapeHtml(src)}" alt="${escapeHtml(capture.alt)}" loading="lazy" decoding="async">
+        <figcaption><strong>${escapeHtml(capture.caption)}</strong><span>${escapeHtml(capture.role || "구현 화면")}</span></figcaption>
+      </figure>`;
+    }).join("")}</div>
+  </section>`;
+}
+
 export function renderSystemMap(project) {
   const svg = sanitizeSvg(project?.systemMap);
   const data = project?.systemMapData;
   if (!svg || !data) return renderEmptyState(contentStateMessage(project?.article?.readiness, "공개된 시스템 맵이 없습니다."));
   const nodes = Array.isArray(data.nodes) ? data.nodes : [];
   const decisions = Array.isArray(data.decision_links) ? data.decision_links : [];
-  const mapTypeLabels = {
-    "agent-execution-control": "에이전트 실행 흐름",
-    "agent-routing": "에이전트 라우팅 흐름",
-    "agent-test-lifecycle": "에이전트 테스트 흐름",
-    "approval-workflow": "승인 업무 흐름",
-    "browser-extension-service": "브라우저 확장 흐름",
-    "browser-instrument": "브라우저 악기 흐름",
-    "cross-surface-ledger": "화면 간 기록 흐름",
-    "curation-workflow": "큐레이션 흐름",
-    "dataset-release-pipeline": "데이터셋 배포 흐름",
-    "documentation-publishing": "문서 출판 흐름",
-    "evaluation-pipeline": "평가 파이프라인",
-    "hybrid-drive-recording": "하이브리드 주행 기록 흐름",
-    "language-schema-pipeline": "언어 스키마 흐름",
-    "learning-loop": "학습 반복 흐름",
-    "local-desktop-app": "로컬 데스크톱 흐름",
-    "local-finance-app": "가계부 기록 흐름",
-    "log-analysis-pipeline": "로그 분석 흐름",
-    "memory-distribution": "메모리 배포 흐름",
-    "multiturn-evaluation": "멀티턴 평가 흐름",
-    "navigation-flow": "내비게이션 흐름",
-    "news-publishing": "뉴스 발행 흐름",
-    "operational-log-pipeline": "운영 로그 흐름",
-    "personal-agent-service": "개인 에이전트 흐름",
-    "planned-route-recording": "계획 경로 기록 흐름",
-    "private-content-service": "기록 접근 흐름",
-    "relationship-chat": "관계형 대화 흐름",
-    "retrieval-routing": "검색 라우팅 흐름",
-    "road-recording": "도로 기록 흐름",
-    "routing-pipeline": "라우팅 파이프라인",
-    "scan-confirmation": "스캔 확인 흐름",
-    "state-machine-ui": "상태 기반 UI 흐름",
-    "testset-generation": "테스트셋 생성 흐름",
-    "tool-registry": "도구 레지스트리 흐름"
-  };
-  const mapType = mapTypeLabels[data.map_type] || "프로젝트 작동 흐름";
+  const mapType = Object.entries(SYSTEM_MAP_FAMILY_TYPES).find(([, types]) => types.has(data.map_type))?.[0] || "데이터 흐름";
   const headings = [{ id: "system-map-components", label: "맵 구성 요소" }];
   if (decisions.length) headings.push({ id: "system-map-decisions", label: "연결된 결정" });
   const decisionSection = decisions.length ? `<section id="system-map-decisions" class="system-map-section" data-article-section="system-map-decisions">
@@ -804,7 +796,16 @@ export function renderEvidence(project) {
 }
 
 export function renderProjectContent(project, tab) {
-  if (tab === "decisions") return renderArticle(project);
+  if (tab === "decisions") {
+    const article = renderArticle(project);
+    if (typeof article === "string") return article;
+    const captures = renderProjectCaptures(project);
+    return {
+      ...article,
+      html: `${article.html}${captures}`,
+      headings: captures ? [...article.headings, { id: "project-captures", label: "구현 화면" }] : article.headings,
+    };
+  }
   if (tab === "system-map") return renderSystemMap(project);
   if (tab === "build-timeline") return renderTimeline(project);
   if (tab === "evidence") return renderEvidence(project);
@@ -866,7 +867,6 @@ function renderProject(state) {
           <div><p class="eyebrow">${escapeHtml(project.lifecycle)}</p><h1>${escapeHtml(project.name || project.id)}</h1><p class="project-summary">${escapeHtml(project.summary)}</p></div>
         </div>
         <div class="tag-row">${tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div>
-        ${renderProjectCover(project)}
       </header>
       <nav class="project-tabs project-tab-rail" data-project-tab-rail role="tablist" aria-label="프로젝트 문서">${projectTabs(project, route.tab)}</nav>
       <div class="project-layout">

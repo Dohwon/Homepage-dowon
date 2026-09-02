@@ -67,6 +67,36 @@ test("loads reviewed cover metadata separately from image bytes", async (t) => {
   assert.deepEqual(cover.bytes, png);
 });
 
+test("loads reviewed capture metadata separately from image bytes", async (t) => {
+  const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-captures-"));
+  t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+  await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+  const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), Buffer.from("fixture")]);
+  await fsp.writeFile(path.join(temporaryRoot, "projects", "alpha", "captures.json"), JSON.stringify([{
+    id: "home",
+    alt: "Alpha home screen",
+    caption: "The primary implementation screen",
+    role: "overview",
+    content_type: "image/png",
+    content_hex: png.toString("hex")
+  }]));
+  const store = createAtlasStore({ bundleDir: temporaryRoot });
+
+  const project = await store.project("alpha");
+  const capture = await store.capture("alpha", "home");
+
+  assert.deepEqual(project.captures, [{
+    id: "home",
+    src: "/api/atlas/projects/alpha/captures/home",
+    alt: "Alpha home screen",
+    caption: "The primary implementation screen",
+    role: "overview"
+  }]);
+  assert.equal(project.captureData, undefined);
+  assert.equal(capture.contentType, "image/png");
+  assert.deepEqual(capture.bytes, png);
+});
+
 test("loads paired system map metadata and SVG with validated decision references", async (t) => {
   const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-system-map-"));
   t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));

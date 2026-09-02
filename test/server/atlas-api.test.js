@@ -93,6 +93,30 @@ test("reviewed project covers are served through the bounded Atlas image route",
   assert.equal((await request(server.url, "/api/atlas/projects/beta/cover")).status, 404);
 });
 
+test("reviewed project captures are served through the bounded capture route", async (t) => {
+  const temporaryRoot = await fsp.mkdtemp(path.join(require("node:os").tmpdir(), "atlas-capture-route-"));
+  t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+  await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+  const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), Buffer.from("fixture")]);
+  await fsp.writeFile(path.join(temporaryRoot, "projects", "alpha", "captures.json"), JSON.stringify([{
+    id: "home",
+    alt: "Alpha home screen",
+    caption: "The primary implementation screen",
+    role: "overview",
+    content_type: "image/png",
+    content_hex: png.toString("hex")
+  }]));
+  const server = await startTestServer({ atlasBundleDir: temporaryRoot });
+  t.after(() => server.close());
+
+  const response = await request(server.url, "/api/atlas/projects/alpha/captures/home");
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers["content-type"], "image/png");
+  assert.equal(Number(response.headers["content-length"]), png.length);
+  assert.equal((await request(server.url, "/api/atlas/projects/alpha/captures/missing")).status, 404);
+});
+
 test("server implementation and library source are never static assets", async (t) => {
   const server = await useServer(t);
 

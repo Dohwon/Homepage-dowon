@@ -128,9 +128,12 @@ python3 -m venv .venv
 .venv/bin/python scripts/project_atlas.py run --workspace /home/dowon/securedir/git/codex --dry-run
 ```
 
-구현 화면을 공개할 프로젝트는 `project_memory/project-atlas/cover.png|jpg|jpeg|webp` 중
-하나만 둘 수 있다. Worker가 이미지 형식, 크기, 공개 번들을 검증하고 프로젝트 상세에
-대표 화면으로 연결한다. 비공개 정보가 보이는 캡처는 저장하지 않는다.
+구현 화면은 프로젝트의 `project_memory/project-atlas/captures.yaml`에 명시적으로 등록한다.
+각 항목의 `path`는 같은 `project-atlas/` 아래 파일만 가리킬 수 있고, Worker가 이미지 형식,
+크기, 메타데이터와 공개 번들을 검증한 뒤 프로젝트의 Decisions 본문 아래에 연결한다.
+기존 `cover.png|jpg|jpeg|webp`는 manifest가 없는 프로젝트에서만 대표 화면으로 하위 호환된다.
+`design/`, `reference/`, `branding/` 같은 참고 자료는 자동 공개하지 않으며, 비공개 정보가
+보이는 캡처는 manifest에 등록하지 않는다.
 
 변경 감지와 공개 번들 갱신은 Windows 작업 스케줄러에 등록할 수 있다. WSL에서 아래를
 실행하면 하루 1회의 `Dowon Project Atlas Sync` 작업을 설치하며, 실제 배포는 GitHub

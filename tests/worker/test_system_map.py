@@ -122,6 +122,24 @@ def test_svg_wraps_long_project_context_instead_of_clipping_it(tmp_path):
     assert svg.count("<tspan") >= 2
     assert "긴 설명을 여러 줄로" in svg
     assert ("한글 설명이 노드 폭을 넘어가지 않도록 " * 4) not in svg
+
+
+def test_svg_layout_follows_semantic_map_family(tmp_path):
+    roadmap_value = _map()
+    _write_map(tmp_path, roadmap_value)
+    roadmap = load_project_system_map(make_project_ref(tmp_path), _article(), _evidence(), _gate())
+
+    evaluation_value = _map()
+    evaluation_value["map_type"] = "evaluation-pipeline"
+    _write_map(tmp_path, evaluation_value)
+    evaluation = load_project_system_map(make_project_ref(tmp_path), _article(), _evidence(), _gate())
+
+    roadmap_svg = render_system_map_svg(roadmap)
+    evaluation_svg = render_system_map_svg(evaluation)
+
+    assert "버전 로드맵" in roadmap_svg
+    assert "평가 루프" in evaluation_svg
+    assert roadmap_svg != evaluation_svg
     assert ("한글 설명이 노드 폭을 넘어가지 않도록 " * 4) not in svg
 
 
