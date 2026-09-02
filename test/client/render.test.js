@@ -38,6 +38,19 @@ function projectWithCapture() {
   };
 }
 
+function projectWithExplicitlyEmptyCaptures() {
+  return {
+    id: "chat-friends",
+    captures: [],
+    cover: { src: "/legacy-cover.png", alt: "Legacy cover", caption: "Legacy screen" },
+    article: {
+      readiness: "ready",
+      summary: "A project without a verified fresh capture.",
+      sections: [{ id: "decision", title: "Decision", section_type: "decision", body: "A decision." }]
+    }
+  };
+}
+
 function installSanitizers(t) {
   const previousMarked = globalThis.marked;
   const previousPurifier = globalThis.DOMPurify;
@@ -66,4 +79,11 @@ test("does not render a capture section for other project tabs", async (t) => {
   const result = renderProjectContent(projectWithCapture(), "system-map");
 
   assert.doesNotMatch(result.html, /data-project-captures/);
+});
+
+test("does not fall back to a legacy cover when captures are explicitly empty", async (t) => {
+  installSanitizers(t);
+  const { renderProjectCaptures } = await importRenderModule(t);
+
+  assert.equal(renderProjectCaptures(projectWithExplicitlyEmptyCaptures()), "");
 });

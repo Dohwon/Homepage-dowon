@@ -679,7 +679,7 @@ export function renderArticle(project) {
 }
 
 export function renderProjectCaptures(project) {
-  const captures = Array.isArray(project?.captures) && project.captures.length
+  const captures = Array.isArray(project?.captures)
     ? project.captures
     : project?.cover?.src
       ? [{ id: "cover", src: project.cover.src, alt: project.cover.alt, caption: project.cover.caption, role: "overview" }]
