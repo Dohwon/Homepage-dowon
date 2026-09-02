@@ -6,6 +6,7 @@ import { bindSearchDialog } from "./search-dialog.js";
 import { bindTheme } from "./theme.js";
 import { createProgressLifecycle } from "./progress.js";
 import { bindProjectReader, shouldResetProjectScroll } from "./project-reader.js";
+import { isProjectPinned, loadPinnedProjectIds, toggleProjectPinned } from "./project-pins.js";
 
 const api = createAtlasApi();
 const root = document.querySelector("#atlas-main");
@@ -71,6 +72,17 @@ async function navigate(destination, { replace = false, focus = true } = {}) {
 }
 
 document.addEventListener("click", (event) => {
+  const star = event.target.closest("[data-project-star]");
+  if (star) {
+    event.preventDefault();
+    event.stopPropagation();
+    const projectId = star.dataset.projectId;
+    if (!projectId) return;
+    const nextPinned = star.getAttribute("aria-pressed") !== "true";
+    toggleProjectPinned(projectId, nextPinned);
+    navigate(new URL(window.location.href), { replace: true, focus: false });
+    return;
+  }
   const link = event.target.closest("a[data-route-link]");
   if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   const url = new URL(link.href, location.origin);
