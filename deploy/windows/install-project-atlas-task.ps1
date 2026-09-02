@@ -7,6 +7,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 $taskName = "Dowon Project Atlas Sync"
+$wrapperPath = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) "run-project-atlas-task.ps1"
+
+if (-not (Test-Path $wrapperPath)) {
+  throw "Project Atlas Windows wrapper is missing: $wrapperPath"
+}
 
 if ($Mode -eq "Remove") {
   Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
@@ -27,9 +32,9 @@ if ($Mode -eq "Check") {
   exit 0
 }
 
-$arguments = "-d `"$Distro`" --user `"$WslUser`" --exec bash `"$ScriptPath`""
-$wslExecutable = Join-Path $env:WINDIR "System32\wsl.exe"
-$action = New-ScheduledTaskAction -Execute $wslExecutable -Argument $arguments
+$powershellExecutable = Join-Path $env:WINDIR "System32\WindowsPowerShell\v1.0\powershell.exe"
+$arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$wrapperPath`" -Distro `"$Distro`" -WslUser `"$WslUser`" -ScriptPath `"$ScriptPath`""
+$action = New-ScheduledTaskAction -Execute $powershellExecutable -Argument $arguments
 $trigger = New-ScheduledTaskTrigger -Daily -At (Get-Date).Date.AddHours(3)
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew
 

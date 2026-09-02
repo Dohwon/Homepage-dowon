@@ -291,9 +291,8 @@ svg { display: block; }
   border-radius: 7px;
   background: transparent;
   color: var(--muted);
-  cursor: pointer;
+  pointer-events: none;
 }
-.project-star:hover, .project-star:focus-visible { border-color: var(--line); color: var(--text); background: var(--surface-subtle); }
 .project-star.is-pinned { color: var(--accent); }
 .project-star svg { inline-size: 17px; block-size: 17px; }
 .project-index { color: var(--muted); font: 500 11px/1 "JetBrains Mono", monospace; }

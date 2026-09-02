@@ -10,7 +10,7 @@ async function importRenderModule(t) {
   t.after(() => fsp.rm(tempRoot, { recursive: true, force: true }));
   const clientRoot = path.join(tempRoot, "client");
   await fsp.mkdir(clientRoot, { recursive: true });
-  for (const fileName of ["router.js", "public-url.js", "markdown.js", "graph-state.js", "graph-view.js", "project-pins.js", "render.js"]) {
+  for (const fileName of ["router.js", "public-url.js", "markdown.js", "graph-state.js", "graph-view.js", "render.js"]) {
     let source = await fsp.readFile(path.join(__dirname, "../..", "client", fileName), "utf8");
     if (fileName === "render.js") {
       source = source
@@ -18,14 +18,21 @@ async function importRenderModule(t) {
         .replaceAll("./markdown.js", "./markdown.mjs")
         .replaceAll("./public-url.js", "./public-url.mjs")
         .replaceAll("./graph-state.js", "./graph-state.mjs")
-        .replaceAll("./graph-view.js", "./graph-view.mjs")
-        .replaceAll("./project-pins.js", "./project-pins.mjs");
+        .replaceAll("./graph-view.js", "./graph-view.mjs");
     }
     if (fileName === "markdown.js") source = source.replaceAll("./public-url.js", "./public-url.mjs");
     await fsp.writeFile(path.join(clientRoot, fileName.replace(".js", ".mjs")), source, "utf8");
   }
   return import(pathToFileURL(path.join(clientRoot, "render.mjs")).href);
 }
+
+test("public project cards expose only the server-published pin state", async () => {
+  const renderSource = await fsp.readFile(path.join(__dirname, "../..", "client/render.js"), "utf8");
+  const mainSource = await fsp.readFile(path.join(__dirname, "../..", "client/main.js"), "utf8");
+
+  assert.doesNotMatch(renderSource, /project-pins|data-project-star|localStorage/);
+  assert.doesNotMatch(mainSource, /project-pins|data-project-star|localStorage/);
+});
 
 function projectWithCapture() {
   return {

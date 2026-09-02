@@ -2,7 +2,6 @@ import { toRouteHref, PROJECT_TABS } from "./router.js";
 import { renderMarkdown, sanitizeSvg } from "./markdown.js";
 import { toSafePublicHref } from "./public-url.js";
 import { createGraphView, supportsSvg } from "./graph-view.js";
-import { isProjectPinned, loadPinnedProjectIds, sortPinnedProjects } from "./project-pins.js";
 import {
   createGraphIndex,
   expandNode,
@@ -94,9 +93,9 @@ function flattenTags(project) {
   return Object.values(project.tags || {}).flat().filter(Boolean);
 }
 
-function projectCard(project, index, pinnedIds = loadPinnedProjectIds()) {
+function projectCard(project, index) {
   const tags = flattenTags(project).slice(0, 4);
-  const pinned = isProjectPinned(project, pinnedIds);
+  const pinned = Boolean(project.pinned);
   const href = toRouteHref({ view: "project", projectId: project.id });
   return `
     <article class="project-card" data-project-card>
@@ -104,7 +103,7 @@ function projectCard(project, index, pinnedIds = loadPinnedProjectIds()) {
         <a class="project-card-index-link" data-route-link href="${href}" aria-label="${escapeHtml(project.name || project.id)} 열기"><span class="project-index">${String(index + 1).padStart(2, "0")}</span></a>
         <div class="project-card-actions">
           <span class="status-dot ${project.lifecycle === "active" ? "active" : ""}" aria-label="${project.lifecycle === "active" ? "진행 중" : "완료"}"></span>
-          <button class="project-star ${pinned ? "is-pinned" : ""}" type="button" data-project-star data-project-id="${escapeHtml(project.id)}" aria-pressed="${String(pinned)}" aria-label="${pinned ? "별표 해제" : "별표 지정"}" title="${pinned ? "별표 해제" : "별표 지정"}"><i data-lucide="star" aria-hidden="true"></i></button>
+          <span class="project-star ${pinned ? "is-pinned" : ""}" role="img" aria-label="${pinned ? "대표 프로젝트" : "일반 프로젝트"}" title="${pinned ? "대표 프로젝트" : "일반 프로젝트"}"><i data-lucide="star" aria-hidden="true"></i></span>
         </div>
       </div>
       <a class="project-card-body" data-route-link href="${href}">
@@ -142,8 +141,9 @@ function renderHome(state) {
   const bootstrap = state.bootstrap;
   const counts = projectCounts(bootstrap);
   const projects = bootstrap.projects || [];
-  const pinnedIds = loadPinnedProjectIds();
-  const featured = sortPinnedProjects(projects, pinnedIds).slice(0, 6);
+  const featured = [...projects]
+    .sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)))
+    .slice(0, 6);
   const latestChanges = [...(bootstrap.changelog || [])].sort((left, right) => String(right.date || "").localeCompare(String(left.date || ""))).slice(0, 4);
   return `
     <div class="content-shell">
@@ -155,7 +155,7 @@ function renderHome(state) {
         <div class="summary-stat"><span>Changes</span><strong>${counts.changes}</strong></div>
       </div>
       <div class="section-bar"><h2>Selected projects</h2><a class="text-link" href="/projects" data-route-link>전체 보기</a></div>
-      <div class="project-grid">${featured.map((project, index) => projectCard(project, index, pinnedIds)).join("")}</div>
+      <div class="project-grid">${featured.map((project, index) => projectCard(project, index)).join("")}</div>
       ${latestChanges.length ? `
         <div class="section-bar"><h2>Recent changes</h2><a class="text-link" href="/changelog" data-route-link>전체 기록</a></div>
         ${changelogRows(latestChanges, projects)}` : ""}
@@ -164,7 +164,6 @@ function renderHome(state) {
 
 function renderProjects(state) {
   const projects = state.bootstrap.projects || [];
-  const pinnedIds = loadPinnedProjectIds();
   const domains = [...new Set(projects.flatMap((project) => project.tags?.domain || []))].sort((a, b) => a.localeCompare(b));
   return `
     <div class="content-shell">
@@ -175,14 +174,13 @@ function renderProjects(state) {
         <button class="filter-button" type="button" data-project-filter="finished" aria-pressed="false">Finished</button>
         ${domains.map((domain) => `<button class="filter-button" type="button" data-domain-filter="${escapeHtml(domain)}" aria-pressed="false">${escapeHtml(domain)}</button>`).join("")}
       </div>
-      <div class="project-grid" data-project-grid>${projects.map((project, index) => projectCard(project, index, pinnedIds)).join("")}</div>
+      <div class="project-grid" data-project-grid>${projects.map((project, index) => projectCard(project, index)).join("")}</div>
       <p class="empty-state" data-project-empty hidden>조건에 맞는 프로젝트가 없습니다.</p>
     </div>`;
 }
 
 function bindProjectFilters(root, state) {
   const projects = state.bootstrap.projects || [];
-  const pinnedIds = loadPinnedProjectIds();
   const grid = root.querySelector("[data-project-grid]");
   if (!grid) return () => {};
   const statusButtons = [...root.querySelectorAll("[data-project-filter]")];
@@ -195,7 +193,7 @@ function bindProjectFilters(root, state) {
       const domainMatches = !domain || (project.tags?.domain || []).includes(domain);
       return statusMatches && domainMatches;
     });
-    grid.innerHTML = filtered.map((project, index) => projectCard(project, index, pinnedIds)).join("");
+    grid.innerHTML = filtered.map((project, index) => projectCard(project, index)).join("");
     window.lucide?.createIcons();
     root.querySelector("[data-project-empty]").hidden = filtered.length > 0;
   };

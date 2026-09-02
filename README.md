@@ -3,7 +3,7 @@
 `portfolio-homepage`와 기존 LLM Wiki의 역할을 합친 프로젝트 탐색 서비스다. 로컬
 Project Atlas worker가 만든 검증된 `public-bundle/`만 공개 API로 읽으며, 프로젝트
 목록·주제·변경 기록·검색·관계 그래프와 프로젝트별 작업 이야기를 한 화면에서
-탐색한다. 기존 포트폴리오 CMS는 `/admin.html`에 그대로 보존한다.
+탐색한다. 이 배포본은 공개 읽기 전용 서비스로 운영한다.
 
 ## 공개 화면
 
@@ -13,13 +13,8 @@ Project Atlas worker가 만든 검증된 `public-bundle/`만 공개 API로 읽�
   읽기 진행률
 - `/topics`, `/graph`, `/changelog`: 주제, 태그부터 프로젝트로 펼치는 2D 지식 그래프, 변경 기록
 - `Cmd/Ctrl+K`: 전체 공개 번들 검색
-- `/admin.html`: 기존 Google 로그인 기반 CMS
-  - 비로그인: 읽기
-  - 로그인 사용자: 읽기 + 댓글
-  - 관리자 이메일: 카드 생성/수정/삭제 + 방문 통계
-
-공개 Atlas API는 raw session, 로컬 경로, provenance를 제공하지 않는다. CMS override도
-허용된 표시 필드만 병합하며 개인정보·비밀정보 패턴은 거부한다.
+공개 Atlas API는 `GET` 요청만 처리한다. 댓글·로그인·CMS·방문 통계 쓰기 API와 관리자 정적
+화면은 이 서비스에서 제공하지 않는다. raw session, 로컬 경로, provenance도 공개하지 않는다.
 
 프로젝트 상세 화면은 공개할 실제 내용이 없는 탭과 절을 빈 칸이나 추정 문장으로
 채우지 않는다. 각 프로젝트 폴더는 독립 프로젝트로 유지하며 이름이 비슷하거나
@@ -34,13 +29,14 @@ Project Atlas worker가 만든 검증된 `public-bundle/`만 공개 API로 읽�
 
 ## 파일 구조
 
-- `server.js`: Atlas 공개 API, 기존 CMS API, 정적 자산 서버
+- `server.js`: Atlas 공개 API와 정적 자산 서버
 - `index.html`, `styles.css`, `client/`: 공개 Project Atlas UI
-- `admin.html`, `admin.css`, `admin.js`: 보존된 기존 CMS
+- `admin.html`, `admin.css`, `admin.js`: 저장소에 남아 있는 레거시 소스이며 공개 정적 경로에서는 차단
 - `lib/atlas-store.js`: 검증된 bundle 로딩과 CMS allowlist 병합
 - `lib/atlas-routes.js`: `/api/atlas/*` 공개 API
 - `public-bundle/`: worker가 승격한 유일한 공개 프로젝트 데이터
 - `data/site-content.json`: 서버 첫 실행 시 자동 생성되는 운영 데이터
+- `data/owner-pins.json`: Home 대표 프로젝트의 오너 관리 목록. 이 파일만 수정하고 재배포하면 공개 화면의 별표와 순서가 바뀐다.
 - `deploy/DEPLOY.md`: 배포 메모
 
 ## 실행
@@ -71,8 +67,8 @@ node server.js
 ATLAS_BUNDLE_DIR=/absolute/path/to/public-bundle PORT=4173 node server.js
 ```
 
-검증된 bundle이 없으면 서버와 `/admin.html`은 계속 동작하고 Atlas API는 빈 상태를
-명시적으로 반환한다. 로컬 경로나 원본 프로젝트 파일을 fallback으로 읽지 않는다.
+검증된 bundle이 없으면 Atlas API는 빈 상태를 명시적으로 반환한다. 로컬 경로나 원본
+프로젝트 파일을 fallback으로 읽지 않는다.
 
 ## 검증
 
@@ -85,7 +81,7 @@ node --check server.js
 node --check admin.js
 ```
 
-## 기존 CMS 프리뷰 영상
+## 프로젝트 프리뷰 영상
 
 프로젝트 ID 기준으로 아래 파일을 두면 카드 hover 시 자동 사용된다.
 
@@ -94,12 +90,6 @@ node --check admin.js
 - `data/posters/{project-id}.jpg|jpeg|png|webp`
 
 파일이 없으면 CSS 모션 목업이 기본 프리뷰로 표시된다.
-
-## 기존 CMS 운영 메모
-
-- Google OAuth Origin은 실제 도메인 기준으로 등록해야 한다.
-- `SESSION_SECRET`를 고정하지 않으면 서버 재시작 시 로그인 세션이 끊긴다.
-- 개인 포트폴리오 트래픽 기준으로는 파일 저장소 구조로 충분하지만, 댓글량이 커지면 SQLite/Postgres로 옮기는 편이 안전하다.
 
 ## Project Atlas Worker
 
@@ -136,8 +126,17 @@ python3 -m venv .venv
 보이는 캡처는 manifest에 등록하지 않는다.
 
 변경 감지와 공개 번들 갱신은 Windows 작업 스케줄러에 등록할 수 있다. WSL에서 아래를
-실행하면 하루 1회의 `Dowon Project Atlas Sync` 작업을 설치하며, 실제 배포는 GitHub
-`main` push를 통해 이어진다.
+실행하면 하루 1회의 `Dowon Project Atlas Sync` 작업을 설치한다. 작업은 Windows 쪽
+PowerShell 래퍼가 WSL 실행을 최대 3회 시도하고, 성공한 뒤에만 GitHub `main` push로
+이어진다. 래퍼 진단 로그는 Windows의 `%LOCALAPPDATA%\\ProjectAtlas\\task-wrapper.log`에,
+worker 로그는 `.knowledge-worker/project-atlas-schedule.log`에 남는다. 공개 번들이
+실제로 커밋된 경우에는 Railway CLI로 `Project Atlas` 서비스도 자동 배포하며, Railway
+일시 오류는 `.knowledge-worker/project-atlas-pending-railway.json`으로 다음 실행에
+재시도한다. 작업을 설치한 Windows 사용자 계정에서 한 번 `railway login`이 필요하다.
+
+현재 Railway `Project Atlas` 서비스는 GitHub source가 아닌 CLI 업로드 방식으로
+배포되어 있으므로, 위 스케줄러가 변경 시 실행하는 Railway CLI 단계가 공개 URL 갱신을
+담당한다.
 
 ```bash
 scripts/install_project_atlas_schedule.sh

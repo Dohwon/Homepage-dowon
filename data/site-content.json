@@ -3,8 +3,8 @@
     "brandLabel": "Portfolio Intelligence Atelier",
     "heroBadge": "",
     "heroTitle": "실무형 AI 프로젝트를 카드 라이브러리처럼 탐색하는 개인 홈페이지",
-    "heroDescription": "넓은 캔버스, 둥근 검색 바, 떠 있는 카드, 블러 모달을 중심으로 구성된 포트폴리오 허브입니다. 비로그인 방문자는 읽기, 로그인 사용자는 댓글, 관리자만 카드 관리 권한을 가집니다.",
-    "heroNote": "관리자 전용 기능: 카드 생성/수정/삭제, 방문자 집계, 댓글 운영, 실제 영상 또는 모션 목업 프리뷰 연결",
+    "heroDescription": "프로젝트, 결정, 작업 지도와 구현 화면을 한곳에서 읽는 공개 프로젝트 아카이브입니다.",
+    "heroNote": "공개 기능: 프로젝트 탐색, 태그·관계 그래프, 변경 기록, 프로젝트별 작업 문서 읽기",
     "ownerPrimary": "김도원 (Dowon Kim)",
     "externalLink": "https://do-won.notion.site/Doh-Won-Kim-6e8c929ee98941798064f3397d75fe7b",
     "searchPlaceholder": "프로젝트, 태그, 문제 해결 키워드를 검색하세요",
@@ -1124,6 +1124,12 @@
   ],
   "meta": {
     "seededAt": "2026-03-16T22:07:03.313Z",
-    "source": "projects.generated.json"
+    "source": "projects.generated.json",
+    "hiddenProjectIds": [
+      "dowon-codex-manager-memory-work-summary-v4",
+      "a2a-family-classifier-experts",
+      "utterance-similarity-notebook"
+    ],
+    "seedSyncVersion": "2026-03-18-site-v1"
   }
 }

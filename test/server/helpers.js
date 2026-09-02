@@ -33,7 +33,7 @@ async function request(baseUrl, pathname, { method = "GET", headers = {}, body }
   });
 }
 
-async function startTestServer({ atlasBundleDir = fixtureDir, prepareDataDir } = {}) {
+async function startTestServer({ atlasBundleDir = fixtureDir, ownerPinsPath, prepareDataDir } = {}) {
   const dataDir = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-server-test-"));
   await fsp.cp(path.join(__dirname, "../../seed-data"), dataDir, { recursive: true });
   if (prepareDataDir) await prepareDataDir(dataDir);
@@ -48,6 +48,7 @@ async function startTestServer({ atlasBundleDir = fixtureDir, prepareDataDir } =
     port: 0,
     host: "127.0.0.1",
     atlasBundleDir,
+    ownerPinsPath,
     dataDir
   });
   if (!server.listening) await once(server, "listening");

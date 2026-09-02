@@ -10,6 +10,7 @@ const { UnsafePublicContentError, assertSafePublicValue } = require("./lib/publi
 const ROOT = __dirname;
 const SEED_DATA_DIR = path.join(ROOT, "seed-data");
 const ENV_PATH = path.join(ROOT, ".env");
+const DEFAULT_OWNER_PINS_PATH = path.join(ROOT, "data", "owner-pins.json");
 
 loadEnv();
 
@@ -69,10 +70,7 @@ const MIME_TYPES = {
 const STATIC_PUBLIC_FILES = new Set([
   "/index.html",
   "/styles.css",
-  "/app.js",
-  "/admin.html",
-  "/admin.css",
-  "/admin.js"
+  "/app.js"
 ]);
 const STATIC_PUBLIC_DIRECTORIES = [
   { prefix: "/client/", extensions: new Set([".js"]) },
@@ -1296,9 +1294,9 @@ function defaultSite(owner, links) {
     heroBadge: "",
     heroTitle: "실무형 AI 프로젝트를 카드 라이브러리처럼 탐색하는 개인 홈페이지",
     heroDescription:
-      "넓은 캔버스, 둥근 검색 바, 떠 있는 카드, 블러 모달을 중심으로 구성된 포트폴리오 허브입니다. 비로그인 방문자는 읽기, 로그인 사용자는 댓글, 관리자만 카드 관리 권한을 가집니다.",
+      "프로젝트, 결정, 작업 지도와 구현 화면을 한곳에서 읽는 공개 프로젝트 아카이브입니다.",
     heroNote:
-      "관리자 전용 기능: 카드 생성/수정/삭제, 방문자 집계, 댓글 운영, 실제 영상 또는 모션 목업 프리뷰 연결",
+      "공개 기능: 프로젝트 탐색, 태그·관계 그래프, 변경 기록, 프로젝트별 작업 문서 읽기",
     ownerPrimary: owner?.name || "Dowon",
     externalLink: links?.notion || "",
     searchPlaceholder: "프로젝트, 태그, 문제 해결 키워드를 검색하세요",
@@ -1665,6 +1663,23 @@ async function loadContent() {
   };
 }
 
+async function loadPublicCmsContent(ownerPinsPath) {
+  const content = await loadContent();
+  const ownerPins = await readJson(ownerPinsPath, { projectIds: [] });
+  const pinnedIds = new Set(
+    arrayify(ownerPins?.projectIds).filter((id) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id))
+  );
+  const existingIds = new Set((content.projects || []).map((project) => String(project.id || "")));
+  const projects = (content.projects || []).map((project) => ({
+    ...project,
+    pinned: pinnedIds.has(String(project.id || ""))
+  }));
+  for (const id of pinnedIds) {
+    if (!existingIds.has(id)) projects.push({ id, pinned: true });
+  }
+  return { ...content, projects };
+}
+
 async function saveContent(content) {
   await writeJsonAtomic(SITE_CONTENT_PATH, content);
 }
@@ -1843,6 +1858,24 @@ function createViewerSession(profile) {
 
 async function handleApi(req, res, url, atlasStore) {
   if (atlasStore && await handleAtlasApi(req, res, url, atlasStore)) return;
+
+  if (req.method !== "GET") {
+    sendJson(res, 405, { error: "read_only" });
+    return;
+  }
+
+  if (url.pathname === "/api/health") {
+    sendJson(res, 200, {
+      ok: true,
+      service: "portfolio-homepage",
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
+
+  // This deployment exposes only the Atlas read API. The former CMS surface is not part of it.
+  notFound(res);
+  return;
 
   const viewer = getViewer(req);
 
@@ -2346,14 +2379,15 @@ async function createApplicationServer({
   port = Number(process.env.PORT || 4173),
   host = process.env.HOST || "0.0.0.0",
   atlasBundleDir = process.env.ATLAS_BUNDLE_DIR || path.join(ROOT, "public-bundle"),
-  dataDir = process.env.PORTFOLIO_DATA_DIR || DEFAULT_DATA_DIR
+  dataDir = process.env.PORTFOLIO_DATA_DIR || DEFAULT_DATA_DIR,
+  ownerPinsPath = DEFAULT_OWNER_PINS_PATH
 } = {}) {
   configureDataPaths(dataDir);
   await ensureStorage();
 
   const atlasStore = createAtlasStore({
     bundleDir: path.isAbsolute(atlasBundleDir) ? atlasBundleDir : path.resolve(ROOT, atlasBundleDir),
-    loadCmsContent: loadContent
+    loadCmsContent: () => loadPublicCmsContent(ownerPinsPath)
   });
   const server = http.createServer((req, res) => handleRequest(req, res, atlasStore));
   await new Promise((resolve, reject) => {
