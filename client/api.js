@@ -49,6 +49,11 @@ export function createAtlasApi({ baseUrl = "/api/atlas", fetchImpl = globalThis.
       return get(`/projects/${encodeURIComponent(id)}`, options);
     },
     graph: options => get("/graph", options),
+    codeGraph: options => get("/code-graph", options),
+    projectSourceGraph(project = "", options) {
+      const params = new URLSearchParams({ project: String(project || "") });
+      return get(`/project-source-graph?${params}`, options);
+    },
     search(query, options) {
       const params = new URLSearchParams({ q: String(query || "") });
       return get(`/search?${params}`, options);

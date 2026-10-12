@@ -16,6 +16,7 @@ export const VIEWS = readonlySet([
   "projects",
   "topics",
   "graph",
+  "graphify",
   "changelog",
   "search"
 ]);
@@ -58,6 +59,12 @@ export function parseRoute(input) {
   }
 
   const view = parts[0] || "home";
+  if (view === "graphify") {
+    const scope = url.searchParams.get("scope");
+    if (scope === "code" || scope === "projects") return { view, scope };
+    const project = url.searchParams.get("project");
+    return project ? { view, project } : { view };
+  }
   return { view: VIEWS.has(view) ? view : "home" };
 }
 
@@ -71,5 +78,9 @@ export function toRouteHref(route = {}) {
   }
 
   if (route.view === "home") return "/";
+  if (route.view === "graphify") {
+    if (route.scope === "code" || route.scope === "projects") return `/graphify?scope=${route.scope}`;
+    return route.project ? `/graphify?project=${encodeURIComponent(route.project)}` : "/graphify";
+  }
   return VIEWS.has(route.view) ? `/${route.view}` : "/";
 }

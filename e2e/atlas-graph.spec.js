@@ -8,6 +8,12 @@ const VIEWPORTS = [
   { width: 390, height: 844 }
 ];
 
+test("Graphify default shows the public project graph when private source data is unavailable", async ({ page }) => {
+  await page.goto("/graphify");
+  await expect(page.locator("[data-project-connections-canvas] canvas")).toBeVisible();
+  await expect(page.locator(".graphify-summary").first()).toContainText("공개 프로젝트 연결 그래프를 표시합니다");
+});
+
 function nonBackgroundPixelCount(image) {
   const background = [image.data[0], image.data[1], image.data[2]];
   let count = 0;
@@ -54,6 +60,36 @@ async function expectControlsDoNotOverlap(page) {
     }
   }
 }
+
+test("Graphify shows cross-project connections and keeps its code scope separate", async ({ page }) => {
+  for (const viewport of VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await page.goto("/graphify?scope=projects");
+    await expect(page.locator('nav [data-view="graphify"]:visible')).toHaveAttribute("aria-current", "page");
+    await expect(page.locator('nav [data-view="graph"]:visible')).not.toHaveAttribute("aria-current", "page");
+    await expect(page.locator("[data-project-connections-canvas] canvas")).toBeVisible();
+    await expect(page.locator(".graphify-summary")).toContainText("2개 프로젝트");
+    await expect(page.locator(".graphify-summary")).toContainText("직접 관계 1개");
+    await page.locator("[data-project-connections-search]").fill("Alpha Project");
+    await page.locator('[data-project-connections-results] [data-project-connections-select="project:alpha"]').click();
+    await expect(page.locator("[data-project-connections-detail]")).toContainText("Beta Project");
+    await expect(page.getByRole("link", { name: "Atlas 코드 구조" })).toHaveAttribute("href", "/graphify?scope=code");
+    await page.getByRole("link", { name: "Atlas 코드 구조" }).click();
+    await expect(page).toHaveURL(/\/graphify\?scope=code$/);
+    await expect(page.locator("[data-code-graph-canvas] canvas")).toBeVisible();
+    await expect(page.locator(".graphify-summary")).toContainText("11개 폴더");
+    await page.locator("[data-code-graph-search]").fill("client/main.js");
+    await expect(page.locator("[data-code-graph-results]")).toContainText("client/main.js");
+    await page.locator('[data-code-graph-results] [data-code-graph-select="client/main.js"]').click();
+    await expect(page.locator("[data-code-graph-detail]")).toContainText("client/main.js");
+    await expect(page.locator('nav [data-view="graph"]:visible')).toHaveAttribute("href", "/graph");
+    await page.locator('nav [data-view="graph"]:visible').click();
+    await expect(page).toHaveURL(/\/graph$/);
+    await expect(page.locator("[data-graph-canvas] svg[data-knowledge-graph]")).toBeVisible();
+    await expect(page.locator('nav [data-view="graphify"]:visible')).not.toHaveAttribute("aria-current", "page");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  }
+});
 
 test("2D KG is nonblank, labeled, and bounded on desktop and mobile", async ({ page }) => {
   for (const viewport of VIEWPORTS) {

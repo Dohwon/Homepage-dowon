@@ -5,7 +5,8 @@ const root = path.resolve(import.meta.dirname, "..");
 const vendorFiles = [
   ["node_modules/lucide/dist/umd/lucide.min.js", "vendor/lucide.min.js"],
   ["node_modules/marked/lib/marked.umd.js", "vendor/marked.umd.js"],
-  ["node_modules/dompurify/dist/purify.min.js", "vendor/purify.min.js"]
+  ["node_modules/dompurify/dist/purify.min.js", "vendor/purify.min.js"],
+  ["node_modules/vis-network/standalone/umd/vis-network.min.js", "vendor/vis-network.min.js"]
 ];
 
 await mkdir(path.join(root, "vendor"), { recursive: true });

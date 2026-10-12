@@ -14,6 +14,9 @@ PROJECT_ANALYSIS.md
 node_modules/
 .atlas-staging/
 .atlas-test-data/
+graphify-out/cache/
+graphify-out/20??-??-??/
+.local-graphify/
 .public-bundle.previous/
 test-results/
 playwright-report/

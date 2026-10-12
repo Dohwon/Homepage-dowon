@@ -93,13 +93,27 @@ test("public route allowlists cannot be extended at runtime", async () => {
 test("top-level routes use an explicit public allowlist", async () => {
   const { parseRoute, toRouteHref, VIEWS } = await importBrowserModule("client/router.js");
 
-  assert.deepEqual([...VIEWS], ["home", "projects", "topics", "graph", "changelog", "search"]);
+  assert.deepEqual([...VIEWS], ["home", "projects", "topics", "graph", "graphify", "changelog", "search"]);
   assert.deepEqual(parseRoute(new URL("https://atlas.test/")), { view: "home" });
   assert.deepEqual(parseRoute(new URL("https://atlas.test/graph")), { view: "graph" });
   assert.deepEqual(parseRoute(new URL("https://atlas.test/sessions")), { view: "home" });
   assert.deepEqual(parseRoute(new URL("https://atlas.test/provenance")), { view: "home" });
   assert.equal(toRouteHref({ view: "graph" }), "/graph");
   assert.equal(toRouteHref({ view: "home" }), "/");
+});
+
+test("Graph and Graphify have separate top-level URLs and Graphify has a code scope", async () => {
+  const { parseRoute, toRouteHref } = await importBrowserModule("client/router.js");
+  assert.deepEqual(parseRoute(new URL("https://atlas.test/graphify")), { view: "graphify" });
+  assert.deepEqual(parseRoute(new URL("https://atlas.test/graphify?scope=projects")), { view: "graphify", scope: "projects" });
+  assert.deepEqual(parseRoute(new URL("https://atlas.test/graphify?project=finish%2Fexample")), { view: "graphify", project: "finish/example" });
+  assert.deepEqual(parseRoute(new URL("https://atlas.test/graphify?scope=code")), { view: "graphify", scope: "code" });
+  assert.deepEqual(parseRoute(new URL("https://atlas.test/graph?source=code")), { view: "graph" });
+  assert.equal(toRouteHref({ view: "graphify" }), "/graphify");
+  assert.equal(toRouteHref({ view: "graphify", scope: "projects" }), "/graphify?scope=projects");
+  assert.equal(toRouteHref({ view: "graphify", project: "finish/example" }), "/graphify?project=finish%2Fexample");
+  assert.equal(toRouteHref({ view: "graphify", scope: "code" }), "/graphify?scope=code");
+  assert.equal(toRouteHref({ view: "graph" }), "/graph");
 });
 
 test("project hrefs encode ids and cannot serialize private tabs", async () => {

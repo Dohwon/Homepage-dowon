@@ -41,6 +41,20 @@ test("unknown project returns 404", async (t) => {
   assert.equal((await request(server.url, "/api/atlas/projects/missing")).status, 404);
 });
 
+test("code graph API serves only the reviewed Graphify projection", async (t) => {
+  const server = await useServer(t);
+  const response = await request(server.url, "/api/atlas/code-graph");
+  const graph = response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(graph.source, "Graphify AST");
+  assert.ok(graph.folders.length >= 10);
+  assert.ok(graph.nodes.filter(node => node.kind === "file").length > 100);
+  assert.ok(graph.nodes.some(node => node.id === "client/main.js"));
+  assert.ok(graph.edges.some(edge => edge.source === "client/main.js"));
+  assert.doesNotMatch(response.text, /source_location|\.claude|public-bundle|\/home\//);
+});
+
 test("root and Atlas deep links serve the public shell while the unrelated admin surface is unavailable", async (t) => {
   const server = await useServer(t);
   const root = (await request(server.url, "/")).text;
@@ -136,6 +150,9 @@ test("server implementation and library source are never static assets", async (
   assert.equal((await request(server.url, "/server.js")).status, 404);
   assert.equal((await request(server.url, "/lib/atlas-store.js")).status, 404);
   assert.equal((await request(server.url, "/package.json")).status, 404);
+  assert.equal((await request(server.url, "/graphify-out/graph.json")).status, 404);
+  assert.equal((await request(server.url, "/graphify-out/graph.html")).status, 404);
+  assert.equal((await request(server.url, "/api/atlas/project-source-graph")).status, 404);
 });
 
 test("bootstrap, graph, and search routes expose stable bundle data", async (t) => {

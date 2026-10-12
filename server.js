@@ -2276,7 +2276,7 @@ async function handleApi(req, res, url, atlasStore) {
 }
 
 async function serveStatic(req, res, url) {
-  const atlasRoute = /^\/(?:projects(?:\/[^/]+)?|topics|graph|changelog|search)\/?$/.test(url.pathname);
+  const atlasRoute = /^\/(?:projects(?:\/[^/]+)?|topics|graph|graphify|changelog|search)\/?$/.test(url.pathname);
   let requestedPath;
   try {
     requestedPath = decodeURIComponent(url.pathname);
@@ -2387,6 +2387,7 @@ async function createApplicationServer({
 
   const atlasStore = createAtlasStore({
     bundleDir: path.isAbsolute(atlasBundleDir) ? atlasBundleDir : path.resolve(ROOT, atlasBundleDir),
+    localGraphifyPath: (host === "127.0.0.1" || host === "::1") ? process.env.ATLAS_LOCAL_GRAPHIFY_PATH || null : null,
     loadCmsContent: () => loadPublicCmsContent(ownerPinsPath)
   });
   const server = http.createServer((req, res) => handleRequest(req, res, atlasStore));

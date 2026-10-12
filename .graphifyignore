@@ -1,0 +1,11 @@
+# Generated output, external code, runtime data and local agent instructions.
+vendor/
+node_modules/
+public-bundle/
+data/
+seed-data/
+.atlas-test-data/
+.claude/
+.superpowers/
+graphify-out/
+.local-graphify/

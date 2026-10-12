@@ -5,6 +5,9 @@ const KIND_COLUMN = Object.freeze({
   Project: 3,
   Technology: 4,
   Artifact: 4,
+  Browser: 1,
+  Server: 2,
+  Worker: 3,
 });
 
 const COLUMN_X = Object.freeze([42, 292, 542, 792, 1042]);
@@ -103,14 +106,14 @@ function nodeMarkup(node, position) {
   </g>`;
 }
 
-function renderSvg(graph) {
+function renderSvg(graph, { title, description }) {
   const layout = layoutGraph(graph);
   const edges = graph.links.map(link => edgeMarkup(link, layout.positions)).join("");
   const nodes = graph.nodes.map(node => nodeMarkup(node, layout.positions.get(node.id))).join("");
   return {
     html: `<svg xmlns="http://www.w3.org/2000/svg" data-knowledge-graph viewBox="0 0 ${GRAPH_WIDTH} ${layout.height}" role="img" aria-labelledby="kg-title kg-desc">
-      <title id="kg-title">프로젝트 지식 그래프</title>
-      <desc id="kg-desc">핵심 주제, 도메인, 태그와 프로젝트의 연결 구조</desc>
+      <title id="kg-title">${escapeXml(title)}</title>
+      <desc id="kg-desc">${escapeXml(description)}</desc>
       <rect class="kg-background" width="${GRAPH_WIDTH}" height="${layout.height}" />
       <g class="kg-edges">${edges}</g>
       <g class="kg-nodes">${nodes}</g>
@@ -137,6 +140,8 @@ export function createGraphView(container, graph, {
   onSelect = () => {},
   onFailure = () => {},
   reducedMotion = false,
+  title = "프로젝트 지식 그래프",
+  description = "핵심 주제, 도메인, 태그와 프로젝트의 연결 구조",
 } = {}) {
   let current = graphData(graph);
   const initial = graphData(graph);
@@ -164,7 +169,7 @@ export function createGraphView(container, graph, {
   const render = () => {
     if (destroyed) return;
     try {
-      const projected = renderSvg(current);
+      const projected = renderSvg(current, { title, description });
       layout = projected.layout;
       container.innerHTML = projected.html;
     } catch (error) {

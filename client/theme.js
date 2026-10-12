@@ -7,7 +7,7 @@ function paintThemeButton(button, theme) {
   if (icon) icon.setAttribute("data-lucide", themeIcon(theme));
   button.setAttribute("aria-label", theme === "dark" ? "라이트 모드" : "다크 모드");
   button.title = button.getAttribute("aria-label");
-  window.lucide?.createIcons();
+  try { window.lucide?.createIcons(); } catch { /* Theme and graph fallback work without SVG icons. */ }
 }
 
 export function bindTheme(button) {

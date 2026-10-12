@@ -91,6 +91,91 @@ node --check admin.js
 
 파일이 없으면 CSS 모션 목업이 기본 프리뷰로 표시된다.
 
+## Graphify 독립 탭
+
+`/graphify`는 기존 `/graph`와 별도의 상단 탐색 탭이다. 기본 화면은
+`projects/` 전체에서 Graphify가 추출한 코드 심벌, 문서·PDF 개념과 관계를
+커뮤니티 색상별 점과 선으로 표시한다. 전체 그래프가 크므로 화면에는
+최대 1,400개 노드를 표시하고, 프로젝트 선택으로 각 프로젝트의 연결을
+자세히 탐색한다. 이 원본 그래프는 로컬 서버에서만 제공한다.
+
+`/graphify?scope=projects`는
+`projects/`와 `projects/finish/`에서 검토된 공개 프로필을 바탕으로 만든
+Atlas 공개 그래프에서 프로젝트 간 공통 주제·기술을 계산한다. 두 프로젝트가
+전체 공개 프로젝트의 30% 이하에서 등장하는 속성을 두 개 이상 공유할 때만
+점선으로 표시한다. 점선은 분석상 유사성이며, 계승·재사용의 증거가 아니다.
+프로젝트의 `relations.yaml`에 근거가 기록된 직접 관계만 실선으로 표시한다.
+
+`/graphify?scope=code`는 Graphify CLI가 **이 Atlas 웹 저장소**에서
+추출한 심벌·관계를 파일 및 최상위 폴더 수준으로 묶어 힘 기반 네트워크로 보여 준다.
+검색, 폴더 탐색, 연결 파일 확인, 화면 맞춤을 지원한다. 원본 `graphify-out/graph.json`은
+공개 API에서 제공하지 않는다. 공개 데이터는 `scripts/export_graphify_code_graph.mjs`가
+허용한 소스 폴더와 루트 파일의 파일명·관계만 담은 `data/code-graph-public.json`이다.
+숨김 지침, 생성된 번들, 테스트 fixture, 외부 라이브러리와 원문은 제외한다.
+원본 분석에서도 `.graphifyignore`로 런타임 데이터와 외부 라이브러리를 제외한다.
+Graphify가 지원하지 않는 이미지·CSS 등은 원본 그래프에도 나타나지 않는다.
+프로젝트·주제 관계는 기존 `/graph`에서 볼 수 있다.
+
+로컬 그래프는 `projects/`의 코드, 문서, PDF, Office, 이미지와 영상·음성 파일을
+Graphify의 원래 형식으로 스테이징해 만든다. `data/`, `project_memory/`,
+`finish/`도 범위에 포함한다. 의존성·캐시 디렉터리와 파일 종류별 크기 제한을
+적용하고 수와 제외 사유를 `scan-manifest.json`에 기록한다. Graphify는 코드·SQL을
+로컬에서 구문 분석하고 Office 파일은 Markdown으로 변환한다. 문서·PDF·이미지는
+Graphify 스킬을 사용하는 Codex 세션에서도 의미 추출할 수 있다. 아래 자동화
+스크립트는 별도의 headless CLI 경로로, 현재 `claude-cli` 백엔드를 지정한다.
+이전 부분 추출이 Claude 사용 한도에서 멈춘 것은 이 스크립트의 백엔드 선택
+때문이며 Codex 스킬의 한도가 아니다. 현재 런타임에는 Graphify
+`video` extra와 전사 도구가 없어 미디어 4개는 입력 목록에만 있으며 전사 노드는
+없다. CSV·JSONL 원본은 Graphify의 지원 입력 목록에 없어 이 그래프에서 구조화
+데이터 의미 추출 대상으로 계산하지 않는다.
+
+빠르게 탐색 가능한 그래프는 모든 지원 코드와 PDF, 프로젝트별 핵심 문서 최대
+3개, Office 파일과 이미지 각 1개를 넣은 우선 처리 코퍼스로 만든다. 이 화면의
+문서 의미 관계는 우선 처리 파일에 한정되며, 다른 문서를 모두 분석했다고
+표시하지 않는다. `priority/extraction-status.json`에서 성공·실패한 LLM 청크를
+확인한다. 사용량 한도 등으로 일부 청크가 실패해도 Graphify가 부분 그래프를
+쓸 수 있으므로 화면에는 미완료 상태를 함께 표시한다. 전체 입력 파일 스캔과
+무제한 의미 추출은 별도 명령으로 제공한다.
+
+```bash
+python3 scripts/build_projects_graphify_priority.py
+HOST=127.0.0.1 PORT=4190 ATLAS_LOCAL_GRAPHIFY_PATH="$PWD/.local-graphify/priority/source/graphify-out/graph.json" npm start
+```
+
+```bash
+python3 scripts/build_projects_graphify_full.py --stage-only  # 전체 파일 인벤토리
+python3 scripts/build_projects_graphify_full.py               # 전체 의미 추출: 매우 오래 걸림
+```
+
+Codex에서 API 키 없이 의미 추출하려면 설치된 `.agents/skills/graphify/` 스킬로
+스테이징된 폴더를 분석한다. `graphify extract --backend codex` 명령은 없다.
+전체 코퍼스는 크므로 프로젝트별로 나눠 스킬을 실행하고, 결과 그래프를
+`graphify merge-graphs`로 합쳐야 한다. 각 배치의 성공 파일·실패 파일을 검증한 뒤
+병합해야 하며, 현재 전체 배치 추출과 병합은 완료되지 않았다.
+
+브라우저 주소는 `http://127.0.0.1:4190/graphify`다. 로컬 그래프 경로가 설정되지 않은
+공개 서버는 원본 소스 그래프 API를 제공하지 않으며, `/graphify`에서 검토된
+공개 프로젝트 연결 그래프를 대신 표시한다. 전체 원본 그래프는 공개 저장소와
+배포물에 포함하지 않는다.
+
+코드를 수정한 뒤 그래프를 갱신하려면 다음을 실행한다. CLI 패키지 이름은
+`graphifyy`이고 실행 명령은 `graphify`다.
+
+```bash
+graphify update .
+node scripts/export_graphify_code_graph.mjs
+```
+
+공개용 JSON에 포함할 파일을 바꿀 때는 허용 목록과 출력물을 검토하고 API·브라우저
+테스트를 다시 실행한다. 이 작업 공간에서는 `.codex`가 디렉터리가 아닌 마운트
+파일이라 `graphify install --project --platform codex`가 실패한다. 대신 공식
+범용 Agent Skills 경로인 `.agents/skills/graphify/`에 다음 명령으로 프로젝트
+스킬을 설치했다. 그래프 생성 CLI는 두 설치 방식과 독립적으로 동작한다.
+
+```bash
+graphify install --project --platform agents
+```
+
 ## Project Atlas Worker
 
 Worker는 로컬 workspace의 `projects/`와 `projects/finish/` 바로 아래 프로젝트 폴더를 매일 다시 탐색하고, 검토된 public profile과 직접 작성된 project memory만 `public-bundle/`로 만든다. 프로젝트 폴더의 파일 추가·수정·삭제와 새 프로젝트 폴더를 source hash로 감지한다. 기본 출력은 key ordering이 고정된 JSON이며 absolute project root, raw session text, alias key, provenance를 출력하지 않는다.

@@ -13,7 +13,8 @@
   "dependencies": {
     "dompurify": ">=3.1 <4",
     "lucide": ">=0.468 <1",
-    "marked": ">=15 <18"
+    "marked": ">=15 <18",
+    "vis-network": "9.1.13"
   },
   "devDependencies": {
     "@playwright/test": ">=1.50 <2",

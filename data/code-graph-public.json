@@ -1,0 +1,6411 @@
+{
+  "schemaVersion": 2,
+  "source": "Graphify AST",
+  "corpus": {
+    "nodes": 2880,
+    "edges": 8504
+  },
+  "folders": [
+    {
+      "id": "(root)",
+      "fileCount": 7
+    },
+    {
+      "id": "atlas_worker",
+      "fileCount": 29
+    },
+    {
+      "id": "client",
+      "fileCount": 15
+    },
+    {
+      "id": "deploy",
+      "fileCount": 3
+    },
+    {
+      "id": "docs",
+      "fileCount": 13
+    },
+    {
+      "id": "e2e",
+      "fileCount": 8
+    },
+    {
+      "id": "lib",
+      "fileCount": 5
+    },
+    {
+      "id": "schemas",
+      "fileCount": 6
+    },
+    {
+      "id": "scripts",
+      "fileCount": 17
+    },
+    {
+      "id": "test",
+      "fileCount": 15
+    },
+    {
+      "id": "tests",
+      "fileCount": 30
+    }
+  ],
+  "nodes": [
+    {
+      "id": "folder:(root)",
+      "label": "(root)",
+      "kind": "folder",
+      "folder": "(root)",
+      "fileCount": 7
+    },
+    {
+      "id": "folder:atlas_worker",
+      "label": "atlas_worker",
+      "kind": "folder",
+      "folder": "atlas_worker",
+      "fileCount": 29
+    },
+    {
+      "id": "folder:client",
+      "label": "client",
+      "kind": "folder",
+      "folder": "client",
+      "fileCount": 15
+    },
+    {
+      "id": "folder:deploy",
+      "label": "deploy",
+      "kind": "folder",
+      "folder": "deploy",
+      "fileCount": 3
+    },
+    {
+      "id": "folder:docs",
+      "label": "docs",
+      "kind": "folder",
+      "folder": "docs",
+      "fileCount": 13
+    },
+    {
+      "id": "folder:e2e",
+      "label": "e2e",
+      "kind": "folder",
+      "folder": "e2e",
+      "fileCount": 8
+    },
+    {
+      "id": "folder:lib",
+      "label": "lib",
+      "kind": "folder",
+      "folder": "lib",
+      "fileCount": 5
+    },
+    {
+      "id": "folder:schemas",
+      "label": "schemas",
+      "kind": "folder",
+      "folder": "schemas",
+      "fileCount": 6
+    },
+    {
+      "id": "folder:scripts",
+      "label": "scripts",
+      "kind": "folder",
+      "folder": "scripts",
+      "fileCount": 17
+    },
+    {
+      "id": "folder:test",
+      "label": "test",
+      "kind": "folder",
+      "folder": "test",
+      "fileCount": 15
+    },
+    {
+      "id": "folder:tests",
+      "label": "tests",
+      "kind": "folder",
+      "folder": "tests",
+      "fileCount": 30
+    },
+    {
+      "id": "admin.js",
+      "label": "admin.js",
+      "kind": "file",
+      "folder": "(root)",
+      "symbols": 159
+    },
+    {
+      "id": "app.js",
+      "label": "app.js",
+      "kind": "file",
+      "folder": "(root)",
+      "symbols": 1
+    },
+    {
+      "id": "atlas_worker/__init__.py",
+      "label": "__init__.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 2
+    },
+    {
+      "id": "atlas_worker/article.py",
+      "label": "article.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 28
+    },
+    {
+      "id": "atlas_worker/backfill.py",
+      "label": "backfill.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 37
+    },
+    {
+      "id": "atlas_worker/bundle.py",
+      "label": "bundle.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 70
+    },
+    {
+      "id": "atlas_worker/captures.py",
+      "label": "captures.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 8
+    },
+    {
+      "id": "atlas_worker/cli.py",
+      "label": "cli.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 74
+    },
+    {
+      "id": "atlas_worker/config.py",
+      "label": "config.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 6
+    },
+    {
+      "id": "atlas_worker/content_audit.py",
+      "label": "content_audit.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 24
+    },
+    {
+      "id": "atlas_worker/cover.py",
+      "label": "cover.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 7
+    },
+    {
+      "id": "atlas_worker/decision_episodes.py",
+      "label": "decision_episodes.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 36
+    },
+    {
+      "id": "atlas_worker/discovery.py",
+      "label": "discovery.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 20
+    },
+    {
+      "id": "atlas_worker/evidence.py",
+      "label": "evidence.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 5
+    },
+    {
+      "id": "atlas_worker/fs_safety.py",
+      "label": "fs_safety.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 27
+    },
+    {
+      "id": "atlas_worker/graph.py",
+      "label": "graph.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 15
+    },
+    {
+      "id": "atlas_worker/history.py",
+      "label": "history.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 11
+    },
+    {
+      "id": "atlas_worker/kg.py",
+      "label": "kg.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 52
+    },
+    {
+      "id": "atlas_worker/manifest.py",
+      "label": "manifest.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 16
+    },
+    {
+      "id": "atlas_worker/memory_writer.py",
+      "label": "memory_writer.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 21
+    },
+    {
+      "id": "atlas_worker/memory.py",
+      "label": "memory.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 10
+    },
+    {
+      "id": "atlas_worker/models.py",
+      "label": "models.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 75
+    },
+    {
+      "id": "atlas_worker/privacy.py",
+      "label": "privacy.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 55
+    },
+    {
+      "id": "atlas_worker/publish.py",
+      "label": "publish.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 17
+    },
+    {
+      "id": "atlas_worker/runtime_state.py",
+      "label": "runtime_state.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 30
+    },
+    {
+      "id": "atlas_worker/session_index.py",
+      "label": "session_index.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 36
+    },
+    {
+      "id": "atlas_worker/sessions.py",
+      "label": "sessions.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 18
+    },
+    {
+      "id": "atlas_worker/source_manifest.py",
+      "label": "source_manifest.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 29
+    },
+    {
+      "id": "atlas_worker/system_map.py",
+      "label": "system_map.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 14
+    },
+    {
+      "id": "atlas_worker/taxonomy.py",
+      "label": "taxonomy.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 16
+    },
+    {
+      "id": "atlas_worker/visuals.py",
+      "label": "visuals.py",
+      "kind": "file",
+      "folder": "atlas_worker",
+      "symbols": 22
+    },
+    {
+      "id": "client/api.js",
+      "label": "api.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 7
+    },
+    {
+      "id": "client/graph-state.js",
+      "label": "graph-state.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 20
+    },
+    {
+      "id": "client/graph-view.js",
+      "label": "graph-view.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 15
+    },
+    {
+      "id": "client/graphify-view.js",
+      "label": "graphify-view.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 5
+    },
+    {
+      "id": "client/main.js",
+      "label": "main.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 11
+    },
+    {
+      "id": "client/markdown.js",
+      "label": "markdown.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 4
+    },
+    {
+      "id": "client/progress.js",
+      "label": "progress.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 9
+    },
+    {
+      "id": "client/project-connections.js",
+      "label": "project-connections.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 4
+    },
+    {
+      "id": "client/project-reader.js",
+      "label": "project-reader.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 7
+    },
+    {
+      "id": "client/public-url.js",
+      "label": "public-url.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 18
+    },
+    {
+      "id": "client/render.js",
+      "label": "render.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 61
+    },
+    {
+      "id": "client/router.js",
+      "label": "router.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 8
+    },
+    {
+      "id": "client/search-dialog.js",
+      "label": "search-dialog.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 5
+    },
+    {
+      "id": "client/state.js",
+      "label": "state.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 10
+    },
+    {
+      "id": "client/theme.js",
+      "label": "theme.js",
+      "kind": "file",
+      "folder": "client",
+      "symbols": 4
+    },
+    {
+      "id": "deploy/DEPLOY.md",
+      "label": "DEPLOY.md",
+      "kind": "file",
+      "folder": "deploy",
+      "symbols": 7
+    },
+    {
+      "id": "deploy/windows/install-project-atlas-task.ps1",
+      "label": "install-project-atlas-task.ps1",
+      "kind": "file",
+      "folder": "deploy",
+      "symbols": 1
+    },
+    {
+      "id": "deploy/windows/run-project-atlas-task.ps1",
+      "label": "run-project-atlas-task.ps1",
+      "kind": "file",
+      "folder": "deploy",
+      "symbols": 1
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-24-project-atlas-automation-rollout.md",
+      "label": "2026-08-24-project-atlas-automation-rollout.md",
+      "kind": "file",
+      "folder": "docs",
+      "symbols": 12
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-24-project-atlas-local-pipeline.md",
+      "label": "2026-08-24-project-atlas-local-pipeline.md",
+      "kind": "file",
+      "folder": "docs",
+      "symbols": 14
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-24-project-atlas-public-experience.md",
+      "label": "2026-08-24-project-atlas-public-experience.md",
+      "kind": "file",
+      "folder": "docs",
+      "symbols": 13
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-backfill-automation-release.md",
+      "label": "2026-08-27-project-atlas-backfill-automation-release.md",
+      "kind": "file",
+      "folder": "docs",
+      "symbols": 14
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-decision-reader.md",
+      "label": "2026-08-27-project-atlas-decision-reader.md",
+      "kind": "file",
+      "folder": "docs",
+      "symbols": 11
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md",
+      "label": "2026-08-27-project-atlas-knowledge-content-foundation.md",
+      "kind": "file",
+      "folder": "docs",
+      "symbols": 12
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-progressive-3d-knowledge-graph.md",
+      "label": "2026-08-27-project-atlas-progressive-3d-knowledge-graph.md",
+      "kind": "file",
+      "folder": "docs",
+      "symbols": 11
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-31-project-atlas-orientation-system-map-2d-kg.md",
+      "label": "2026-08-31-project-atlas-orientation-system-map-2d-kg.md",
+      "kind": "file",
+      "folder": "docs",
+      "symbols": 12
+    },
+    {
+      "id": "docs/superpowers/plans/2026-09-01-project-atlas-capture-map-redesign-plan.md",
+      "label": "2026-09-01-project-atlas-capture-map-redesign-plan.md",
+      "kind": "file",
+      "folder": "docs",
+      "symbols": 10
+    },
+    {
+      "id": "docs/superpowers/specs/2026-08-24-project-atlas-design.md",
+      "label": "2026-08-24-project-atlas-design.md",
+      "kind": "file",
+      "folder": "docs",
+      "symbols": 47
+    },
+    {
+      "id": "docs/superpowers/specs/2026-08-27-project-atlas-content-graph-redesign.md",
+      "label": "2026-08-27-project-atlas-content-graph-redesign.md",
+      "kind": "file",
+      "folder": "docs",
+      "symbols": 46
+    },
+    {
+      "id": "docs/superpowers/specs/2026-08-31-project-atlas-orientation-system-map-2d-kg.md",
+      "label": "2026-08-31-project-atlas-orientation-system-map-2d-kg.md",
+      "kind": "file",
+      "folder": "docs",
+      "symbols": 15
+    },
+    {
+      "id": "docs/superpowers/specs/2026-09-01-project-atlas-capture-map-redesign-design.md",
+      "label": "2026-09-01-project-atlas-capture-map-redesign-design.md",
+      "kind": "file",
+      "folder": "docs",
+      "symbols": 12
+    },
+    {
+      "id": "e2e/atlas-admin.spec.js",
+      "label": "atlas-admin.spec.js",
+      "kind": "file",
+      "folder": "e2e",
+      "symbols": 2
+    },
+    {
+      "id": "e2e/atlas-graph.spec.js",
+      "label": "atlas-graph.spec.js",
+      "kind": "file",
+      "folder": "e2e",
+      "symbols": 8
+    },
+    {
+      "id": "e2e/atlas-navigation.spec.js",
+      "label": "atlas-navigation.spec.js",
+      "kind": "file",
+      "folder": "e2e",
+      "symbols": 2
+    },
+    {
+      "id": "e2e/atlas-privacy.spec.js",
+      "label": "atlas-privacy.spec.js",
+      "kind": "file",
+      "folder": "e2e",
+      "symbols": 2
+    },
+    {
+      "id": "e2e/atlas-reader.spec.js",
+      "label": "atlas-reader.spec.js",
+      "kind": "file",
+      "folder": "e2e",
+      "symbols": 7
+    },
+    {
+      "id": "e2e/atlas-responsive.spec.js",
+      "label": "atlas-responsive.spec.js",
+      "kind": "file",
+      "folder": "e2e",
+      "symbols": 2
+    },
+    {
+      "id": "e2e/fixtures.js",
+      "label": "fixtures.js",
+      "kind": "file",
+      "folder": "e2e",
+      "symbols": 2
+    },
+    {
+      "id": "e2e/global-setup.js",
+      "label": "global-setup.js",
+      "kind": "file",
+      "folder": "e2e",
+      "symbols": 3
+    },
+    {
+      "id": "lib/atlas-routes.js",
+      "label": "atlas-routes.js",
+      "kind": "file",
+      "folder": "lib",
+      "symbols": 4
+    },
+    {
+      "id": "lib/atlas-store.js",
+      "label": "atlas-store.js",
+      "kind": "file",
+      "folder": "lib",
+      "symbols": 63
+    },
+    {
+      "id": "lib/local-graphify.js",
+      "label": "local-graphify.js",
+      "kind": "file",
+      "folder": "lib",
+      "symbols": 5
+    },
+    {
+      "id": "lib/public-content-policy.js",
+      "label": "public-content-policy.js",
+      "kind": "file",
+      "folder": "lib",
+      "symbols": 7
+    },
+    {
+      "id": "lib/public-evidence-url.js",
+      "label": "public-evidence-url.js",
+      "kind": "file",
+      "folder": "lib",
+      "symbols": 13
+    },
+    {
+      "id": "package.json",
+      "label": "package.json",
+      "kind": "file",
+      "folder": "(root)",
+      "symbols": 25
+    },
+    {
+      "id": "playwright.config.js",
+      "label": "playwright.config.js",
+      "kind": "file",
+      "folder": "(root)",
+      "symbols": 3
+    },
+    {
+      "id": "railway.json",
+      "label": "railway.json",
+      "kind": "file",
+      "folder": "(root)",
+      "symbols": 10
+    },
+    {
+      "id": "README.md",
+      "label": "README.md",
+      "kind": "file",
+      "folder": "(root)",
+      "symbols": 16
+    },
+    {
+      "id": "schemas/project-captures.schema.json",
+      "label": "project-captures.schema.json",
+      "kind": "file",
+      "folder": "schemas",
+      "symbols": 28
+    },
+    {
+      "id": "schemas/public-captures.schema.json",
+      "label": "public-captures.schema.json",
+      "kind": "file",
+      "folder": "schemas",
+      "symbols": 27
+    },
+    {
+      "id": "schemas/public-cover.schema.json",
+      "label": "public-cover.schema.json",
+      "kind": "file",
+      "folder": "schemas",
+      "symbols": 19
+    },
+    {
+      "id": "schemas/public-evidence.schema.json",
+      "label": "public-evidence.schema.json",
+      "kind": "file",
+      "folder": "schemas",
+      "symbols": 22
+    },
+    {
+      "id": "schemas/public-manifest.schema.json",
+      "label": "public-manifest.schema.json",
+      "kind": "file",
+      "folder": "schemas",
+      "symbols": 22
+    },
+    {
+      "id": "schemas/public-timeline.schema.json",
+      "label": "public-timeline.schema.json",
+      "kind": "file",
+      "folder": "schemas",
+      "symbols": 26
+    },
+    {
+      "id": "scripts/audit_atlas_memory_checkpoint.py",
+      "label": "audit_atlas_memory_checkpoint.py",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 8
+    },
+    {
+      "id": "scripts/audit_project_captures.py",
+      "label": "audit_project_captures.py",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 8
+    },
+    {
+      "id": "scripts/audit_public_atlas_catalog.py",
+      "label": "audit_public_atlas_catalog.py",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 13
+    },
+    {
+      "id": "scripts/backfill_project_atlas_content.py",
+      "label": "backfill_project_atlas_content.py",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 20
+    },
+    {
+      "id": "scripts/build_projects_graphify.py",
+      "label": "build_projects_graphify.py",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 4
+    },
+    {
+      "id": "scripts/export_graphify_code_graph.mjs",
+      "label": "export_graphify_code_graph.mjs",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 7
+    },
+    {
+      "id": "scripts/import_llm_wiki_graph.py",
+      "label": "import_llm_wiki_graph.py",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 17
+    },
+    {
+      "id": "scripts/install_project_atlas_schedule.sh",
+      "label": "install_project_atlas_schedule.sh",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 2
+    },
+    {
+      "id": "scripts/install_project_atlas_timer.sh",
+      "label": "install_project_atlas_timer.sh",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 3
+    },
+    {
+      "id": "scripts/open_portfolio_homepage.sh",
+      "label": "open_portfolio_homepage.sh",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 2
+    },
+    {
+      "id": "scripts/project_atlas_scheduled_publish.py",
+      "label": "project_atlas_scheduled_publish.py",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 7
+    },
+    {
+      "id": "scripts/project_atlas_scheduled_publish.sh",
+      "label": "project_atlas_scheduled_publish.sh",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 2
+    },
+    {
+      "id": "scripts/project_atlas.py",
+      "label": "project_atlas.py",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 3
+    },
+    {
+      "id": "scripts/project_system_map_specs.py",
+      "label": "project_system_map_specs.py",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 4
+    },
+    {
+      "id": "scripts/scan_projects.py",
+      "label": "scan_projects.py",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 4
+    },
+    {
+      "id": "scripts/start_portfolio_homepage.sh",
+      "label": "start_portfolio_homepage.sh",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 2
+    },
+    {
+      "id": "scripts/vendor_client_assets.mjs",
+      "label": "vendor_client_assets.mjs",
+      "kind": "file",
+      "folder": "scripts",
+      "symbols": 3
+    },
+    {
+      "id": "server.js",
+      "label": "server.js",
+      "kind": "file",
+      "folder": "(root)",
+      "symbols": 114
+    },
+    {
+      "id": "test/client/graph-state.test.js",
+      "label": "graph-state.test.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 10
+    },
+    {
+      "id": "test/client/graph-view.test.js",
+      "label": "graph-view.test.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 14
+    },
+    {
+      "id": "test/client/markdown.test.js",
+      "label": "markdown.test.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 11
+    },
+    {
+      "id": "test/client/progress.test.js",
+      "label": "progress.test.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 12
+    },
+    {
+      "id": "test/client/project-connections.test.js",
+      "label": "project-connections.test.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 3
+    },
+    {
+      "id": "test/client/project-reader.test.js",
+      "label": "project-reader.test.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 29
+    },
+    {
+      "id": "test/client/public-url.test.js",
+      "label": "public-url.test.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 7
+    },
+    {
+      "id": "test/client/render.test.js",
+      "label": "render.test.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 11
+    },
+    {
+      "id": "test/client/router.test.js",
+      "label": "router.test.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 8
+    },
+    {
+      "id": "test/server/atlas-api.test.js",
+      "label": "atlas-api.test.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 8
+    },
+    {
+      "id": "test/server/atlas-store.test.js",
+      "label": "atlas-store.test.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 9
+    },
+    {
+      "id": "test/server/code-graph-export.test.js",
+      "label": "code-graph-export.test.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 3
+    },
+    {
+      "id": "test/server/helpers.js",
+      "label": "helpers.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 9
+    },
+    {
+      "id": "test/server/local-graphify.test.js",
+      "label": "local-graphify.test.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 4
+    },
+    {
+      "id": "test/server/public-evidence-url.test.js",
+      "label": "public-evidence-url.test.js",
+      "kind": "file",
+      "folder": "test",
+      "symbols": 4
+    },
+    {
+      "id": "tests/__init__.py",
+      "label": "__init__.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 1
+    },
+    {
+      "id": "tests/worker/__init__.py",
+      "label": "__init__.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 1
+    },
+    {
+      "id": "tests/worker/git_helpers.py",
+      "label": "git_helpers.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 4
+    },
+    {
+      "id": "tests/worker/helpers.py",
+      "label": "helpers.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 21
+    },
+    {
+      "id": "tests/worker/test_article.py",
+      "label": "test_article.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 29
+    },
+    {
+      "id": "tests/worker/test_atlas_memory_checkpoint.py",
+      "label": "test_atlas_memory_checkpoint.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 6
+    },
+    {
+      "id": "tests/worker/test_backfill.py",
+      "label": "test_backfill.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 20
+    },
+    {
+      "id": "tests/worker/test_bundle.py",
+      "label": "test_bundle.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 110
+    },
+    {
+      "id": "tests/worker/test_captures.py",
+      "label": "test_captures.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 5
+    },
+    {
+      "id": "tests/worker/test_cli.py",
+      "label": "test_cli.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 107
+    },
+    {
+      "id": "tests/worker/test_content_acceptance.py",
+      "label": "test_content_acceptance.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 6
+    },
+    {
+      "id": "tests/worker/test_content_audit.py",
+      "label": "test_content_audit.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 28
+    },
+    {
+      "id": "tests/worker/test_decision_episodes.py",
+      "label": "test_decision_episodes.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 29
+    },
+    {
+      "id": "tests/worker/test_discovery.py",
+      "label": "test_discovery.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 14
+    },
+    {
+      "id": "tests/worker/test_kg.py",
+      "label": "test_kg.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 37
+    },
+    {
+      "id": "tests/worker/test_llm_wiki_graph_import.py",
+      "label": "test_llm_wiki_graph_import.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 6
+    },
+    {
+      "id": "tests/worker/test_memory.py",
+      "label": "test_memory.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 15
+    },
+    {
+      "id": "tests/worker/test_models.py",
+      "label": "test_models.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 23
+    },
+    {
+      "id": "tests/worker/test_privacy.py",
+      "label": "test_privacy.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 39
+    },
+    {
+      "id": "tests/worker/test_project_content_backfill.py",
+      "label": "test_project_content_backfill.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 7
+    },
+    {
+      "id": "tests/worker/test_public_catalog_audit.py",
+      "label": "test_public_catalog_audit.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 13
+    },
+    {
+      "id": "tests/worker/test_publish.py",
+      "label": "test_publish.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 39
+    },
+    {
+      "id": "tests/worker/test_runtime_state.py",
+      "label": "test_runtime_state.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 15
+    },
+    {
+      "id": "tests/worker/test_scheduled_publish.py",
+      "label": "test_scheduled_publish.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 4
+    },
+    {
+      "id": "tests/worker/test_session_index.py",
+      "label": "test_session_index.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 27
+    },
+    {
+      "id": "tests/worker/test_sessions.py",
+      "label": "test_sessions.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 10
+    },
+    {
+      "id": "tests/worker/test_source_manifest.py",
+      "label": "test_source_manifest.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 18
+    },
+    {
+      "id": "tests/worker/test_system_map.py",
+      "label": "test_system_map.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 11
+    },
+    {
+      "id": "tests/worker/test_taxonomy_graph.py",
+      "label": "test_taxonomy_graph.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 14
+    },
+    {
+      "id": "tests/worker/test_visuals.py",
+      "label": "test_visuals.py",
+      "kind": "file",
+      "folder": "tests",
+      "symbols": 18
+    }
+  ],
+  "edges": [
+    {
+      "id": "folder:(root)|admin.js",
+      "source": "folder:(root)",
+      "target": "admin.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:(root)|app.js",
+      "source": "folder:(root)",
+      "target": "app.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/__init__.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/__init__.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/article.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/article.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/backfill.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/backfill.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/bundle.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/bundle.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/captures.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/captures.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/cli.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/cli.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/config.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/config.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/content_audit.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/content_audit.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/cover.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/cover.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/decision_episodes.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/decision_episodes.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/discovery.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/discovery.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/evidence.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/evidence.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/fs_safety.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/graph.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/graph.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/history.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/history.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/kg.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/kg.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/manifest.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/manifest.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/memory_writer.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/memory_writer.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/memory.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/memory.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/models.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/models.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/privacy.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/privacy.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/publish.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/publish.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/runtime_state.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/runtime_state.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/session_index.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/session_index.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/sessions.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/sessions.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/source_manifest.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/source_manifest.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/system_map.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/system_map.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/taxonomy.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/taxonomy.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:atlas_worker|atlas_worker/visuals.py",
+      "source": "folder:atlas_worker",
+      "target": "atlas_worker/visuals.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/api.js",
+      "source": "folder:client",
+      "target": "client/api.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/graph-state.js",
+      "source": "folder:client",
+      "target": "client/graph-state.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/graph-view.js",
+      "source": "folder:client",
+      "target": "client/graph-view.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/graphify-view.js",
+      "source": "folder:client",
+      "target": "client/graphify-view.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/main.js",
+      "source": "folder:client",
+      "target": "client/main.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/markdown.js",
+      "source": "folder:client",
+      "target": "client/markdown.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/progress.js",
+      "source": "folder:client",
+      "target": "client/progress.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/project-connections.js",
+      "source": "folder:client",
+      "target": "client/project-connections.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/project-reader.js",
+      "source": "folder:client",
+      "target": "client/project-reader.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/public-url.js",
+      "source": "folder:client",
+      "target": "client/public-url.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/render.js",
+      "source": "folder:client",
+      "target": "client/render.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/router.js",
+      "source": "folder:client",
+      "target": "client/router.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/search-dialog.js",
+      "source": "folder:client",
+      "target": "client/search-dialog.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/state.js",
+      "source": "folder:client",
+      "target": "client/state.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:client|client/theme.js",
+      "source": "folder:client",
+      "target": "client/theme.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:deploy|deploy/DEPLOY.md",
+      "source": "folder:deploy",
+      "target": "deploy/DEPLOY.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:deploy|deploy/windows/install-project-atlas-task.ps1",
+      "source": "folder:deploy",
+      "target": "deploy/windows/install-project-atlas-task.ps1",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:deploy|deploy/windows/run-project-atlas-task.ps1",
+      "source": "folder:deploy",
+      "target": "deploy/windows/run-project-atlas-task.ps1",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:docs|docs/superpowers/plans/2026-08-24-project-atlas-automation-rollout.md",
+      "source": "folder:docs",
+      "target": "docs/superpowers/plans/2026-08-24-project-atlas-automation-rollout.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:docs|docs/superpowers/plans/2026-08-24-project-atlas-local-pipeline.md",
+      "source": "folder:docs",
+      "target": "docs/superpowers/plans/2026-08-24-project-atlas-local-pipeline.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:docs|docs/superpowers/plans/2026-08-24-project-atlas-public-experience.md",
+      "source": "folder:docs",
+      "target": "docs/superpowers/plans/2026-08-24-project-atlas-public-experience.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:docs|docs/superpowers/plans/2026-08-27-project-atlas-backfill-automation-release.md",
+      "source": "folder:docs",
+      "target": "docs/superpowers/plans/2026-08-27-project-atlas-backfill-automation-release.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:docs|docs/superpowers/plans/2026-08-27-project-atlas-decision-reader.md",
+      "source": "folder:docs",
+      "target": "docs/superpowers/plans/2026-08-27-project-atlas-decision-reader.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:docs|docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md",
+      "source": "folder:docs",
+      "target": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:docs|docs/superpowers/plans/2026-08-27-project-atlas-progressive-3d-knowledge-graph.md",
+      "source": "folder:docs",
+      "target": "docs/superpowers/plans/2026-08-27-project-atlas-progressive-3d-knowledge-graph.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:docs|docs/superpowers/plans/2026-08-31-project-atlas-orientation-system-map-2d-kg.md",
+      "source": "folder:docs",
+      "target": "docs/superpowers/plans/2026-08-31-project-atlas-orientation-system-map-2d-kg.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:docs|docs/superpowers/plans/2026-09-01-project-atlas-capture-map-redesign-plan.md",
+      "source": "folder:docs",
+      "target": "docs/superpowers/plans/2026-09-01-project-atlas-capture-map-redesign-plan.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:docs|docs/superpowers/specs/2026-08-24-project-atlas-design.md",
+      "source": "folder:docs",
+      "target": "docs/superpowers/specs/2026-08-24-project-atlas-design.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:docs|docs/superpowers/specs/2026-08-27-project-atlas-content-graph-redesign.md",
+      "source": "folder:docs",
+      "target": "docs/superpowers/specs/2026-08-27-project-atlas-content-graph-redesign.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:docs|docs/superpowers/specs/2026-08-31-project-atlas-orientation-system-map-2d-kg.md",
+      "source": "folder:docs",
+      "target": "docs/superpowers/specs/2026-08-31-project-atlas-orientation-system-map-2d-kg.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:docs|docs/superpowers/specs/2026-09-01-project-atlas-capture-map-redesign-design.md",
+      "source": "folder:docs",
+      "target": "docs/superpowers/specs/2026-09-01-project-atlas-capture-map-redesign-design.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:e2e|e2e/atlas-admin.spec.js",
+      "source": "folder:e2e",
+      "target": "e2e/atlas-admin.spec.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:e2e|e2e/atlas-graph.spec.js",
+      "source": "folder:e2e",
+      "target": "e2e/atlas-graph.spec.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:e2e|e2e/atlas-navigation.spec.js",
+      "source": "folder:e2e",
+      "target": "e2e/atlas-navigation.spec.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:e2e|e2e/atlas-privacy.spec.js",
+      "source": "folder:e2e",
+      "target": "e2e/atlas-privacy.spec.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:e2e|e2e/atlas-reader.spec.js",
+      "source": "folder:e2e",
+      "target": "e2e/atlas-reader.spec.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:e2e|e2e/atlas-responsive.spec.js",
+      "source": "folder:e2e",
+      "target": "e2e/atlas-responsive.spec.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:e2e|e2e/fixtures.js",
+      "source": "folder:e2e",
+      "target": "e2e/fixtures.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:e2e|e2e/global-setup.js",
+      "source": "folder:e2e",
+      "target": "e2e/global-setup.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:lib|lib/atlas-routes.js",
+      "source": "folder:lib",
+      "target": "lib/atlas-routes.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:lib|lib/atlas-store.js",
+      "source": "folder:lib",
+      "target": "lib/atlas-store.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:lib|lib/local-graphify.js",
+      "source": "folder:lib",
+      "target": "lib/local-graphify.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:lib|lib/public-content-policy.js",
+      "source": "folder:lib",
+      "target": "lib/public-content-policy.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:lib|lib/public-evidence-url.js",
+      "source": "folder:lib",
+      "target": "lib/public-evidence-url.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:(root)|package.json",
+      "source": "folder:(root)",
+      "target": "package.json",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:(root)|playwright.config.js",
+      "source": "folder:(root)",
+      "target": "playwright.config.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:(root)|railway.json",
+      "source": "folder:(root)",
+      "target": "railway.json",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:(root)|README.md",
+      "source": "folder:(root)",
+      "target": "README.md",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:schemas|schemas/project-captures.schema.json",
+      "source": "folder:schemas",
+      "target": "schemas/project-captures.schema.json",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:schemas|schemas/public-captures.schema.json",
+      "source": "folder:schemas",
+      "target": "schemas/public-captures.schema.json",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:schemas|schemas/public-cover.schema.json",
+      "source": "folder:schemas",
+      "target": "schemas/public-cover.schema.json",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:schemas|schemas/public-evidence.schema.json",
+      "source": "folder:schemas",
+      "target": "schemas/public-evidence.schema.json",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:schemas|schemas/public-manifest.schema.json",
+      "source": "folder:schemas",
+      "target": "schemas/public-manifest.schema.json",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:schemas|schemas/public-timeline.schema.json",
+      "source": "folder:schemas",
+      "target": "schemas/public-timeline.schema.json",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/audit_atlas_memory_checkpoint.py",
+      "source": "folder:scripts",
+      "target": "scripts/audit_atlas_memory_checkpoint.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/audit_project_captures.py",
+      "source": "folder:scripts",
+      "target": "scripts/audit_project_captures.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/audit_public_atlas_catalog.py",
+      "source": "folder:scripts",
+      "target": "scripts/audit_public_atlas_catalog.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/backfill_project_atlas_content.py",
+      "source": "folder:scripts",
+      "target": "scripts/backfill_project_atlas_content.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/build_projects_graphify.py",
+      "source": "folder:scripts",
+      "target": "scripts/build_projects_graphify.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/export_graphify_code_graph.mjs",
+      "source": "folder:scripts",
+      "target": "scripts/export_graphify_code_graph.mjs",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/import_llm_wiki_graph.py",
+      "source": "folder:scripts",
+      "target": "scripts/import_llm_wiki_graph.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/install_project_atlas_schedule.sh",
+      "source": "folder:scripts",
+      "target": "scripts/install_project_atlas_schedule.sh",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/install_project_atlas_timer.sh",
+      "source": "folder:scripts",
+      "target": "scripts/install_project_atlas_timer.sh",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/open_portfolio_homepage.sh",
+      "source": "folder:scripts",
+      "target": "scripts/open_portfolio_homepage.sh",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/project_atlas_scheduled_publish.py",
+      "source": "folder:scripts",
+      "target": "scripts/project_atlas_scheduled_publish.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/project_atlas_scheduled_publish.sh",
+      "source": "folder:scripts",
+      "target": "scripts/project_atlas_scheduled_publish.sh",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/project_atlas.py",
+      "source": "folder:scripts",
+      "target": "scripts/project_atlas.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/project_system_map_specs.py",
+      "source": "folder:scripts",
+      "target": "scripts/project_system_map_specs.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/scan_projects.py",
+      "source": "folder:scripts",
+      "target": "scripts/scan_projects.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/start_portfolio_homepage.sh",
+      "source": "folder:scripts",
+      "target": "scripts/start_portfolio_homepage.sh",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:scripts|scripts/vendor_client_assets.mjs",
+      "source": "folder:scripts",
+      "target": "scripts/vendor_client_assets.mjs",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:(root)|server.js",
+      "source": "folder:(root)",
+      "target": "server.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/client/graph-state.test.js",
+      "source": "folder:test",
+      "target": "test/client/graph-state.test.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/client/graph-view.test.js",
+      "source": "folder:test",
+      "target": "test/client/graph-view.test.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/client/markdown.test.js",
+      "source": "folder:test",
+      "target": "test/client/markdown.test.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/client/progress.test.js",
+      "source": "folder:test",
+      "target": "test/client/progress.test.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/client/project-connections.test.js",
+      "source": "folder:test",
+      "target": "test/client/project-connections.test.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/client/project-reader.test.js",
+      "source": "folder:test",
+      "target": "test/client/project-reader.test.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/client/public-url.test.js",
+      "source": "folder:test",
+      "target": "test/client/public-url.test.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/client/render.test.js",
+      "source": "folder:test",
+      "target": "test/client/render.test.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/client/router.test.js",
+      "source": "folder:test",
+      "target": "test/client/router.test.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/server/atlas-api.test.js",
+      "source": "folder:test",
+      "target": "test/server/atlas-api.test.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/server/atlas-store.test.js",
+      "source": "folder:test",
+      "target": "test/server/atlas-store.test.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/server/code-graph-export.test.js",
+      "source": "folder:test",
+      "target": "test/server/code-graph-export.test.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/server/helpers.js",
+      "source": "folder:test",
+      "target": "test/server/helpers.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/server/local-graphify.test.js",
+      "source": "folder:test",
+      "target": "test/server/local-graphify.test.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:test|test/server/public-evidence-url.test.js",
+      "source": "folder:test",
+      "target": "test/server/public-evidence-url.test.js",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/__init__.py",
+      "source": "folder:tests",
+      "target": "tests/__init__.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/__init__.py",
+      "source": "folder:tests",
+      "target": "tests/worker/__init__.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/git_helpers.py",
+      "source": "folder:tests",
+      "target": "tests/worker/git_helpers.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/helpers.py",
+      "source": "folder:tests",
+      "target": "tests/worker/helpers.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_article.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_article.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_atlas_memory_checkpoint.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_atlas_memory_checkpoint.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_backfill.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_backfill.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_bundle.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_bundle.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_captures.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_captures.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_cli.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_cli.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_content_acceptance.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_content_acceptance.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_content_audit.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_content_audit.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_decision_episodes.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_decision_episodes.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_discovery.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_discovery.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_kg.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_kg.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_llm_wiki_graph_import.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_llm_wiki_graph_import.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_memory.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_memory.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_models.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_models.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_privacy.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_privacy.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_project_content_backfill.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_project_content_backfill.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_public_catalog_audit.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_public_catalog_audit.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_publish.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_publish.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_runtime_state.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_runtime_state.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_scheduled_publish.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_scheduled_publish.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_session_index.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_session_index.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_sessions.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_sessions.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_source_manifest.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_source_manifest.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_system_map.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_system_map.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_taxonomy_graph.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_taxonomy_graph.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "folder:tests|tests/worker/test_visuals.py",
+      "source": "folder:tests",
+      "target": "tests/worker/test_visuals.py",
+      "kind": "contains",
+      "weight": 1,
+      "relations": [
+        "contains"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "app.js|client/main.js",
+      "source": "app.js",
+      "target": "client/main.js",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "dynamic_import"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/__init__.py|atlas_worker/bundle.py",
+      "source": "atlas_worker/__init__.py",
+      "target": "atlas_worker/bundle.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "imports",
+        "re_exports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/__init__.py|atlas_worker/models.py",
+      "source": "atlas_worker/__init__.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 16,
+      "relations": [
+        "imports",
+        "re_exports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/article.py|atlas_worker/content_audit.py",
+      "source": "atlas_worker/article.py",
+      "target": "atlas_worker/content_audit.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "references",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/article.py|atlas_worker/fs_safety.py",
+      "source": "atlas_worker/article.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 8,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/article.py|atlas_worker/models.py",
+      "source": "atlas_worker/article.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 27,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "references",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/article.py|atlas_worker/privacy.py",
+      "source": "atlas_worker/article.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 10,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/article.py|atlas_worker/visuals.py",
+      "source": "atlas_worker/article.py",
+      "target": "atlas_worker/visuals.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/backfill.py|atlas_worker/models.py",
+      "source": "atlas_worker/backfill.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 25,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "references",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/backfill.py|atlas_worker/sessions.py",
+      "source": "atlas_worker/backfill.py",
+      "target": "atlas_worker/sessions.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/bundle.py|atlas_worker/captures.py",
+      "source": "atlas_worker/bundle.py",
+      "target": "atlas_worker/captures.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/bundle.py|atlas_worker/cover.py",
+      "source": "atlas_worker/bundle.py",
+      "target": "atlas_worker/cover.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/bundle.py|atlas_worker/graph.py",
+      "source": "atlas_worker/bundle.py",
+      "target": "atlas_worker/graph.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/bundle.py|atlas_worker/manifest.py",
+      "source": "atlas_worker/bundle.py",
+      "target": "atlas_worker/manifest.py",
+      "kind": "relation",
+      "weight": 34,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/bundle.py|atlas_worker/models.py",
+      "source": "atlas_worker/bundle.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 54,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/bundle.py|atlas_worker/privacy.py",
+      "source": "atlas_worker/bundle.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 16,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/bundle.py|atlas_worker/system_map.py",
+      "source": "atlas_worker/bundle.py",
+      "target": "atlas_worker/system_map.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/bundle.py|atlas_worker/taxonomy.py",
+      "source": "atlas_worker/bundle.py",
+      "target": "atlas_worker/taxonomy.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/captures.py|atlas_worker/cover.py",
+      "source": "atlas_worker/captures.py",
+      "target": "atlas_worker/cover.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/captures.py|atlas_worker/fs_safety.py",
+      "source": "atlas_worker/captures.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/captures.py|atlas_worker/models.py",
+      "source": "atlas_worker/captures.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 6,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/captures.py|atlas_worker/privacy.py",
+      "source": "atlas_worker/captures.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/article.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/article.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/backfill.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/backfill.py",
+      "kind": "relation",
+      "weight": 9,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/bundle.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/bundle.py",
+      "kind": "relation",
+      "weight": 13,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/captures.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/captures.py",
+      "kind": "relation",
+      "weight": 9,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/config.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/config.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/content_audit.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/content_audit.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/cover.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/cover.py",
+      "kind": "relation",
+      "weight": 10,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/discovery.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/discovery.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/evidence.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/evidence.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/fs_safety.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 17,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/kg.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/kg.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/memory_writer.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/memory_writer.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/memory.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/memory.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/models.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 86,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/privacy.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 27,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/publish.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/publish.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/runtime_state.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/runtime_state.py",
+      "kind": "relation",
+      "weight": 17,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/session_index.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/session_index.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/source_manifest.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/source_manifest.py",
+      "kind": "relation",
+      "weight": 15,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|atlas_worker/system_map.py",
+      "source": "atlas_worker/cli.py",
+      "target": "atlas_worker/system_map.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|scripts/audit_public_atlas_catalog.py",
+      "source": "atlas_worker/cli.py",
+      "target": "scripts/audit_public_atlas_catalog.py",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "calls",
+        "imports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cli.py|tests/worker/test_scheduled_publish.py",
+      "source": "atlas_worker/cli.py",
+      "target": "tests/worker/test_scheduled_publish.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "indirect_call"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "atlas_worker/content_audit.py|atlas_worker/article.py",
+      "source": "atlas_worker/content_audit.py",
+      "target": "atlas_worker/article.py",
+      "kind": "relation",
+      "weight": 6,
+      "relations": [
+        "calls",
+        "imports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/content_audit.py|atlas_worker/models.py",
+      "source": "atlas_worker/content_audit.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 24,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "references",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/content_audit.py|atlas_worker/privacy.py",
+      "source": "atlas_worker/content_audit.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/content_audit.py|atlas_worker/source_manifest.py",
+      "source": "atlas_worker/content_audit.py",
+      "target": "atlas_worker/source_manifest.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cover.py|atlas_worker/fs_safety.py",
+      "source": "atlas_worker/cover.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cover.py|atlas_worker/models.py",
+      "source": "atlas_worker/cover.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/cover.py|atlas_worker/privacy.py",
+      "source": "atlas_worker/cover.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/decision_episodes.py|atlas_worker/fs_safety.py",
+      "source": "atlas_worker/decision_episodes.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/decision_episodes.py|atlas_worker/manifest.py",
+      "source": "atlas_worker/decision_episodes.py",
+      "target": "atlas_worker/manifest.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/decision_episodes.py|atlas_worker/models.py",
+      "source": "atlas_worker/decision_episodes.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 8,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/decision_episodes.py|atlas_worker/sessions.py",
+      "source": "atlas_worker/decision_episodes.py",
+      "target": "atlas_worker/sessions.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/discovery.py|atlas_worker/config.py",
+      "source": "atlas_worker/discovery.py",
+      "target": "atlas_worker/config.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/discovery.py|atlas_worker/fs_safety.py",
+      "source": "atlas_worker/discovery.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 6,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/discovery.py|atlas_worker/models.py",
+      "source": "atlas_worker/discovery.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 8,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/discovery.py|atlas_worker/privacy.py",
+      "source": "atlas_worker/discovery.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 10,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/evidence.py|atlas_worker/models.py",
+      "source": "atlas_worker/evidence.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/fs_safety.py|atlas_worker/cli.py",
+      "source": "atlas_worker/fs_safety.py",
+      "target": "atlas_worker/cli.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "indirect_call"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "atlas_worker/fs_safety.py|atlas_worker/manifest.py",
+      "source": "atlas_worker/fs_safety.py",
+      "target": "atlas_worker/manifest.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/fs_safety.py|atlas_worker/privacy.py",
+      "source": "atlas_worker/fs_safety.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 9,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/graph.py|atlas_worker/models.py",
+      "source": "atlas_worker/graph.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 18,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/graph.py|atlas_worker/taxonomy.py",
+      "source": "atlas_worker/graph.py",
+      "target": "atlas_worker/taxonomy.py",
+      "kind": "relation",
+      "weight": 6,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/history.py|atlas_worker/models.py",
+      "source": "atlas_worker/history.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 6,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/kg.py|atlas_worker/fs_safety.py",
+      "source": "atlas_worker/kg.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/kg.py|atlas_worker/models.py",
+      "source": "atlas_worker/kg.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 26,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/kg.py|atlas_worker/privacy.py",
+      "source": "atlas_worker/kg.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/kg.py|atlas_worker/taxonomy.py",
+      "source": "atlas_worker/kg.py",
+      "target": "atlas_worker/taxonomy.py",
+      "kind": "relation",
+      "weight": 9,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/memory_writer.py|atlas_worker/fs_safety.py",
+      "source": "atlas_worker/memory_writer.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 13,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/memory_writer.py|atlas_worker/history.py",
+      "source": "atlas_worker/memory_writer.py",
+      "target": "atlas_worker/history.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/memory_writer.py|atlas_worker/models.py",
+      "source": "atlas_worker/memory_writer.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 19,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/memory_writer.py|atlas_worker/visuals.py",
+      "source": "atlas_worker/memory_writer.py",
+      "target": "atlas_worker/visuals.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/memory.py|atlas_worker/article.py",
+      "source": "atlas_worker/memory.py",
+      "target": "atlas_worker/article.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/memory.py|atlas_worker/fs_safety.py",
+      "source": "atlas_worker/memory.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 9,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/memory.py|atlas_worker/history.py",
+      "source": "atlas_worker/memory.py",
+      "target": "atlas_worker/history.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/memory.py|atlas_worker/models.py",
+      "source": "atlas_worker/memory.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 11,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/memory.py|atlas_worker/privacy.py",
+      "source": "atlas_worker/memory.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/publish.py|atlas_worker/cli.py",
+      "source": "atlas_worker/publish.py",
+      "target": "atlas_worker/cli.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "indirect_call"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "atlas_worker/publish.py|atlas_worker/models.py",
+      "source": "atlas_worker/publish.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/session_index.py|atlas_worker/models.py",
+      "source": "atlas_worker/session_index.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 18,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "references",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/session_index.py|atlas_worker/sessions.py",
+      "source": "atlas_worker/session_index.py",
+      "target": "atlas_worker/sessions.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/sessions.py|atlas_worker/models.py",
+      "source": "atlas_worker/sessions.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 9,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/source_manifest.py|atlas_worker/fs_safety.py",
+      "source": "atlas_worker/source_manifest.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/source_manifest.py|atlas_worker/manifest.py",
+      "source": "atlas_worker/source_manifest.py",
+      "target": "atlas_worker/manifest.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/source_manifest.py|atlas_worker/models.py",
+      "source": "atlas_worker/source_manifest.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/system_map.py|atlas_worker/article.py",
+      "source": "atlas_worker/system_map.py",
+      "target": "atlas_worker/article.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/system_map.py|atlas_worker/models.py",
+      "source": "atlas_worker/system_map.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 19,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/system_map.py|atlas_worker/privacy.py",
+      "source": "atlas_worker/system_map.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/system_map.py|atlas_worker/visuals.py",
+      "source": "atlas_worker/system_map.py",
+      "target": "atlas_worker/visuals.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/taxonomy.py|atlas_worker/evidence.py",
+      "source": "atlas_worker/taxonomy.py",
+      "target": "atlas_worker/evidence.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/taxonomy.py|atlas_worker/models.py",
+      "source": "atlas_worker/taxonomy.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 11,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "atlas_worker/visuals.py|atlas_worker/models.py",
+      "source": "atlas_worker/visuals.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 8,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/main.js|client/api.js",
+      "source": "client/main.js",
+      "target": "client/api.js",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/main.js|client/progress.js",
+      "source": "client/main.js",
+      "target": "client/progress.js",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/main.js|client/project-reader.js",
+      "source": "client/main.js",
+      "target": "client/project-reader.js",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/main.js|client/render.js",
+      "source": "client/main.js",
+      "target": "client/render.js",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/main.js|client/router.js",
+      "source": "client/main.js",
+      "target": "client/router.js",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/main.js|client/search-dialog.js",
+      "source": "client/main.js",
+      "target": "client/search-dialog.js",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/main.js|client/state.js",
+      "source": "client/main.js",
+      "target": "client/state.js",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/main.js|client/theme.js",
+      "source": "client/main.js",
+      "target": "client/theme.js",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/markdown.js|client/public-url.js",
+      "source": "client/markdown.js",
+      "target": "client/public-url.js",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/render.js|client/graph-state.js",
+      "source": "client/render.js",
+      "target": "client/graph-state.js",
+      "kind": "relation",
+      "weight": 13,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/render.js|client/graph-view.js",
+      "source": "client/render.js",
+      "target": "client/graph-view.js",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/render.js|client/graphify-view.js",
+      "source": "client/render.js",
+      "target": "client/graphify-view.js",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/render.js|client/markdown.js",
+      "source": "client/render.js",
+      "target": "client/markdown.js",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/render.js|client/project-connections.js",
+      "source": "client/render.js",
+      "target": "client/project-connections.js",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/render.js|client/public-url.js",
+      "source": "client/render.js",
+      "target": "client/public-url.js",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "client/render.js|client/router.js",
+      "source": "client/render.js",
+      "target": "client/router.js",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-24-project-atlas-automation-rollout.md|atlas_worker/models.py",
+      "source": "docs/superpowers/plans/2026-08-24-project-atlas-automation-rollout.md",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-24-project-atlas-automation-rollout.md|atlas_worker/publish.py",
+      "source": "docs/superpowers/plans/2026-08-24-project-atlas-automation-rollout.md",
+      "target": "atlas_worker/publish.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-24-project-atlas-automation-rollout.md|atlas_worker/runtime_state.py",
+      "source": "docs/superpowers/plans/2026-08-24-project-atlas-automation-rollout.md",
+      "target": "atlas_worker/runtime_state.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-24-project-atlas-automation-rollout.md|tests/worker/git_helpers.py",
+      "source": "docs/superpowers/plans/2026-08-24-project-atlas-automation-rollout.md",
+      "target": "tests/worker/git_helpers.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-24-project-atlas-local-pipeline.md|atlas_worker/models.py",
+      "source": "docs/superpowers/plans/2026-08-24-project-atlas-local-pipeline.md",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 16,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-24-project-atlas-local-pipeline.md|atlas_worker/sessions.py",
+      "source": "docs/superpowers/plans/2026-08-24-project-atlas-local-pipeline.md",
+      "target": "atlas_worker/sessions.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-24-project-atlas-local-pipeline.md|tests/worker/test_kg.py",
+      "source": "docs/superpowers/plans/2026-08-24-project-atlas-local-pipeline.md",
+      "target": "tests/worker/test_kg.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-24-project-atlas-public-experience.md|server.js",
+      "source": "docs/superpowers/plans/2026-08-24-project-atlas-public-experience.md",
+      "target": "server.js",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-backfill-automation-release.md|atlas_worker/runtime_state.py",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-backfill-automation-release.md",
+      "target": "atlas_worker/runtime_state.py",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-backfill-automation-release.md|scripts/audit_public_atlas_catalog.py",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-backfill-automation-release.md",
+      "target": "scripts/audit_public_atlas_catalog.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-decision-reader.md|client/render.js",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-decision-reader.md",
+      "target": "client/render.js",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md|atlas_worker/cli.py",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md",
+      "target": "atlas_worker/cli.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md|atlas_worker/content_audit.py",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md",
+      "target": "atlas_worker/content_audit.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md|atlas_worker/fs_safety.py",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md|atlas_worker/models.py",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 14,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md|atlas_worker/privacy.py",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md|atlas_worker/session_index.py",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md",
+      "target": "atlas_worker/session_index.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md|atlas_worker/source_manifest.py",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md",
+      "target": "atlas_worker/source_manifest.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md|atlas_worker/visuals.py",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md",
+      "target": "atlas_worker/visuals.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md|scripts/audit_public_atlas_catalog.py",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-knowledge-content-foundation.md",
+      "target": "scripts/audit_public_atlas_catalog.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-progressive-3d-knowledge-graph.md|atlas_worker/models.py",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-progressive-3d-knowledge-graph.md",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-progressive-3d-knowledge-graph.md|client/graph-state.js",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-progressive-3d-knowledge-graph.md",
+      "target": "client/graph-state.js",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-progressive-3d-knowledge-graph.md|client/graph-view.js",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-progressive-3d-knowledge-graph.md",
+      "target": "client/graph-view.js",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-27-project-atlas-progressive-3d-knowledge-graph.md|client/render.js",
+      "source": "docs/superpowers/plans/2026-08-27-project-atlas-progressive-3d-knowledge-graph.md",
+      "target": "client/render.js",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-31-project-atlas-orientation-system-map-2d-kg.md|atlas_worker/models.py",
+      "source": "docs/superpowers/plans/2026-08-31-project-atlas-orientation-system-map-2d-kg.md",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-31-project-atlas-orientation-system-map-2d-kg.md|client/graph-state.js",
+      "source": "docs/superpowers/plans/2026-08-31-project-atlas-orientation-system-map-2d-kg.md",
+      "target": "client/graph-state.js",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/plans/2026-08-31-project-atlas-orientation-system-map-2d-kg.md|scripts/audit_public_atlas_catalog.py",
+      "source": "docs/superpowers/plans/2026-08-31-project-atlas-orientation-system-map-2d-kg.md",
+      "target": "scripts/audit_public_atlas_catalog.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/specs/2026-08-27-project-atlas-content-graph-redesign.md|scripts/audit_public_atlas_catalog.py",
+      "source": "docs/superpowers/specs/2026-08-27-project-atlas-content-graph-redesign.md",
+      "target": "scripts/audit_public_atlas_catalog.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "docs/superpowers/specs/2026-08-31-project-atlas-orientation-system-map-2d-kg.md|scripts/audit_public_atlas_catalog.py",
+      "source": "docs/superpowers/specs/2026-08-31-project-atlas-orientation-system-map-2d-kg.md",
+      "target": "scripts/audit_public_atlas_catalog.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "e2e/atlas-admin.spec.js|e2e/fixtures.js",
+      "source": "e2e/atlas-admin.spec.js",
+      "target": "e2e/fixtures.js",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "e2e/atlas-graph.spec.js|e2e/fixtures.js",
+      "source": "e2e/atlas-graph.spec.js",
+      "target": "e2e/fixtures.js",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "e2e/atlas-graph.spec.js|package.json",
+      "source": "e2e/atlas-graph.spec.js",
+      "target": "package.json",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "e2e/atlas-navigation.spec.js|e2e/fixtures.js",
+      "source": "e2e/atlas-navigation.spec.js",
+      "target": "e2e/fixtures.js",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "e2e/atlas-privacy.spec.js|e2e/fixtures.js",
+      "source": "e2e/atlas-privacy.spec.js",
+      "target": "e2e/fixtures.js",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "e2e/atlas-reader.spec.js|e2e/fixtures.js",
+      "source": "e2e/atlas-reader.spec.js",
+      "target": "e2e/fixtures.js",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "e2e/atlas-reader.spec.js|package.json",
+      "source": "e2e/atlas-reader.spec.js",
+      "target": "package.json",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "e2e/atlas-responsive.spec.js|e2e/fixtures.js",
+      "source": "e2e/atlas-responsive.spec.js",
+      "target": "e2e/fixtures.js",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "e2e/fixtures.js|package.json",
+      "source": "e2e/fixtures.js",
+      "target": "package.json",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "lib/atlas-store.js|lib/public-content-policy.js",
+      "source": "lib/atlas-store.js",
+      "target": "lib/public-content-policy.js",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "lib/atlas-store.js|lib/public-evidence-url.js",
+      "source": "lib/atlas-store.js",
+      "target": "lib/public-evidence-url.js",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "playwright.config.js|package.json",
+      "source": "playwright.config.js",
+      "target": "package.json",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "README.md|atlas_worker/backfill.py",
+      "source": "README.md",
+      "target": "atlas_worker/backfill.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "references"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "scripts/audit_project_captures.py|atlas_worker/cli.py",
+      "source": "scripts/audit_project_captures.py",
+      "target": "atlas_worker/cli.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/audit_project_captures.py|atlas_worker/models.py",
+      "source": "scripts/audit_project_captures.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/audit_public_atlas_catalog.py|atlas_worker/article.py",
+      "source": "scripts/audit_public_atlas_catalog.py",
+      "target": "atlas_worker/article.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/audit_public_atlas_catalog.py|atlas_worker/bundle.py",
+      "source": "scripts/audit_public_atlas_catalog.py",
+      "target": "atlas_worker/bundle.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/audit_public_atlas_catalog.py|atlas_worker/cli.py",
+      "source": "scripts/audit_public_atlas_catalog.py",
+      "target": "atlas_worker/cli.py",
+      "kind": "relation",
+      "weight": 13,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/audit_public_atlas_catalog.py|atlas_worker/content_audit.py",
+      "source": "scripts/audit_public_atlas_catalog.py",
+      "target": "atlas_worker/content_audit.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/audit_public_atlas_catalog.py|atlas_worker/fs_safety.py",
+      "source": "scripts/audit_public_atlas_catalog.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/audit_public_atlas_catalog.py|atlas_worker/kg.py",
+      "source": "scripts/audit_public_atlas_catalog.py",
+      "target": "atlas_worker/kg.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/audit_public_atlas_catalog.py|atlas_worker/models.py",
+      "source": "scripts/audit_public_atlas_catalog.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/audit_public_atlas_catalog.py|atlas_worker/privacy.py",
+      "source": "scripts/audit_public_atlas_catalog.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/audit_public_atlas_catalog.py|atlas_worker/source_manifest.py",
+      "source": "scripts/audit_public_atlas_catalog.py",
+      "target": "atlas_worker/source_manifest.py",
+      "kind": "relation",
+      "weight": 6,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/backfill_project_atlas_content.py|atlas_worker/models.py",
+      "source": "scripts/backfill_project_atlas_content.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/backfill_project_atlas_content.py|scripts/project_system_map_specs.py",
+      "source": "scripts/backfill_project_atlas_content.py",
+      "target": "scripts/project_system_map_specs.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/export_graphify_code_graph.mjs|lib/public-content-policy.js",
+      "source": "scripts/export_graphify_code_graph.mjs",
+      "target": "lib/public-content-policy.js",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/import_llm_wiki_graph.py|atlas_worker/cli.py",
+      "source": "scripts/import_llm_wiki_graph.py",
+      "target": "atlas_worker/cli.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "indirect_call"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "scripts/import_llm_wiki_graph.py|atlas_worker/kg.py",
+      "source": "scripts/import_llm_wiki_graph.py",
+      "target": "atlas_worker/kg.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/import_llm_wiki_graph.py|atlas_worker/taxonomy.py",
+      "source": "scripts/import_llm_wiki_graph.py",
+      "target": "atlas_worker/taxonomy.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/project_atlas_scheduled_publish.py|atlas_worker/cli.py",
+      "source": "scripts/project_atlas_scheduled_publish.py",
+      "target": "atlas_worker/cli.py",
+      "kind": "relation",
+      "weight": 8,
+      "relations": [
+        "calls",
+        "imports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/project_atlas_scheduled_publish.py|atlas_worker/models.py",
+      "source": "scripts/project_atlas_scheduled_publish.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "calls",
+        "imports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/project_atlas_scheduled_publish.py|atlas_worker/publish.py",
+      "source": "scripts/project_atlas_scheduled_publish.py",
+      "target": "atlas_worker/publish.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/project_atlas.py|atlas_worker/cli.py",
+      "source": "scripts/project_atlas.py",
+      "target": "atlas_worker/cli.py",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "calls",
+        "imports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "scripts/scan_projects.py|atlas_worker/cli.py",
+      "source": "scripts/scan_projects.py",
+      "target": "atlas_worker/cli.py",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "calls",
+        "imports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "server.js|lib/atlas-routes.js",
+      "source": "server.js",
+      "target": "lib/atlas-routes.js",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "server.js|lib/atlas-store.js",
+      "source": "server.js",
+      "target": "lib/atlas-store.js",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "server.js|lib/public-content-policy.js",
+      "source": "server.js",
+      "target": "lib/public-content-policy.js",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "test/client/project-connections.test.js|client/project-connections.js",
+      "source": "test/client/project-connections.test.js",
+      "target": "client/project-connections.js",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "calls",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "test/server/atlas-api.test.js|lib/atlas-routes.js",
+      "source": "test/server/atlas-api.test.js",
+      "target": "lib/atlas-routes.js",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "test/server/atlas-api.test.js|test/server/helpers.js",
+      "source": "test/server/atlas-api.test.js",
+      "target": "test/server/helpers.js",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "test/server/atlas-store.test.js|lib/atlas-store.js",
+      "source": "test/server/atlas-store.test.js",
+      "target": "lib/atlas-store.js",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "test/server/code-graph-export.test.js|scripts/export_graphify_code_graph.mjs",
+      "source": "test/server/code-graph-export.test.js",
+      "target": "scripts/export_graphify_code_graph.mjs",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "calls",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "test/server/helpers.js|server.js",
+      "source": "test/server/helpers.js",
+      "target": "server.js",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "test/server/local-graphify.test.js|lib/local-graphify.js",
+      "source": "test/server/local-graphify.test.js",
+      "target": "lib/local-graphify.js",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "test/server/public-evidence-url.test.js|lib/public-evidence-url.js",
+      "source": "test/server/public-evidence-url.test.js",
+      "target": "lib/public-evidence-url.js",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/helpers.py|atlas_worker/cli.py",
+      "source": "tests/worker/helpers.py",
+      "target": "atlas_worker/cli.py",
+      "kind": "relation",
+      "weight": 2,
+      "relations": [
+        "calls",
+        "imports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/helpers.py|atlas_worker/content_audit.py",
+      "source": "tests/worker/helpers.py",
+      "target": "atlas_worker/content_audit.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/helpers.py|atlas_worker/graph.py",
+      "source": "tests/worker/helpers.py",
+      "target": "atlas_worker/graph.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/helpers.py|atlas_worker/manifest.py",
+      "source": "tests/worker/helpers.py",
+      "target": "atlas_worker/manifest.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/helpers.py|atlas_worker/models.py",
+      "source": "tests/worker/helpers.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 23,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/helpers.py|atlas_worker/privacy.py",
+      "source": "tests/worker/helpers.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/helpers.py|atlas_worker/source_manifest.py",
+      "source": "tests/worker/helpers.py",
+      "target": "atlas_worker/source_manifest.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_article.py|atlas_worker/article.py",
+      "source": "tests/worker/test_article.py",
+      "target": "atlas_worker/article.py",
+      "kind": "relation",
+      "weight": 24,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_article.py|atlas_worker/content_audit.py",
+      "source": "tests/worker/test_article.py",
+      "target": "atlas_worker/content_audit.py",
+      "kind": "relation",
+      "weight": 6,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_article.py|atlas_worker/models.py",
+      "source": "tests/worker/test_article.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 6,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_article.py|atlas_worker/privacy.py",
+      "source": "tests/worker/test_article.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_article.py|atlas_worker/source_manifest.py",
+      "source": "tests/worker/test_article.py",
+      "target": "atlas_worker/source_manifest.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_article.py|tests/worker/helpers.py",
+      "source": "tests/worker/test_article.py",
+      "target": "tests/worker/helpers.py",
+      "kind": "relation",
+      "weight": 20,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_atlas_memory_checkpoint.py|scripts/audit_atlas_memory_checkpoint.py",
+      "source": "tests/worker/test_atlas_memory_checkpoint.py",
+      "target": "scripts/audit_atlas_memory_checkpoint.py",
+      "kind": "relation",
+      "weight": 6,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_backfill.py|atlas_worker/backfill.py",
+      "source": "tests/worker/test_backfill.py",
+      "target": "atlas_worker/backfill.py",
+      "kind": "relation",
+      "weight": 33,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_backfill.py|atlas_worker/models.py",
+      "source": "tests/worker/test_backfill.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_backfill.py|tests/worker/helpers.py",
+      "source": "tests/worker/test_backfill.py",
+      "target": "tests/worker/helpers.py",
+      "kind": "relation",
+      "weight": 19,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_bundle.py|atlas_worker/bundle.py",
+      "source": "tests/worker/test_bundle.py",
+      "target": "atlas_worker/bundle.py",
+      "kind": "relation",
+      "weight": 92,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_bundle.py|atlas_worker/captures.py",
+      "source": "tests/worker/test_bundle.py",
+      "target": "atlas_worker/captures.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_bundle.py|atlas_worker/cover.py",
+      "source": "tests/worker/test_bundle.py",
+      "target": "atlas_worker/cover.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_bundle.py|atlas_worker/manifest.py",
+      "source": "tests/worker/test_bundle.py",
+      "target": "atlas_worker/manifest.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_bundle.py|atlas_worker/models.py",
+      "source": "tests/worker/test_bundle.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 41,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_bundle.py|atlas_worker/privacy.py",
+      "source": "tests/worker/test_bundle.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 67,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_bundle.py|tests/worker/helpers.py",
+      "source": "tests/worker/test_bundle.py",
+      "target": "tests/worker/helpers.py",
+      "kind": "relation",
+      "weight": 76,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_captures.py|atlas_worker/captures.py",
+      "source": "tests/worker/test_captures.py",
+      "target": "atlas_worker/captures.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_captures.py|atlas_worker/models.py",
+      "source": "tests/worker/test_captures.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_captures.py|atlas_worker/privacy.py",
+      "source": "tests/worker/test_captures.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_cli.py|atlas_worker/bundle.py",
+      "source": "tests/worker/test_cli.py",
+      "target": "atlas_worker/bundle.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_cli.py|atlas_worker/cli.py",
+      "source": "tests/worker/test_cli.py",
+      "target": "atlas_worker/cli.py",
+      "kind": "relation",
+      "weight": 54,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_cli.py|atlas_worker/fs_safety.py",
+      "source": "tests/worker/test_cli.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_cli.py|atlas_worker/models.py",
+      "source": "tests/worker/test_cli.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_cli.py|atlas_worker/runtime_state.py",
+      "source": "tests/worker/test_cli.py",
+      "target": "atlas_worker/runtime_state.py",
+      "kind": "relation",
+      "weight": 9,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_cli.py|tests/worker/helpers.py",
+      "source": "tests/worker/test_cli.py",
+      "target": "tests/worker/helpers.py",
+      "kind": "relation",
+      "weight": 153,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_content_acceptance.py|atlas_worker/article.py",
+      "source": "tests/worker/test_content_acceptance.py",
+      "target": "atlas_worker/article.py",
+      "kind": "relation",
+      "weight": 6,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_content_acceptance.py|atlas_worker/config.py",
+      "source": "tests/worker/test_content_acceptance.py",
+      "target": "atlas_worker/config.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_content_acceptance.py|atlas_worker/discovery.py",
+      "source": "tests/worker/test_content_acceptance.py",
+      "target": "atlas_worker/discovery.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_content_acceptance.py|atlas_worker/fs_safety.py",
+      "source": "tests/worker/test_content_acceptance.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_content_acceptance.py|atlas_worker/models.py",
+      "source": "tests/worker/test_content_acceptance.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_content_acceptance.py|atlas_worker/source_manifest.py",
+      "source": "tests/worker/test_content_acceptance.py",
+      "target": "atlas_worker/source_manifest.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_content_acceptance.py|tests/worker/helpers.py",
+      "source": "tests/worker/test_content_acceptance.py",
+      "target": "tests/worker/helpers.py",
+      "kind": "relation",
+      "weight": 14,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_content_audit.py|atlas_worker/article.py",
+      "source": "tests/worker/test_content_audit.py",
+      "target": "atlas_worker/article.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_content_audit.py|atlas_worker/content_audit.py",
+      "source": "tests/worker/test_content_audit.py",
+      "target": "atlas_worker/content_audit.py",
+      "kind": "relation",
+      "weight": 31,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_content_audit.py|atlas_worker/models.py",
+      "source": "tests/worker/test_content_audit.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 28,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_content_audit.py|atlas_worker/source_manifest.py",
+      "source": "tests/worker/test_content_audit.py",
+      "target": "atlas_worker/source_manifest.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_decision_episodes.py|atlas_worker/decision_episodes.py",
+      "source": "tests/worker/test_decision_episodes.py",
+      "target": "atlas_worker/decision_episodes.py",
+      "kind": "relation",
+      "weight": 42,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_decision_episodes.py|atlas_worker/models.py",
+      "source": "tests/worker/test_decision_episodes.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 6,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_decision_episodes.py|tests/worker/test_backfill.py",
+      "source": "tests/worker/test_decision_episodes.py",
+      "target": "tests/worker/test_backfill.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "indirect_call"
+      ],
+      "confidence": "INFERRED"
+    },
+    {
+      "id": "tests/worker/test_discovery.py|atlas_worker/config.py",
+      "source": "tests/worker/test_discovery.py",
+      "target": "atlas_worker/config.py",
+      "kind": "relation",
+      "weight": 22,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_discovery.py|atlas_worker/discovery.py",
+      "source": "tests/worker/test_discovery.py",
+      "target": "atlas_worker/discovery.py",
+      "kind": "relation",
+      "weight": 11,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_kg.py|atlas_worker/kg.py",
+      "source": "tests/worker/test_kg.py",
+      "target": "atlas_worker/kg.py",
+      "kind": "relation",
+      "weight": 33,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_kg.py|atlas_worker/models.py",
+      "source": "tests/worker/test_kg.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 22,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_kg.py|atlas_worker/privacy.py",
+      "source": "tests/worker/test_kg.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_kg.py|tests/worker/helpers.py",
+      "source": "tests/worker/test_kg.py",
+      "target": "tests/worker/helpers.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_llm_wiki_graph_import.py|scripts/import_llm_wiki_graph.py",
+      "source": "tests/worker/test_llm_wiki_graph_import.py",
+      "target": "scripts/import_llm_wiki_graph.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_memory.py|atlas_worker/evidence.py",
+      "source": "tests/worker/test_memory.py",
+      "target": "atlas_worker/evidence.py",
+      "kind": "relation",
+      "weight": 8,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_memory.py|atlas_worker/memory_writer.py",
+      "source": "tests/worker/test_memory.py",
+      "target": "atlas_worker/memory_writer.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_memory.py|atlas_worker/memory.py",
+      "source": "tests/worker/test_memory.py",
+      "target": "atlas_worker/memory.py",
+      "kind": "relation",
+      "weight": 11,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_memory.py|atlas_worker/models.py",
+      "source": "tests/worker/test_memory.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 8,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_memory.py|atlas_worker/privacy.py",
+      "source": "tests/worker/test_memory.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_memory.py|tests/worker/helpers.py",
+      "source": "tests/worker/test_memory.py",
+      "target": "tests/worker/helpers.py",
+      "kind": "relation",
+      "weight": 27,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_models.py|atlas_worker/models.py",
+      "source": "tests/worker/test_models.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 59,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_privacy.py|atlas_worker/privacy.py",
+      "source": "tests/worker/test_privacy.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 95,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_project_content_backfill.py|scripts/backfill_project_atlas_content.py",
+      "source": "tests/worker/test_project_content_backfill.py",
+      "target": "scripts/backfill_project_atlas_content.py",
+      "kind": "relation",
+      "weight": 10,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_public_catalog_audit.py|atlas_worker/fs_safety.py",
+      "source": "tests/worker/test_public_catalog_audit.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_public_catalog_audit.py|atlas_worker/models.py",
+      "source": "tests/worker/test_public_catalog_audit.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_public_catalog_audit.py|scripts/audit_public_atlas_catalog.py",
+      "source": "tests/worker/test_public_catalog_audit.py",
+      "target": "scripts/audit_public_atlas_catalog.py",
+      "kind": "relation",
+      "weight": 16,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_public_catalog_audit.py|tests/worker/git_helpers.py",
+      "source": "tests/worker/test_public_catalog_audit.py",
+      "target": "tests/worker/git_helpers.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_publish.py|atlas_worker/cli.py",
+      "source": "tests/worker/test_publish.py",
+      "target": "atlas_worker/cli.py",
+      "kind": "relation",
+      "weight": 5,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_publish.py|atlas_worker/models.py",
+      "source": "tests/worker/test_publish.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 19,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_publish.py|atlas_worker/publish.py",
+      "source": "tests/worker/test_publish.py",
+      "target": "atlas_worker/publish.py",
+      "kind": "relation",
+      "weight": 49,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "inherits",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_publish.py|tests/worker/git_helpers.py",
+      "source": "tests/worker/test_publish.py",
+      "target": "tests/worker/git_helpers.py",
+      "kind": "relation",
+      "weight": 58,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_publish.py|tests/worker/helpers.py",
+      "source": "tests/worker/test_publish.py",
+      "target": "tests/worker/helpers.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_runtime_state.py|atlas_worker/runtime_state.py",
+      "source": "tests/worker/test_runtime_state.py",
+      "target": "atlas_worker/runtime_state.py",
+      "kind": "relation",
+      "weight": 31,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_scheduled_publish.py|scripts/project_atlas_scheduled_publish.py",
+      "source": "tests/worker/test_scheduled_publish.py",
+      "target": "scripts/project_atlas_scheduled_publish.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_session_index.py|atlas_worker/models.py",
+      "source": "tests/worker/test_session_index.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 9,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_session_index.py|atlas_worker/session_index.py",
+      "source": "tests/worker/test_session_index.py",
+      "target": "atlas_worker/session_index.py",
+      "kind": "relation",
+      "weight": 24,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_session_index.py|tests/worker/helpers.py",
+      "source": "tests/worker/test_session_index.py",
+      "target": "tests/worker/helpers.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_sessions.py|atlas_worker/config.py",
+      "source": "tests/worker/test_sessions.py",
+      "target": "atlas_worker/config.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_sessions.py|atlas_worker/discovery.py",
+      "source": "tests/worker/test_sessions.py",
+      "target": "atlas_worker/discovery.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_sessions.py|atlas_worker/models.py",
+      "source": "tests/worker/test_sessions.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 8,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from",
+        "uses"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_sessions.py|atlas_worker/sessions.py",
+      "source": "tests/worker/test_sessions.py",
+      "target": "atlas_worker/sessions.py",
+      "kind": "relation",
+      "weight": 12,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_sessions.py|tests/worker/helpers.py",
+      "source": "tests/worker/test_sessions.py",
+      "target": "tests/worker/helpers.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_source_manifest.py|atlas_worker/fs_safety.py",
+      "source": "tests/worker/test_source_manifest.py",
+      "target": "atlas_worker/fs_safety.py",
+      "kind": "relation",
+      "weight": 1,
+      "relations": [
+        "imports"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_source_manifest.py|atlas_worker/models.py",
+      "source": "tests/worker/test_source_manifest.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_source_manifest.py|atlas_worker/source_manifest.py",
+      "source": "tests/worker/test_source_manifest.py",
+      "target": "atlas_worker/source_manifest.py",
+      "kind": "relation",
+      "weight": 17,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_system_map.py|atlas_worker/models.py",
+      "source": "tests/worker/test_system_map.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 9,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_system_map.py|atlas_worker/privacy.py",
+      "source": "tests/worker/test_system_map.py",
+      "target": "atlas_worker/privacy.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_system_map.py|atlas_worker/system_map.py",
+      "source": "tests/worker/test_system_map.py",
+      "target": "atlas_worker/system_map.py",
+      "kind": "relation",
+      "weight": 11,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_system_map.py|tests/worker/helpers.py",
+      "source": "tests/worker/test_system_map.py",
+      "target": "tests/worker/helpers.py",
+      "kind": "relation",
+      "weight": 7,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_taxonomy_graph.py|atlas_worker/graph.py",
+      "source": "tests/worker/test_taxonomy_graph.py",
+      "target": "atlas_worker/graph.py",
+      "kind": "relation",
+      "weight": 9,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_taxonomy_graph.py|atlas_worker/models.py",
+      "source": "tests/worker/test_taxonomy_graph.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 15,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_taxonomy_graph.py|atlas_worker/taxonomy.py",
+      "source": "tests/worker/test_taxonomy_graph.py",
+      "target": "atlas_worker/taxonomy.py",
+      "kind": "relation",
+      "weight": 8,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_taxonomy_graph.py|tests/worker/helpers.py",
+      "source": "tests/worker/test_taxonomy_graph.py",
+      "target": "tests/worker/helpers.py",
+      "kind": "relation",
+      "weight": 14,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_visuals.py|atlas_worker/backfill.py",
+      "source": "tests/worker/test_visuals.py",
+      "target": "atlas_worker/backfill.py",
+      "kind": "relation",
+      "weight": 3,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_visuals.py|atlas_worker/evidence.py",
+      "source": "tests/worker/test_visuals.py",
+      "target": "atlas_worker/evidence.py",
+      "kind": "relation",
+      "weight": 4,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_visuals.py|atlas_worker/memory_writer.py",
+      "source": "tests/worker/test_visuals.py",
+      "target": "atlas_worker/memory_writer.py",
+      "kind": "relation",
+      "weight": 14,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_visuals.py|atlas_worker/models.py",
+      "source": "tests/worker/test_visuals.py",
+      "target": "atlas_worker/models.py",
+      "kind": "relation",
+      "weight": 6,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_visuals.py|atlas_worker/visuals.py",
+      "source": "tests/worker/test_visuals.py",
+      "target": "atlas_worker/visuals.py",
+      "kind": "relation",
+      "weight": 8,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    },
+    {
+      "id": "tests/worker/test_visuals.py|tests/worker/helpers.py",
+      "source": "tests/worker/test_visuals.py",
+      "target": "tests/worker/helpers.py",
+      "kind": "relation",
+      "weight": 41,
+      "relations": [
+        "calls",
+        "imports",
+        "imports_from"
+      ],
+      "confidence": "EXTRACTED"
+    }
+  ]
+}

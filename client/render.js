@@ -2,6 +2,8 @@ import { toRouteHref, PROJECT_TABS } from "./router.js";
 import { renderMarkdown, sanitizeSvg } from "./markdown.js";
 import { toSafePublicHref } from "./public-url.js";
 import { createGraphView, supportsSvg } from "./graph-view.js";
+import { createGraphifyView, createProjectConnectionsView, createSourceGraphView } from "./graphify-view.js";
+import { buildProjectConnections } from "./project-connections.js";
 import {
   createGraphIndex,
   expandNode,
@@ -194,7 +196,7 @@ function bindProjectFilters(root, state) {
       return statusMatches && domainMatches;
     });
     grid.innerHTML = filtered.map((project, index) => projectCard(project, index)).join("");
-    window.lucide?.createIcons();
+    try { window.lucide?.createIcons(); } catch { /* Keep text controls usable without SVG icons. */ }
     root.querySelector("[data-project-empty]").hidden = filtered.length > 0;
   };
   const onClick = (event) => {
@@ -434,6 +436,274 @@ function renderGraph(state) {
     </div>`;
 }
 
+function renderCodeGraph(state) {
+  const graph = state.codeGraph || { nodes: [], edges: [], folders: [], corpus: { nodes: 0, edges: 0 } };
+  const fileCount = graph.nodes.filter(node => node.kind === "file").length;
+  const relationCount = graph.edges.filter(edge => edge.kind === "relation").length;
+  return `<div class="content-shell wide graph-page">
+    ${pageHeading("Graphify · Atlas 구조", "", "Portfolio 홈페이지 코드의 파일 관계를 둥근 네트워크로 탐색합니다.")}
+    ${graphifyScopeTabs("code")}
+    <p class="graphify-summary">Graphify 원본 ${graph.corpus.nodes}개 심벌 · ${graph.corpus.edges}개 관계에서 공개 가능한 ${graph.folders.length}개 폴더 · ${fileCount}개 파일 · ${relationCount}개 파일 간 관계를 표시합니다.</p>
+    <div class="graph-shell code-graph-shell">
+      <section class="graph-stage graphify-stage" aria-label="Graphify Atlas 네트워크">
+        <div id="code-knowledge-graph" data-code-graph-canvas role="img" aria-label="폴더와 파일이 둥근 군집으로 연결된 Graphify 네트워크"></div>
+        <div class="graphify-controls">
+          <label><span class="sr-only">Graphify 파일 검색</span><input type="search" data-code-graph-search placeholder="파일·폴더 검색" autocomplete="off"></label>
+          <button type="button" data-code-graph-fit>전체 보기</button>
+        </div>
+        <p class="graph-status" data-code-graph-status>파일을 클릭하거나 검색해 연결을 확인하세요.</p>
+      </section>
+      <aside class="graph-sidebar code-graph-sidebar">
+        <div data-code-graph-detail aria-live="polite"><h2>폴더나 파일을 선택하세요</h2><p>색은 최상위 폴더를 뜻하고, 점은 파일, 선은 Graphify가 추출한 관계를 뜻합니다.</p></div>
+        <div data-code-graph-results hidden></div>
+        <h3>분석된 폴더</h3>
+        <ul class="code-graph-file-list">${graph.folders.map(folder => `<li><button type="button" data-code-graph-select="folder:${escapeHtml(folder.id)}">${escapeHtml(folder.id)} <span>${folder.fileCount}</span></button></li>`).join("")}</ul>
+        <p class="code-graph-source">출처: Graphify 로컬 분석. 공개 화면에는 파일명과 관계만 표시하며, 생성물·외부 라이브러리·비공개 지침은 제외합니다.</p>
+      </aside>
+    </div>
+  </div>`;
+}
+
+function graphifyScopeTabs(scope) {
+  return `<nav class="graphify-scope-tabs" aria-label="Graphify 탐색 범위">
+    <a href="/graphify" data-route-link${scope === "source" ? ' aria-current="page"' : ""}>전체 소스 그래프</a>
+    <a href="/graphify?scope=projects" data-route-link${scope === "projects" ? ' aria-current="page"' : ""}>프로젝트 연결</a>
+    <a href="/graphify?scope=code" data-route-link${scope === "code" ? ' aria-current="page"' : ""}>Atlas 코드 구조</a>
+  </nav>`;
+}
+
+function renderSourceGraph(state) {
+  const graph = state.sourceGraph;
+  const localBrowser = ["127.0.0.1", "localhost", "::1"].includes(globalThis.location?.hostname);
+  if (!graph) return `<div class="content-shell wide graph-page">
+    ${pageHeading("Graphify · 전체 소스 그래프", "", "projects/ 전체의 코드, 문서, PDF, Office 파일에서 추출한 관계를 탐색합니다.")}
+    ${graphifyScopeTabs("source")}
+    <p class="graphify-summary">이 서버에는 전체 소스 그래프가 연결되지 않았습니다.${localBrowser ? ' 그래프 서버 주소는 <a href="http://127.0.0.1:4190/graphify">http://127.0.0.1:4190/graphify</a>입니다.' : ' 전체 소스 그래프는 로컬 서버에서 확인할 수 있습니다.'}</p>
+  </div>`;
+  const communityColors = new Map([...graph.communities].sort((a, b) => a.id.localeCompare(b.id)).map((item, index) => [item.id, ['#4E79A7','#F28E2B','#E15759','#76B7B2','#59A14F','#EDC948','#B07AA1','#FF9DA7','#9C755F','#7C92C8','#55A8A1'][index % 11]]));
+  return `<div class="content-shell wide graph-page">
+    ${pageHeading("Graphify · 전체 소스 그래프", "", "projects/ 하위 코드와 문서에서 Graphify가 추출한 개념과 관계를 탐색합니다.")}
+    ${graphifyScopeTabs("source")}
+    <p class="graphify-summary">전체 ${graph.summary.totalNodes.toLocaleString()}개 노드 · ${graph.summary.totalEdges.toLocaleString()}개 관계 · ${Number(graph.summary.totalHyperedges || 0).toLocaleString()}개 다자 관계 · ${graph.summary.totalCommunities.toLocaleString()}개 커뮤니티 · ${graph.summary.representedFiles.toLocaleString()}개 파일 · 현재 화면 ${graph.summary.visibleNodes.toLocaleString()}개 노드 / ${graph.summary.visibleEdges.toLocaleString()}개 선</p>
+    <p class="graphify-summary">서로 다른 파일을 잇는 관계 ${Number(graph.summary.crossFileEdges || 0).toLocaleString()}개 · 프로젝트 간 관계 ${Number(graph.summary.crossProjectEdges || 0).toLocaleString()}개 (코드 외 개념 간 ${Number(graph.summary.crossProjectSemanticEdges || 0).toLocaleString()}개)</p>
+    ${graph.coverage?.mode === 'priority' ? `<p class="graphify-summary">입력 범위: 프로젝트 ${Number(graph.coverage.projectGroups || 0).toLocaleString()}개 그룹의 지원 코드·PDF 전체, 프로젝트별 대표 문서·Office·이미지 일부. 문서 ${Number(graph.coverage.stagedFiles?.document || 0).toLocaleString()}개 · PDF ${Number(graph.coverage.stagedFiles?.paper || 0).toLocaleString()}개 · Office ${Number(graph.coverage.stagedFiles?.office || 0).toLocaleString()}개 · 이미지 ${Number(graph.coverage.stagedFiles?.image || 0).toLocaleString()}개를 입력했습니다.</p>` : ''}
+    ${graph.coverage?.extraction && !graph.coverage.extraction.complete ? `<p class="graphify-summary graphify-incomplete">문서 의미 추출 진행 상태: ${Number(graph.coverage.extraction.succeeded_chunks || 0).toLocaleString()}/${Number(graph.coverage.extraction.total_chunks || 0).toLocaleString()}청크 성공. 실패한 청크의 문서 관계는 이 그래프에 없습니다.</p>` : ''}
+    <p class="graphify-summary">추출 유형: ${Object.entries(graph.summary.kinds).sort((a, b) => b[1] - a[1]).map(([kind, count]) => `${escapeHtml(kind)} ${count.toLocaleString()}`).join(' · ')}</p>
+    <div class="graph-shell code-graph-shell">
+      <section class="graph-stage graphify-stage" aria-label="Graphify 전체 소스 네트워크">
+        <div data-source-graph-canvas role="img" aria-label="코드와 문서 개념이 커뮤니티별로 연결된 네트워크"></div>
+        <div class="graphify-controls">
+          <label><span class="sr-only">개념 검색</span><input type="search" data-source-graph-search placeholder="개념·파일 검색" autocomplete="off"></label>
+          <button type="button" data-source-graph-fit>전체 보기</button>
+        </div>
+        <p class="graph-status" data-source-graph-status>점을 선택하면 출처와 연결 근거를 확인할 수 있습니다.</p>
+      </section>
+      <aside class="graph-sidebar code-graph-sidebar">
+        <label for="source-graph-project">프로젝트</label>
+        <select id="source-graph-project" data-source-graph-project>
+          <option value="">전체 프로젝트</option>
+          ${graph.projects.map(item => `<option value="${escapeHtml(item.id)}"${graph.scope === item.id ? ' selected' : ''}>${escapeHtml(item.id)} · ${item.nodes.toLocaleString()}</option>`).join('')}
+        </select>
+        <div data-source-graph-detail aria-live="polite"><h2>노드를 선택하세요</h2><p>색은 Graphify 커뮤니티를 뜻합니다. 프로젝트를 고르면 그 프로젝트의 연결을 자세히 볼 수 있습니다.</p></div>
+        <div data-source-graph-results hidden></div>
+        <h3>커뮤니티</h3>
+        <div class="source-graph-communities"><label><input type="checkbox" data-source-graph-all checked> 전체 선택</label>
+          ${graph.communities.slice(0, 36).map(item => `<label><input type="checkbox" data-source-graph-community="${escapeHtml(item.id)}" checked><span class="graph-swatch" style="--kind-color:${communityColors.get(item.id)}"></span>${escapeHtml(item.label)} <span>${item.nodes}</span></label>`).join('')}
+        </div>
+        <p class="code-graph-source">Graphify AST·문서 의미 추출 결과입니다. 파일별 적용 범위는 로컬 스캔 기록에 표시합니다. 원본 그래프는 로컬 서버에서만 제공합니다.</p>
+      </aside>
+    </div>
+  </div>`;
+}
+
+function bindSourceGraph(root, state, navigate) {
+  const graph = state.sourceGraph;
+  if (!graph) return () => {};
+  const container = root.querySelector('[data-source-graph-canvas]');
+  const detail = root.querySelector('[data-source-graph-detail]');
+  const status = root.querySelector('[data-source-graph-status]');
+  const search = root.querySelector('[data-source-graph-search]');
+  const results = root.querySelector('[data-source-graph-results]');
+  const byId = new Map(graph.nodes.map(node => [node.id, node]));
+  const select = id => {
+    const node = byId.get(id);
+    if (!node) return;
+    const related = graph.edges.filter(edge => edge.source === id || edge.target === id);
+    const neighborRows = related.slice(0, 16).map(edge => {
+      const other = byId.get(edge.source === id ? edge.target : edge.source);
+      if (!other) return '';
+      return `<li><strong>${escapeHtml(edge.relation)}</strong> → ${escapeHtml(other.label)} <small>${escapeHtml(other.file)} · ${escapeHtml(edge.confidence)}${edge.score == null ? '' : ` ${Number(edge.score).toFixed(2)}`}</small></li>`;
+    }).join('');
+    detail.innerHTML = `<h2>${escapeHtml(node.label)}</h2><p>${escapeHtml(node.project)} · ${escapeHtml(node.format)} · ${escapeHtml(node.kind)}</p><p>${escapeHtml(node.file)}${node.location ? ` · ${escapeHtml(node.location)}` : ''}</p><p>커뮤니티 ${escapeHtml(node.community)} · 화면 내 연결 ${related.length}개</p>${neighborRows ? `<h3>연결 관계</h3><ul class="source-graph-relations">${neighborRows}</ul>` : ''}`;
+    status.textContent = `${node.label} · 연결 ${related.length}개`;
+  };
+  const view = createSourceGraphView(container, graph, { onSelect: select, onReady: () => { status.textContent = `${graph.summary.visibleNodes.toLocaleString()}개 노드 표시 중`; } });
+  const onProject = () => navigate({ view: 'graphify', project: root.querySelector('[data-source-graph-project]').value });
+  const projectSelect = root.querySelector('[data-source-graph-project]');
+  projectSelect.addEventListener('change', onProject);
+  const onFit = () => view.fit();
+  root.querySelector('[data-source-graph-fit]').addEventListener('click', onFit);
+  const onSearch = () => {
+    const query = search.value.trim().toLocaleLowerCase();
+    const matches = query ? graph.nodes.filter(node => `${node.label} ${node.file}`.toLocaleLowerCase().includes(query)).slice(0, 20) : [];
+    results.hidden = !query;
+    results.innerHTML = query ? `<h3>검색 결과 ${matches.length}개</h3><ul>${matches.map(node => `<li><button type="button" data-source-graph-select="${escapeHtml(node.id)}">${escapeHtml(node.label)} <small>${escapeHtml(node.project)}</small></button></li>`).join('')}</ul>` : '';
+  };
+  search.addEventListener('input', onSearch);
+  const onResult = event => { const button = event.target.closest('[data-source-graph-select]'); if (button) view.focus(button.dataset.sourceGraphSelect); };
+  results.addEventListener('click', onResult);
+  const all = root.querySelector('[data-source-graph-all]');
+  const checks = [...root.querySelectorAll('[data-source-graph-community]')];
+  const onFilter = event => {
+    if (event.target === all) checks.forEach(input => { input.checked = all.checked; });
+    else all.checked = checks.every(input => input.checked);
+    const hidden = new Set(checks.filter(input => !input.checked).map(input => input.dataset.sourceGraphCommunity));
+    view.filter(new Set(graph.communities.map(item => item.id).filter(id => !hidden.has(id))));
+  };
+  all.addEventListener('change', onFilter);
+  checks.forEach(input => input.addEventListener('change', onFilter));
+  return () => view.destroy();
+}
+
+function renderProjectConnections(state) {
+  const map = buildProjectConnections(state.graph);
+  return `<div class="content-shell wide graph-page">
+    ${pageHeading("Graphify · 프로젝트 연결", "", "프로젝트 폴더에서 검토된 공개 프로필의 공통 주제와 기술을 비교합니다.")}
+    ${graphifyScopeTabs("projects")}
+    ${state.sourceGraphUnavailable ? '<p class="graphify-summary">전체 소스 그래프는 이 서버에 연결되지 않았습니다. 공개 프로젝트 연결 그래프를 표시합니다.</p>' : ''}
+    <p class="graphify-summary">${map.stats.projects}개 프로젝트 · 공통 속성 2개 이상인 쌍 ${map.stats.sharedPairs}개 · 근거가 기록된 직접 관계 ${map.stats.directPairs}개 · 강한 공통 속성이 없는 프로젝트 ${map.stats.isolatedProjects}개</p>
+    <div class="graph-shell code-graph-shell">
+      <section class="graph-stage graphify-stage" aria-label="프로젝트 연결 네트워크">
+        <div id="project-connections-graph" data-project-connections-canvas role="img" aria-label="프로젝트 간 공통 속성과 직접 관계를 나타낸 네트워크"></div>
+        <div class="graphify-controls">
+          <label><span class="sr-only">프로젝트 검색</span><input type="search" data-project-connections-search placeholder="프로젝트 검색" autocomplete="off"></label>
+          <button type="button" data-project-connections-fit>전체 보기</button>
+        </div>
+        <p class="graph-status" data-project-connections-status>프로젝트를 선택하면 연결 근거를 볼 수 있습니다.</p>
+      </section>
+      <aside class="graph-sidebar code-graph-sidebar">
+        <div data-project-connections-detail aria-live="polite"><h2>프로젝트를 선택하세요</h2><p>실선은 프로젝트 메모리에 근거가 기록된 직접 관계입니다. 점선은 드문 주제·기술을 둘 이상 공유하는 분석상 유사성입니다.</p></div>
+        <div data-project-connections-results hidden></div>
+        <h3>전체 프로젝트</h3>
+        <ul class="code-graph-file-list">${map.nodes.map(node => `<li><button type="button" data-project-connections-select="${escapeHtml(node.id)}">${escapeHtml(node.label)}</button></li>`).join("")}</ul>
+        <p class="code-graph-source">출처: 현재 프로젝트 프로필과 일치하는 Project Atlas 공개 번들. 공통 속성은 계승·재사용의 증거가 아닙니다.</p>
+      </aside>
+    </div>
+  </div>`;
+}
+
+function bindProjectConnections(root, state) {
+  const map = buildProjectConnections(state.graph);
+  const container = root.querySelector("[data-project-connections-canvas]");
+  const detail = root.querySelector("[data-project-connections-detail]");
+  const search = root.querySelector("[data-project-connections-search]");
+  const results = root.querySelector("[data-project-connections-results]");
+  const status = root.querySelector("[data-project-connections-status]");
+  if (!container || !detail || !search || !results || !status) return () => {};
+  const nodes = new Map(map.nodes.map(node => [node.id, node]));
+  const select = id => {
+    const node = nodes.get(id);
+    if (!node) return;
+    const links = map.edges.filter(edge => edge.source === id || edge.target === id)
+      .sort((a, b) => (b.kind === "DIRECT") - (a.kind === "DIRECT") || b.score - a.score);
+    detail.innerHTML = `<h2>${escapeHtml(node.label)}</h2><p>${escapeHtml(node.summary)}</p>
+      <p>${links.length}개 연결 · <a href="${escapeHtml(toSafePublicHref(node.url, { allowRelative: true }) || "#")}" data-route-link>프로젝트 보기</a></p>
+      <ul>${links.map(edge => {
+        const other = nodes.get(edge.source === id ? edge.target : edge.source);
+        const basis = edge.shared.map(item => item.label).join(" · ");
+        const direct = edge.directRelations.map(item => item.kind).join(" · ");
+        const evidence = edge.directRelations.flatMap(item => item.evidence_links || []).map(item => {
+          const href = toSafePublicHref(item.url, { allowRelative: true });
+          return href ? `<a href="${escapeHtml(href)}" data-route-link>${escapeHtml(item.label)}</a>` : "";
+        }).join(" ");
+        return `<li><button type="button" data-project-connections-select="${escapeHtml(other.id)}">${escapeHtml(other.label)}</button><span>${edge.kind === "DIRECT" ? `직접 관계 ${escapeHtml(direct)} ${evidence}` : `공통 속성 ${escapeHtml(basis)}`}</span></li>`;
+      }).join("")}</ul>`;
+    status.textContent = `${node.label} 선택됨`;
+  };
+  let view = null;
+  try {
+    view = createProjectConnectionsView(container, map, { onSelect: select, onReady: () => { status.textContent = "네트워크 준비 완료. 프로젝트를 선택하세요."; } });
+  } catch {
+    container.hidden = true;
+    status.textContent = "네트워크를 표시할 수 없습니다. 오른쪽 프로젝트 목록에서 탐색할 수 있습니다.";
+  }
+  const onClick = event => {
+    const button = event.target.closest("[data-project-connections-select]");
+    if (!button) return;
+    if (view) view.focus(button.dataset.projectConnectionsSelect);
+    else select(button.dataset.projectConnectionsSelect);
+  };
+  const onSearch = () => {
+    const query = search.value.trim().toLocaleLowerCase();
+    if (!query) { results.hidden = true; results.innerHTML = ""; return; }
+    const matches = map.nodes.filter(node => node.label.toLocaleLowerCase().includes(query) || node.id.includes(query));
+    results.hidden = false;
+    results.innerHTML = `<h3>검색 결과 ${matches.length}개</h3><ul>${matches.map(node => `<li><button type="button" data-project-connections-select="${escapeHtml(node.id)}">${escapeHtml(node.label)}</button></li>`).join("")}</ul>`;
+  };
+  const onFit = () => view?.fit();
+  root.addEventListener("click", onClick);
+  search.addEventListener("input", onSearch);
+  root.querySelector("[data-project-connections-fit]").addEventListener("click", onFit);
+  return () => {
+    root.removeEventListener("click", onClick);
+    search.removeEventListener("input", onSearch);
+    view?.destroy();
+  };
+}
+
+function bindCodeGraph(root, state) {
+  const graph = state.codeGraph;
+  const container = root.querySelector("[data-code-graph-canvas]");
+  const detail = root.querySelector("[data-code-graph-detail]");
+  if (!graph || !container || !detail) return () => {};
+  const nodes = new Map(graph.nodes.map(node => [node.id, node]));
+  const search = root.querySelector("[data-code-graph-search]");
+  const results = root.querySelector("[data-code-graph-results]");
+  const status = root.querySelector("[data-code-graph-status]");
+  const select = (id) => {
+    const node = nodes.get(id);
+    if (!node) return;
+    const connections = graph.edges.filter(edge => edge.kind === "relation" && (edge.source === id || edge.target === id));
+    const contained = node.kind === "folder" ? graph.nodes.filter(item => item.kind === "file" && item.folder === node.folder) : [];
+    detail.innerHTML = `<h2>${escapeHtml(node.id)}</h2><p>${node.kind === "folder" ? `${contained.length}개 분석 파일` : `${node.symbols}개 Graphify 심벌 · ${connections.length}개 파일 간 연결`}</p>
+      <ul>${(node.kind === "folder" ? contained.slice(0, 40).map(item => `<li><button type="button" data-code-graph-select="${escapeHtml(item.id)}">${escapeHtml(item.label)}</button></li>`) : connections.slice(0, 40).map(edge => {
+        const other = edge.source === id ? edge.target : edge.source;
+        return `<li><button type="button" data-code-graph-select="${escapeHtml(other)}">${escapeHtml(other)}</button> <span>${escapeHtml(edge.relations.join(" · "))}</span></li>`;
+      })).join("")}</ul>`;
+    status.textContent = `${node.id} 선택됨`;
+  };
+  let view = null;
+  try {
+    view = createGraphifyView(container, graph, { onSelect: select, onReady: () => { status.textContent = "네트워크 준비 완료. 점을 클릭하거나 파일을 검색하세요."; } });
+  } catch {
+    container.hidden = true;
+    status.textContent = "네트워크를 표시할 수 없습니다. 오른쪽 폴더 목록에서 파일을 탐색할 수 있습니다.";
+  }
+  const onClick = event => {
+    const button = event.target.closest("[data-code-graph-select]");
+    if (button) {
+      if (view) view.focus(button.dataset.codeGraphSelect);
+      else select(button.dataset.codeGraphSelect);
+    }
+  };
+  const onSearch = () => {
+    const query = search.value.trim().toLocaleLowerCase();
+    if (!query) { results.hidden = true; results.innerHTML = ""; return; }
+    const matches = graph.nodes.filter(node => node.id.toLocaleLowerCase().includes(query)).slice(0, 20);
+    results.hidden = false;
+    results.innerHTML = `<h3>검색 결과 ${matches.length}개${matches.length === 20 ? "+" : ""}</h3><ul>${matches.map(node => `<li><button type="button" data-code-graph-select="${escapeHtml(node.id)}">${escapeHtml(node.id)}</button></li>`).join("")}</ul>`;
+  };
+  const onFit = () => view?.fit();
+  root.addEventListener("click", onClick);
+  search.addEventListener("input", onSearch);
+  root.querySelector("[data-code-graph-fit]").addEventListener("click", onFit);
+  return () => {
+    root.removeEventListener("click", onClick);
+    search.removeEventListener("input", onSearch);
+    view?.destroy();
+  };
+}
+
 export function bindGraph(root, state, {
   createView = createGraphView,
   canRender = supportsSvg,
@@ -468,7 +738,7 @@ export function bindGraph(root, state, {
     nodeCount.textContent = String(projected.nodes.length);
     status.setAttribute("aria-label", `${projected.nodes.length}개 노드, ${projected.links.length}개 관계`);
     detail.innerHTML = renderGraphDetail(graphState, index);
-    window.lucide?.createIcons();
+    try { window.lucide?.createIcons(); } catch { /* Keep graph fallback usable without SVG icons. */ }
     const checkedCount = root.querySelectorAll("[data-graph-relation-filter]:checked").length;
     const relationCount = root.querySelector("[data-graph-relation-count]");
     if (relationCount) relationCount.textContent = String(checkedCount);
@@ -935,16 +1205,18 @@ export function renderRoute(state, root, { navigate = () => {} } = {}) {
     projects: renderProjects,
     topics: renderTopics,
     graph: renderGraph,
+    graphify: state.route.scope === "code" ? renderCodeGraph : state.route.scope === "projects" || state.sourceGraphUnavailable ? renderProjectConnections : renderSourceGraph,
     changelog: renderChangelog,
     project: renderProject,
     search: renderProjects
   };
   root.innerHTML = (renderers[state.route.view] || renderHome)(state);
   updateNavigation(state.route);
-  window.lucide?.createIcons();
+  try { window.lucide?.createIcons(); } catch { /* Keep text controls usable without SVG icons. */ }
   const cleanup = [];
   if (state.route.view === "projects" || state.route.view === "search") cleanup.push(bindProjectFilters(root, state));
   if (state.route.view === "graph") cleanup.push(bindGraph(root, state, navigate));
+  if (state.route.view === "graphify") cleanup.push(state.route.scope === "code" ? bindCodeGraph(root, state) : state.route.scope === "projects" || state.sourceGraphUnavailable ? bindProjectConnections(root, state) : bindSourceGraph(root, state, navigate));
   if (state.route.view === "project") cleanup.push(bindProjectTabs(root, navigate));
   const inlineSearch = root.querySelector("[data-search-trigger-inline]");
   if (inlineSearch) {

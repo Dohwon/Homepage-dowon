@@ -14,7 +14,7 @@ async function importRenderModule(t) {
   const clientRoot = path.join(tempRoot, "client");
   await fsp.mkdir(clientRoot, { recursive: true });
 
-  const files = ["router.js", "public-url.js", "markdown.js", "graph-state.js", "graph-view.js", "render.js"];
+  const files = ["router.js", "public-url.js", "markdown.js", "graph-state.js", "graph-view.js", "graphify-view.js", "project-connections.js", "render.js"];
   for (const fileName of files) {
     const sourcePath = path.join(WORKTREE_ROOT, "client", fileName);
     let source = await fsp.readFile(sourcePath, "utf8");
@@ -24,7 +24,9 @@ async function importRenderModule(t) {
         .replace('./markdown.js', "./markdown.mjs")
         .replace('./public-url.js', "./public-url.mjs")
         .replace('./graph-state.js', "./graph-state.mjs")
-        .replace('./graph-view.js', "./graph-view.mjs");
+        .replace('./graph-view.js', "./graph-view.mjs")
+        .replace('./graphify-view.js', "./graphify-view.mjs")
+        .replace('./project-connections.js', "./project-connections.mjs");
     }
     if (fileName === "markdown.js") {
       source = source.replace('./public-url.js', "./public-url.mjs");

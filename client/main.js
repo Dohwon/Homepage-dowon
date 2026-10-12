@@ -50,6 +50,19 @@ async function navigate(destination, { replace = false, focus = true } = {}) {
   try {
     if (!store.getState().bootstrap) patch.bootstrap = await api.bootstrap();
     if (route.view === "project") patch.project = await api.project(route.projectId);
+    if (route.view === "graphify" && route.scope === "code" && !store.getState().codeGraph) patch.codeGraph = await api.codeGraph();
+    if (route.view === "graphify" && route.scope === "projects" && !store.getState().graph) patch.graph = await api.graph();
+    if (route.view === "graphify" && !route.scope) {
+      try {
+        patch.sourceGraph = await api.projectSourceGraph(route.project || "");
+        patch.sourceGraphUnavailable = false;
+      } catch (error) {
+        if (error.status !== 404) throw error;
+        patch.sourceGraph = null;
+        patch.sourceGraphUnavailable = true;
+        patch.graph = await api.graph();
+      }
+    }
     if (route.view === "graph" && !store.getState().graph) patch.graph = await api.graph();
     if (currentId !== navigationId) return;
     store.setState({ ...patch, loading: false });
@@ -82,5 +95,5 @@ document.addEventListener("click", (event) => {
 window.addEventListener("popstate", () => navigate(new URL(window.location.href), { replace: true }));
 bindTheme(document.querySelector("[data-theme-toggle]"));
 bindSearchDialog(document.querySelector("#search-dialog"), api);
-window.lucide?.createIcons();
+try { window.lucide?.createIcons(); } catch { /* Graph fallback remains usable without SVG icons. */ }
 navigate(new URL(window.location.href), { replace: true, focus: false });
