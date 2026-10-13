@@ -152,9 +152,19 @@ python3 scripts/build_projects_graphify_full.py               # 동일하게 스
 
 Codex에서 API 키 없이 의미 추출하려면 설치된 `.agents/skills/graphify/` 스킬로
 스테이징된 폴더를 분석한다. `graphify extract --backend codex` 명령은 없다.
-전체 코퍼스는 크므로 프로젝트별로 나눠 스킬을 실행하고, 결과 조각을
+일반 텍스트 문서는 아래의 재개 가능한 Codex CLI 배치 실행기로 처리할 수 있다.
+성공 배치만 `codex-batches/`에 저장하며, 출력의 출처와 관계 끝점을 검증한다.
+한 번에 한 프로세스만 실행하고 가용 메모리가 2 GiB 미만이면 다음 배치를 시작하지 않는다.
+`--max-batches 0`은 대상 일반 텍스트 문서 큐가 빌거나 검증 오류가 날 때까지 실행한다.
+Office, 큰 문서, 이미지, 동영상, PDF는 이 실행기의 처리 범위가 아니다.
+전체 코퍼스는 크므로 나머지 형식은 프로젝트별로 스킬을 실행하고, 결과 조각을
 `scripts/merge_projects_graphify_codex.py`로 합쳐야 한다. 각 배치의 성공 파일·실패 파일을 검증한 뒤
 병합해야 하며, 현재 전체 배치 추출과 병합은 완료되지 않았다.
+
+```bash
+python3 scripts/run_projects_graphify_codex.py --max-batches 1  # 1개 배치 확인
+python3 scripts/run_projects_graphify_codex.py --max-batches 0  # 일반 텍스트 문서 큐 재개
+```
 
 Codex가 검토한 Graphify 스키마 JSON 조각은 로컬의
 `.local-graphify/full/codex-batches/0001.json` 같은 번호 파일에 저장한다.
