@@ -105,10 +105,15 @@ def main():
     }
     (STAGE.parent / "scan-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf8")
     print(f"Staged {len(staged)} Graphify-supported files: {dict(counts)}", flush=True)
-    if "--stage-only" in sys.argv[1:]:
+    backend = next((arg.partition("=")[2] for arg in sys.argv[1:] if arg.startswith("--backend=")), None)
+    if "--stage-only" in sys.argv[1:] or backend is None:
+        if backend is None and "--stage-only" not in sys.argv[1:]:
+            print("Corpus staged. Use the Codex Graphify skill for semantic extraction; headless extraction requires explicit --backend=NAME.")
         return
+    if backend == "codex":
+        raise SystemExit("Codex is a Graphify agent skill, not a headless --backend value")
     command = [
-        "graphify", "extract", str(STAGE), "--backend", "claude-cli",
+        "graphify", "extract", str(STAGE), "--backend", backend,
         "--max-workers", "2", "--max-concurrency", "1",
         "--token-budget", "60000", "--timing",
     ]

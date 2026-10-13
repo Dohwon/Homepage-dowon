@@ -1,6 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createLocalGraphify } = require('../../lib/local-graphify');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+const { createLocalGraphify, createLocalGraphifyLoader } = require('../../lib/local-graphify');
 
 test('local Graphify view keeps distinct project source groups and real edges', () => {
   const graph = {
@@ -47,4 +50,38 @@ test('semantic document and converted Office nodes keep project provenance and r
   assert.equal(result.nodes.find(node => node.id === 'sheet').format, 'Office');
   assert.equal(result.nodes.find(node => node.id === 'paper').format, 'PDF');
   assert.deepEqual(result.edges.find(edge => edge.source === 'paper' && edge.target === 'sheet'), { id: 0, source: 'paper', target: 'sheet', relation: 'supports', confidence: 'INFERRED', score: 0.8, file: 'alpha/plan.xlsx', location: '' });
+});
+
+test('overview keeps multiple projects and favors connected evidence within its node limit', () => {
+  const graph = {
+    nodes: ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2'].map(id => ({
+      id, label: id, source_file: `${id[0]}/notes/${id}.md`, file_type: 'concept'
+    })),
+    links: [
+      ['a1', 'a2'], ['a1', 'a3'], ['a2', 'a3'], ['a2', 'a4'], ['a3', 'a4'],
+      ['a4', 'a5'], ['b1', 'b2'], ['a1', 'b1']
+    ].map(([source, target]) => ({ source, target, relation: 'related' }))
+  };
+  const overview = createLocalGraphify(graph, { maxNodes: 5 })();
+  assert.equal(overview.nodes.length, 5);
+  assert.deepEqual(new Set(overview.nodes.map(node => node.project)), new Set(['a', 'b']));
+  assert.ok(overview.summary.visibleEdges >= 4);
+  assert.ok(overview.edges.every(edge => graph.links.some(link => link.source === edge.source && link.target === edge.target)));
+});
+
+test('local Graphify loader reads a rebuilt graph without restarting the server', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'atlas-graphify-reload-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const graphDir = path.join(root, 'source', 'graphify-out');
+  await fs.mkdir(graphDir, { recursive: true });
+  const graphPath = path.join(graphDir, 'graph.json');
+  const graph = nodes => ({ nodes, links: [], hyperedges: [] });
+  await fs.writeFile(graphPath, JSON.stringify(graph([{ id: 'one', label: 'One', source_file: 'alpha/one.md' }])));
+  const load = createLocalGraphifyLoader(graphPath);
+  assert.equal((await load()).summary.totalNodes, 1);
+  await fs.writeFile(graphPath, JSON.stringify(graph([
+    { id: 'one', label: 'One', source_file: 'alpha/one.md' },
+    { id: 'two', label: 'Two', source_file: 'beta/two.md' }
+  ])));
+  assert.equal((await load()).summary.totalNodes, 2);
 });

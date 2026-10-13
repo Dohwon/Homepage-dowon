@@ -5,6 +5,7 @@
   "description": "Dowon Project Atlas explorer with a preserved portfolio CMS.",
   "scripts": {
     "start": "node server.js",
+    "start:graphify": "bash scripts/start_project_atlas_graphify.sh",
     "test": "node --test",
     "test:ui": "playwright test",
     "vendor": "node scripts/vendor_client_assets.mjs",

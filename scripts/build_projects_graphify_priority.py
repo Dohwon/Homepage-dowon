@@ -72,9 +72,14 @@ def main() -> None:
         "selection": "all supported code/PDF/media; up to 3 documents, 1 Office file and 1 image per project",
     }, ensure_ascii=False, indent=2) + "\n", encoding="utf8")
     print(f"Graphify priority corpus: {sum(counts.values())} files, {len(discovered)} project groups, {dict(counts)}", flush=True)
-    if "--stage-only" in os.sys.argv[1:]:
+    backend = next((arg.partition("=")[2] for arg in os.sys.argv[1:] if arg.startswith("--backend=")), None)
+    if "--stage-only" in os.sys.argv[1:] or backend is None:
+        if backend is None and "--stage-only" not in os.sys.argv[1:]:
+            print("Corpus staged. Use the Codex Graphify skill for semantic extraction; headless extraction requires explicit --backend=NAME.")
         return
-    command = ["graphify", "extract", str(STAGE), "--backend", "claude-cli",
+    if backend == "codex":
+        raise SystemExit("Codex is a Graphify agent skill, not a headless --backend value")
+    command = ["graphify", "extract", str(STAGE), "--backend", backend,
                "--max-workers", "2", "--max-concurrency", "1", "--token-budget", "60000", "--timing"]
     if shutil.which("prlimit"):
         command = ["prlimit", "--as=2147483648", "--cpu=1800", *command]

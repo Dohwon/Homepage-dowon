@@ -121,13 +121,16 @@ Graphify의 원래 형식으로 스테이징해 만든다. `data/`, `project_mem
 `finish/`도 범위에 포함한다. 의존성·캐시 디렉터리와 파일 종류별 크기 제한을
 적용하고 수와 제외 사유를 `scan-manifest.json`에 기록한다. Graphify는 코드·SQL을
 로컬에서 구문 분석하고 Office 파일은 Markdown으로 변환한다. 문서·PDF·이미지는
-Graphify 스킬을 사용하는 Codex 세션에서도 의미 추출할 수 있다. 아래 자동화
-스크립트는 별도의 headless CLI 경로로, 현재 `claude-cli` 백엔드를 지정한다.
-이전 부분 추출이 Claude 사용 한도에서 멈춘 것은 이 스크립트의 백엔드 선택
+Graphify 스킬을 사용하는 Codex 세션에서도 의미 추출할 수 있다. 스테이징
+스크립트는 기본적으로 Claude를 호출하지 않는다. headless 추출을 별도로
+원할 때만 `--backend=claude-cli`처럼 백엔드를 명시한다.
+이전 부분 추출이 Claude 사용 한도에서 멈춘 것은 이전 스크립트의 백엔드 선택
 때문이며 Codex 스킬의 한도가 아니다. 현재 런타임에는 Graphify
 `video` extra와 전사 도구가 없어 미디어 4개는 입력 목록에만 있으며 전사 노드는
-없다. CSV·JSONL 원본은 Graphify의 지원 입력 목록에 없어 이 그래프에서 구조화
-데이터 의미 추출 대상으로 계산하지 않는다.
+없다. CSV·JSONL·노트북은 Graphify의 지원 입력 목록에 없어 별도 로컬 어댑터가
+전체 레코드를 읽어 행 수·필드명·노트북 목차와 파일 간 같은 필드명을
+Graphify 스키마로 기록한다. 원본 행 값은 그래프에 저장하지 않으며 값의
+의미 분석이 완료됐다고 표시하지 않는다.
 
 빠르게 탐색 가능한 그래프는 모든 지원 코드와 PDF, 프로젝트별 핵심 문서 최대
 3개, Office 파일과 이미지 각 1개를 넣은 우선 처리 코퍼스로 만든다. 이 화면의
@@ -138,20 +141,46 @@ Graphify 스킬을 사용하는 Codex 세션에서도 의미 추출할 수 있�
 무제한 의미 추출은 별도 명령으로 제공한다.
 
 ```bash
-python3 scripts/build_projects_graphify_priority.py
-HOST=127.0.0.1 PORT=4190 ATLAS_LOCAL_GRAPHIFY_PATH="$PWD/.local-graphify/priority/source/graphify-out/graph.json" npm start
+python3 scripts/build_projects_graphify_priority.py --stage-only
+npm run start:graphify
 ```
 
 ```bash
 python3 scripts/build_projects_graphify_full.py --stage-only  # 전체 파일 인벤토리
-python3 scripts/build_projects_graphify_full.py               # 전체 의미 추출: 매우 오래 걸림
+python3 scripts/build_projects_graphify_full.py               # 동일하게 스테이징만 수행
 ```
 
 Codex에서 API 키 없이 의미 추출하려면 설치된 `.agents/skills/graphify/` 스킬로
 스테이징된 폴더를 분석한다. `graphify extract --backend codex` 명령은 없다.
-전체 코퍼스는 크므로 프로젝트별로 나눠 스킬을 실행하고, 결과 그래프를
-`graphify merge-graphs`로 합쳐야 한다. 각 배치의 성공 파일·실패 파일을 검증한 뒤
+전체 코퍼스는 크므로 프로젝트별로 나눠 스킬을 실행하고, 결과 조각을
+`scripts/merge_projects_graphify_codex.py`로 합쳐야 한다. 각 배치의 성공 파일·실패 파일을 검증한 뒤
 병합해야 하며, 현재 전체 배치 추출과 병합은 완료되지 않았다.
+
+Codex가 검토한 Graphify 스키마 JSON 조각은 로컬의
+`.local-graphify/full/codex-batches/0001.json` 같은 번호 파일에 저장한다.
+다음 명령은 기존 Graphify 코드·부분 의미 그래프와 이 조각들을 병합하고
+커뮤니티를 다시 계산한다. 화면에는 전체 입력 수와 실제 Codex 노드가 생긴
+의미 입력 파일 수를 분리해 표시한다.
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 nice -n 10 prlimit --as=2147483648 --cpu=1800 python3 scripts/index_projects_structured_data.py
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 nice -n 10 prlimit --as=2147483648 --cpu=1800 python3 scripts/index_projects_graphify_documents.py
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 nice -n 10 prlimit --as=2147483648 --cpu=1800 python3 scripts/merge_projects_graphify_codex.py
+npm run start:graphify
+```
+
+문서·Office 구조 색인은 지원 문서 본문을 읽고 문서당 최대 12개 제목·섹션을
+기록한다. 500KB 이하 Excel은 시트 이름·행 수 메타데이터와 앞쪽 10행에서 찾은
+첫 데이터 행의 최대 30개 필드명을 읽는다. 더 큰 파일은 시트 이름만 색인한다.
+전체 셀 값은 의미 분석하지 않는다. 제목이 같은 다른 프로젝트의 문서만 직접 연결한다.
+이는 내용의 의미 관계를 추론하는 Codex 추출과 별개로 집계한다.
+
+이미지로만 된 PDF는 `scripts/ocr_projects_graphify_pdfs.py '<staged-relative-pdf>'`로
+페이지별 텍스트를 로컬 `.local-graphify/full/ocr/`에 저장한다. 중단 후 같은 명령을
+다시 실행하면 완료된 페이지는 건너뛴다. `scripts/index_projects_graphify_ocr.py`는
+완료된 PDF의 일본어 어휘를 페이지 출처와 함께 `0006.json`에 색인한다. OCR에서
+읽은 용어는 검토되지 않은 `AMBIGUOUS` 관계로 표시하며 Codex 의미 추출 완료 수에
+포함하지 않는다. 그런 다음 병합 명령을 다시 실행한다.
 
 브라우저 주소는 `http://127.0.0.1:4190/graphify`다. 로컬 그래프 경로가 설정되지 않은
 공개 서버는 원본 소스 그래프 API를 제공하지 않으며, `/graphify`에서 검토된
