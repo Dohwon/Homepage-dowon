@@ -48,6 +48,24 @@ test("sorts unpinned projects by reviewed work recency while preserving pins", a
   assert.equal(newerEvent.projects[0].lastWorkDate, "2026-08-24");
 });
 
+test("does not mistake legacy generated history dates for recent work", async (t) => {
+  const temporaryRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "atlas-recency-"));
+  t.after(() => fsp.rm(temporaryRoot, { recursive: true, force: true }));
+  await fsp.cp(fixtureDir, temporaryRoot, { recursive: true });
+  const changesPath = path.join(temporaryRoot, "changelog.json");
+  const changes = JSON.parse(await fsp.readFile(changesPath, "utf8"));
+  changes[0].event_id = "curated-decision-001";
+  changes[0].date = "2026-12-01";
+  await fsp.writeFile(changesPath, JSON.stringify(changes));
+  const store = createAtlasStore({
+    bundleDir: temporaryRoot,
+    loadRecency: async () => ({ beta: "2026-10-20T12:00:00+09:00" })
+  });
+  const projects = (await store.bootstrap()).projects;
+  assert.deepEqual(projects.map((item) => item.id), ["beta", "alpha"]);
+  assert.equal(projects[1].lastWorkDate, undefined);
+});
+
 test("loads structured v2 public project content without legacy fields", async () => {
   const project = await createStore().project("alpha");
 
