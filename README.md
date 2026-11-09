@@ -219,6 +219,8 @@ graphify install --project --platform agents
 
 Worker는 로컬 workspace의 `projects/`와 `projects/finish/` 바로 아래 프로젝트 폴더를 매일 다시 탐색하고, 검토된 public profile과 직접 작성된 project memory만 `public-bundle/`로 만든다. 프로젝트 폴더의 파일 추가·수정·삭제와 새 프로젝트 폴더를 source hash로 감지한다. 기본 출력은 key ordering이 고정된 JSON이며 absolute project root, raw session text, alias key, provenance를 출력하지 않는다.
 
+Changelog는 본문 파일의 수정 시간이나 배포 시각으로 자동 생성되지 않는다. 프로젝트의 중요한 변경을 검토해 `project_memory/` 바로 아래 Markdown의 `## Build Story`, `## Decisions`, `## Rollbacks`에 날짜와 상황·선택·결과가 있는 `atlas:event` 관리 블록으로 기록해야 한다. 본문·근거를 갱신할 때 해당 변경의 이력도 함께 점검하고, 실제 근거가 확인된 날짜만 사용한다. 민감한 원문과 비밀값은 이벤트에 넣지 않는다. 기존 이력은 덮어쓰지 않으며, 각 블록의 형식은 `atlas_worker/history.py`의 `render_managed_event`를 따른다.
+
 ### 설치
 
 Python 3.10+ 환경이 필요하다. service root에서 전용 virtual environment와 Atlas 의존성을 설치한다.
