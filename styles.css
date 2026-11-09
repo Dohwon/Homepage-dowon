@@ -386,7 +386,7 @@ svg { display: block; }
 .project-aside { grid-column: 1; grid-row: 1; min-inline-size: 0; }
 .project-aside-inner { position: sticky; inset-block-start: var(--reader-sticky-offset); display: grid; gap: 20px; max-block-size: calc(100vh - var(--reader-sticky-offset) - 24px); overflow-y: auto; overscroll-behavior: contain; }
 .project-mobile-toc-slot { display: none; }
-.aside-section { border-top: 1px solid var(--line); padding-top: 12px; }
+.aside-section { min-inline-size: 0; overflow-wrap: anywhere; border-top: 1px solid var(--line); padding-top: 12px; }
 .aside-section h2 { margin: 0 0 9px; color: var(--muted); font: 600 11px/1.4 "JetBrains Mono", monospace; text-transform: uppercase; }
 .aside-section ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .aside-section a { color: var(--muted); font-size: 13px; text-decoration: none; }
@@ -406,6 +406,22 @@ svg { display: block; }
 .markdown-body th, .markdown-body td { border-bottom: 1px solid var(--line); padding: 10px; text-align: start; vertical-align: top; overflow-wrap: anywhere; }
 .markdown-body img, .project-map { display: block; inline-size: 100%; block-size: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .article-summary { margin-bottom: 18px; color: var(--muted); font-size: 17px; }
+.article-map-overview { margin: 24px 0 38px; padding: 22px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-subtle); }
+.article-map-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; }
+.article-map-heading h2 { margin: 0; font-size: 20px; line-height: 1.4; word-break: keep-all; }
+.article-map-heading a { flex: 0 0 auto; color: var(--focus); font-size: 13px; font-weight: 700; text-decoration: none; }
+.article-map-kicker { margin: 0 0 6px; color: var(--focus); font-size: 12px; font-weight: 700; }
+.article-map-description { margin: 10px 0 16px; color: var(--muted); font-size: 14px; line-height: 1.65; word-break: keep-all; }
+.article-map-scroll { max-inline-size: 100%; overflow-x: auto; overscroll-behavior-inline: contain; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.article-map-scroll:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.article-map-visual { min-inline-size: 1500px; }
+.article-map-visual svg { display: block; inline-size: 100%; block-size: auto; }
+.article-map-hint { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; word-break: keep-all; }
+@media (max-width: 600px) {
+  .article-map-overview { margin-inline: -4px; padding: 16px; }
+  .article-map-heading { align-items: start; flex-direction: column; gap: 8px; }
+  .article-map-heading h2 { font-size: 18px; }
+}
 .article-orientation { margin-bottom: 38px; font-size: 17px; line-height: 1.84; }
 .article-orientation p { margin-block: 0 16px; }
 .decision-article [data-article-section] { scroll-margin-top: calc(var(--reader-sticky-offset) + 8px); }
@@ -422,6 +438,11 @@ svg { display: block; }
   color: var(--text);
 }
 .article-figure-media svg { inline-size: 100%; block-size: auto; min-block-size: 180px; color: inherit; }
+.article-figure[data-diagram-id="response-routing"] .article-figure-media,
+.article-figure[data-diagram-id="cohort-results"] .article-figure-media { overflow-x: auto; place-items: center start; }
+.article-figure[data-diagram-id="response-routing"] svg,
+.article-figure[data-diagram-id="cohort-results"] svg { min-inline-size: 700px; }
+.article-figure-media:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 .article-figure figcaption { margin-top: 9px; color: var(--muted); font-size: 13px; }
 .project-map { overflow: hidden; }
 .project-map svg { display: block; inline-size: 100%; block-size: auto; }

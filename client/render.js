@@ -901,8 +901,8 @@ function renderArticleFigure(diagram, visuals) {
   const svg = sanitizeSvg(visuals?.[diagram.id]);
   if (!svg) return "";
   const alt = escapeHtml(diagram.alt || diagram.caption || diagram.id);
-  return `<figure class="article-figure" data-article-figure>
-    <div class="article-figure-media" role="img" aria-label="${alt}">${svg}</div>
+  return `<figure class="article-figure" data-article-figure data-diagram-id="${escapeHtml(diagram.id)}">
+    <div class="article-figure-media" role="img" tabindex="0" aria-label="${alt}">${svg}</div>
     <figcaption>${escapeHtml(diagram.caption || diagram.id)}</figcaption>
   </figure>`;
 }
@@ -926,6 +926,17 @@ export function renderArticle(project) {
   const intro = [];
   if (article.summary) {
     intro.push(`<div class="markdown-body article-summary">${renderMarkdown(article.summary)}</div>`);
+  }
+  const overviewMap = sanitizeSvg(project?.systemMap);
+  const overviewData = project?.systemMapData;
+  if (overviewMap && overviewData?.title) {
+    const mapHref = toRouteHref({ view: "project", projectId: project.id, tab: "system-map" });
+    intro.push(`<section class="article-map-overview" data-article-system-map aria-labelledby="article-map-heading">
+      <div class="article-map-heading"><div><p class="article-map-kicker">한눈에 보기</p><h2 id="article-map-heading">${escapeHtml(overviewData.title)}</h2></div><a href="${escapeHtml(mapHref)}" data-route-link>구조 자세히 보기 <span aria-hidden="true">↗</span></a></div>
+      ${overviewData.summary ? `<p class="article-map-description">${escapeHtml(overviewData.summary)}</p>` : ""}
+      <div class="article-map-scroll" tabindex="0" role="region" aria-label="${escapeHtml(overviewData.title)}. 좌우로 이동하여 전체 구조를 볼 수 있습니다."><div class="article-map-visual" role="img" aria-label="${escapeHtml(overviewData.title)}">${overviewMap}</div></div>
+      <p class="article-map-hint">화살표와 연결선은 각 구성 요소 사이의 흐름을 나타냅니다. 좌우로 움직여 전체 구조를 볼 수 있습니다.</p>
+    </section>`);
   }
   if (article.orientation) {
     intro.push(`<div class="markdown-body article-orientation" data-article-orientation>${renderMarkdown(article.orientation)}</div>`);

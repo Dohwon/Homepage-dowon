@@ -207,6 +207,20 @@ test("renders only the project-owned representative cover route", async (t) => {
   })), "");
 });
 
+test("shows the reviewed system map in the article with a link to its details", async (t) => {
+  installSanitizers(t);
+  const { renderProjectContent } = await importRenderModule(t);
+  const result = renderProjectContent(fixtureProject({
+    systemMap: SAFE_SVG,
+    systemMapData: { title: "입력에서 결과까지", summary: "조건별 흐름입니다." }
+  }), "decisions");
+  assert.match(result.html, /data-article-system-map/);
+  assert.match(result.html, /입력에서 결과까지/);
+  assert.match(result.html, /조건별 흐름입니다/);
+  assert.match(result.html, /tab=system-map/);
+  assert.ok(result.html.indexOf("data-article-system-map") < result.html.indexOf("data-article-orientation"));
+});
+
 test("renders every article section in order and places figures after prose", async (t) => {
   installSanitizers(t);
   const { renderProjectContent } = await importRenderModule(t);
