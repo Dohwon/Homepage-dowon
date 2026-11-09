@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" role="img" aria-labelledby="title desc">
+  <title id="title">네 시험군의 모델 판정</title>
+  <desc id="desc">한국어 815건 중 790건, 한국어 500건 중 480건, 영어 815건 중 787건, 영어 500건 중 484건이 모델 PASS다.</desc>
+  <rect width="760" height="380" rx="16" fill="#f8faf9"/>
+  <text x="34" y="43" font-size="17" font-weight="700" fill="#1c3431">언어와 시험군별 모델 판정</text>
+  <rect x="34" y="60" width="12" height="12" rx="3" fill="#388e7c"/><text x="54" y="71" font-size="12" fill="#4b625c">PASS</text>
+  <rect x="115" y="60" width="12" height="12" rx="3" fill="#d99072"/><text x="135" y="71" font-size="12" fill="#4b625c">FAIL</text>
+  <g font-family="sans-serif" font-size="14" fill="#243d36">
+    <text x="34" y="119" font-weight="700">한국어 815</text><rect x="154" y="101" width="420" height="24" rx="5" fill="#d99072"/><rect x="154" y="101" width="407" height="24" rx="5" fill="#388e7c"/><text x="590" y="119">790 · 25</text>
+    <text x="34" y="177" font-weight="700">한국어 500</text><rect x="154" y="159" width="420" height="24" rx="5" fill="#d99072"/><rect x="154" y="159" width="403" height="24" rx="5" fill="#388e7c"/><text x="590" y="177">480 · 20</text>
+    <text x="34" y="235" font-weight="700">영어 815</text><rect x="154" y="217" width="420" height="24" rx="5" fill="#d99072"/><rect x="154" y="217" width="406" height="24" rx="5" fill="#388e7c"/><text x="590" y="235">787 · 28</text>
+    <text x="34" y="293" font-weight="700">영어 500</text><rect x="154" y="275" width="420" height="24" rx="5" fill="#d99072"/><rect x="154" y="275" width="407" height="24" rx="5" fill="#388e7c"/><text x="590" y="293">484 · 16</text>
+  </g>
+  <text x="34" y="350" font-size="12" fill="#526962">오른쪽 숫자는 PASS · FAIL 건수. 막대는 시험군별 비율이며 검색 실행 성공률과 다르다.</text>
+</svg>

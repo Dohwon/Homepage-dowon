@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 430" role="img" aria-labelledby="title desc">
+  <title id="title">개인화 사례의 검색 분기와 답변 생성</title>
+  <desc id="desc">입력 조립 뒤 검색 여부를 판단한다. 검색이 필요한 경우에만 검색 근거를 확인하며 두 경로는 답변과 실행 상태의 기록으로 이어진다.</desc>
+  <rect width="760" height="430" rx="16" fill="#f8faf9"/>
+  <text x="34" y="42" font-size="17" font-weight="700" fill="#1c3431">사례 한 건은 어떻게 처리될까?</text>
+  <g font-family="sans-serif" text-anchor="middle">
+    <rect x="40" y="82" width="180" height="74" rx="10" fill="#e5f3ee" stroke="#3c8173"/>
+    <text x="130" y="112" font-size="16" font-weight="700" fill="#163b34">사례 입력</text>
+    <text x="130" y="136" font-size="12" fill="#496a63">발화 · 선호 · 이전 대화</text>
+    <rect x="290" y="82" width="180" height="74" rx="10" fill="#edf1fb" stroke="#6c82ad"/>
+    <text x="380" y="112" font-size="16" font-weight="700" fill="#273a5c">검색이 필요한가?</text>
+    <text x="380" y="136" font-size="12" fill="#536482">실행 경로 판단</text>
+    <rect x="540" y="82" width="180" height="74" rx="10" fill="#fff1dc" stroke="#a87938"/>
+    <text x="630" y="112" font-size="16" font-weight="700" fill="#624615">검색 근거 확인</text>
+    <text x="630" y="136" font-size="12" fill="#796749">필요한 경우에만 실행</text>
+    <rect x="290" y="270" width="180" height="74" rx="10" fill="#eaf2fa" stroke="#6787a8"/>
+    <text x="380" y="300" font-size="16" font-weight="700" fill="#243d55">최종 답변 생성</text>
+    <text x="380" y="324" font-size="12" fill="#536b80">검색 여부에 맞춰 답변</text>
+    <rect x="540" y="270" width="180" height="74" rx="10" fill="#edf3e8" stroke="#7c9671"/>
+    <text x="630" y="300" font-size="16" font-weight="700" fill="#354e2d">결과와 상태 기록</text>
+    <text x="630" y="324" font-size="12" fill="#60725a">사례 ID · 검색 상태 · 응답</text>
+    <path d="M220 119H277 M470 119H527 M630 156V236H380V258 M380 156V258 M470 307H527" fill="none" stroke="#6c7d79" stroke-width="3"/>
+    <path d="M277 113l10 6-10 6 M527 113l10 6-10 6 M374 250l6 10 6-10 M527 301l10 6-10 6" fill="none" stroke="#6c7d79" stroke-width="3"/>
+    <rect x="481" y="90" width="36" height="22" rx="11" fill="#fff1dc"/><text x="499" y="106" font-size="12" fill="#79551f">필요</text>
+    <rect x="390" y="186" width="52" height="22" rx="11" fill="#edf1fb"/><text x="416" y="202" font-size="12" fill="#455b7d">불필요</text>
+  </g>
+  <text x="34" y="397" font-size="12" fill="#526962">읽는 순서: 입력 → 판단 → 선택된 경로 → 답변과 기록. 검색 실패와 답변 품질은 따로 평가한다.</text>
+</svg>
