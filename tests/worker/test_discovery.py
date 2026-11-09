@@ -90,6 +90,17 @@ def test_unprofiled_directories_are_private_and_ambiguous(tmp_path):
     assert report.ambiguous == report.projects
 
 
+def test_hidden_worktree_profile_is_not_discovered_as_another_project(tmp_path):
+    alpha = tmp_path / "projects" / "alpha"
+    write_profile(alpha, id="alpha")
+    write_profile(alpha / ".worktrees" / "copy", id="alpha")
+    write_profile(alpha / "nested", id="nested-project")
+
+    report = discover_projects(DiscoveryConfig.for_workspace(tmp_path))
+
+    assert [item.project_id for item in report.projects] == ["alpha", "nested-project"]
+
+
 def test_registered_assets_are_discovered_but_unregistered_files_are_ignored(tmp_path):
     projects = tmp_path / "projects"
     projects.mkdir()

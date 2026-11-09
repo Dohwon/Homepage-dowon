@@ -122,6 +122,8 @@ def _nested_profile_refs(
 ) -> Iterable[tuple[ProjectRef, bool]]:
     profiles = sorted(parent_root.rglob("project_memory/project-profile.yaml"), key=_path_sort_key)
     for profile_path in profiles:
+        if any(part.startswith(".") for part in profile_path.relative_to(parent_root).parts):
+            continue
         nested_root = profile_path.parent.parent.resolve()
         if nested_root == parent_root:
             continue
