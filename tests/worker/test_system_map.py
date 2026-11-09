@@ -124,6 +124,36 @@ def test_svg_wraps_long_project_context_instead_of_clipping_it(tmp_path):
     assert ("한글 설명이 노드 폭을 넘어가지 않도록 " * 4) not in svg
 
 
+def test_svg_wraps_wide_korean_text_and_unbroken_identifiers():
+    from atlas_worker.system_map import _svg_text_units, _wrap_svg_text
+
+    for source in ("한글설명이길어서노드폭을넘어가는경우를반드시줄바꿈합니다", "VeryLongUnbrokenIdentifierThatCannotFitInsideANode"):
+        lines = _wrap_svg_text(source, 28)
+        assert len(lines) > 1
+        assert all(_svg_text_units(line) <= 28 for line in lines)
+        assert "".join(lines) == source
+
+
+def test_svg_canvas_contains_all_nodes_for_wide_evaluation_flow(tmp_path):
+    import xml.etree.ElementTree as ET
+
+    value = _map()
+    value["map_type"] = "evaluation-pipeline"
+    value["nodes"] = [dict(node) for node in value["nodes"] * 2]
+    for index, node in enumerate(value["nodes"]):
+        node["id"] = f"node-{index}"
+    value["flows"] = [{"id": "flow", "from": "node-0", "to": "node-5", "label": "전달"}]
+    value["decision_links"] = []
+    _write_map(tmp_path, value)
+    system_map = load_project_system_map(make_project_ref(tmp_path), _article(), _evidence(), _gate())
+    root = ET.fromstring(render_system_map_svg(system_map))
+    width = float(root.attrib["viewBox"].split()[2])
+    for group in root.findall("{http://www.w3.org/2000/svg}g"):
+        if "data-node" in group.attrib:
+            rect = group.find("{http://www.w3.org/2000/svg}rect")
+            assert float(rect.attrib["x"]) + float(rect.attrib["width"]) <= width
+
+
 def test_svg_layout_follows_semantic_map_family(tmp_path):
     roadmap_value = _map()
     _write_map(tmp_path, roadmap_value)

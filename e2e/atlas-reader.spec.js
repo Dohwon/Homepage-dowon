@@ -19,25 +19,6 @@ async function readProgressScale(page) {
   });
 }
 
-test("article overview presents a readable scrollable system map", async ({ page }) => {
-  await page.route("**/api/atlas/projects/alpha", async (route) => {
-    const response = await route.fetch();
-    const project = await response.json();
-    project.systemMap = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 220"><rect x="20" y="20" width="960" height="180" fill="#edf6f3"/><text x="40" y="80">입력 → 처리 → 결과</text></svg>';
-    project.systemMapData = { title: "입력에서 결과까지", summary: "검토된 구성 요소의 흐름" };
-    await route.fulfill({ response, json: project });
-  });
-  await page.goto("/projects/alpha");
-  const overview = page.locator("[data-article-system-map]");
-  await expect(overview).toBeVisible();
-  await expect(overview.locator("svg")).toBeVisible();
-  await expect(overview.getByRole("link", { name: /구조 자세히 보기/ })).toHaveAttribute("href", /tab=system-map/);
-  const region = overview.locator(".article-map-scroll");
-  await expect(region).toHaveAttribute("tabindex", "0");
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
-  expect(await region.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
-});
-
 async function installLongDecisionArticle(page) {
   await page.route("**/api/atlas/projects/alpha", async (route) => {
     const response = await route.fetch();

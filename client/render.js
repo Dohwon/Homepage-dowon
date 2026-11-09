@@ -927,17 +927,6 @@ export function renderArticle(project) {
   if (article.summary) {
     intro.push(`<div class="markdown-body article-summary">${renderMarkdown(article.summary)}</div>`);
   }
-  const overviewMap = sanitizeSvg(project?.systemMap);
-  const overviewData = project?.systemMapData;
-  if (overviewMap && overviewData?.title) {
-    const mapHref = toRouteHref({ view: "project", projectId: project.id, tab: "system-map" });
-    intro.push(`<section class="article-map-overview" data-article-system-map aria-labelledby="article-map-heading">
-      <div class="article-map-heading"><div><p class="article-map-kicker">한눈에 보기</p><h2 id="article-map-heading">${escapeHtml(overviewData.title)}</h2></div><a href="${escapeHtml(mapHref)}" data-route-link>구조 자세히 보기 <span aria-hidden="true">↗</span></a></div>
-      ${overviewData.summary ? `<p class="article-map-description">${escapeHtml(overviewData.summary)}</p>` : ""}
-      <div class="article-map-scroll" tabindex="0" role="region" aria-label="${escapeHtml(overviewData.title)}. 좌우로 이동하여 전체 구조를 볼 수 있습니다."><div class="article-map-visual" role="img" aria-label="${escapeHtml(overviewData.title)}">${overviewMap}</div></div>
-      <p class="article-map-hint">화살표와 연결선은 각 구성 요소 사이의 흐름을 나타냅니다. 좌우로 움직여 전체 구조를 볼 수 있습니다.</p>
-    </section>`);
-  }
   if (article.orientation) {
     intro.push(`<div class="markdown-body article-orientation" data-article-orientation>${renderMarkdown(article.orientation)}</div>`);
   }
@@ -1009,7 +998,8 @@ export function renderSystemMap(project) {
   return {
     html: `<article class="system-map-article" data-system-map>
       <header class="system-map-intro"><p class="system-map-type">${escapeHtml(mapType)}</p><h2>${escapeHtml(data.title)}</h2><div class="markdown-body">${renderMarkdown(data.summary)}</div></header>
-      <div class="project-map" role="img" aria-label="${escapeHtml(data.title)}">${svg}</div>
+      <div class="project-map" role="img" tabindex="0" aria-label="${escapeHtml(data.title)}">${svg}</div>
+      <p class="system-map-scroll-hint">도식은 좌우로 이동해 볼 수 있습니다.</p>
       <section id="system-map-components" class="system-map-section" data-article-section="system-map-components">
         <h2>구성 요소</h2>
         <dl class="system-map-components">${nodes.map((node) => `<div><dt>${escapeHtml(node.label)}<span>${escapeHtml(node.kind)}</span></dt><dd>${escapeHtml(node.description)}</dd></div>`).join("")}</dl>

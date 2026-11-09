@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from html import escape
 from pathlib import Path
+import unicodedata
 
 from .article import _curated_source_root, _load_yaml_mapping, _validated_references
 from .models import (
@@ -94,18 +95,21 @@ def render_system_map_svg(system_map: ProjectSystemMap) -> str:
     """Render a semantic map whose geometry follows the project's map family."""
     width = 1240
     node_width = 250
-    node_height = 126
+    node_height = 148
     title_lines = _wrap_svg_text(system_map.title, 38)
     summary_lines = _wrap_svg_text(system_map.summary, 42)
     header_height = 34 * len(title_lines) + 22 * len(summary_lines)
     start_y = 76 + header_height + 54
     family, family_label = _map_family(system_map.map_type)
     positions = _semantic_positions(system_map.nodes, family, start_y, node_width, node_height)
+    width = max(width, max((x + node_width + 40 for x, _ in positions.values()), default=width))
     node_markup = []
     for index, node in enumerate(system_map.nodes, 1):
         x, y = positions[node.node_id]
-        description_lines = _wrap_svg_text(node.description, 33)[:3]
-        description_markup = _svg_tspans(description_lines, x=x + 18, y=y + 80, line_height=16)
+        label_lines = _limited_svg_lines(node.label, 18, 2)
+        description_lines = _limited_svg_lines(node.description, 28, 3)
+        label_markup = _svg_tspans(label_lines, x=x + 50, y=y + 32, line_height=18)
+        description_markup = _svg_tspans(description_lines, x=x + 18, y=y + 94, line_height=16)
         node_markup.append(
             f'<g data-node="{escape(node.node_id)}">'
             f'<rect x="{x}" y="{y}" width="{node_width}" height="{node_height}" rx="8" '
@@ -114,8 +118,8 @@ def render_system_map_svg(system_map: ProjectSystemMap) -> str:
             f'<text x="{x + 26}" y="{y + 32}" text-anchor="middle" fill="#ffffff" '
             f'font-size="11" font-weight="700">{index}</text>'
             f'<text x="{x + 50}" y="{y + 32}" fill="#17212b" font-size="16" font-weight="700">'
-            f'{escape(_truncate_svg_text(node.label, 22))}</text>'
-            f'<text x="{x + node_width - 16}" y="{y + 55}" text-anchor="end" '
+            f'{label_markup}</text>'
+            f'<text x="{x + node_width - 16}" y="{y + 72}" text-anchor="end" '
             f'fill="#52606d" font-size="11">{escape(node.kind)}</text>'
             f'<text x="{x + 18}" y="{y + 78}" fill="#52606d" font-size="12">'
             f'{description_markup}</text></g>'
@@ -129,7 +133,7 @@ def render_system_map_svg(system_map: ProjectSystemMap) -> str:
             source_x, source_y, target_x, target_y, node_width, node_height, family
         )
         label = _truncate_svg_text(flow.label, 24)
-        label_width = min(190, max(72, len(label) * 11 + 24))
+        label_width = min(190, max(72, _svg_text_units(label) * 6 + 24))
         edge_markup.append(
             f'<g data-flow="{escape(flow.flow_id)}">'
             f'<path d="{path}" '
@@ -219,8 +223,8 @@ def _semantic_positions(
             x += node_width + gap
         return positions
     if family == "state-transition":
-        center_x, center_y = 620, start_y + 150
         radius_x, radius_y = 410, max(130, min(250, count * 28))
+        center_x, center_y = 620, start_y + radius_y + node_height / 2
         import math
         for index, node in enumerate(nodes):
             angle = (-math.pi / 2) + (2 * math.pi * index / max(1, count))
@@ -310,21 +314,40 @@ def _flow_geometry(
     return path, (start_x + end_x) / 2, (start_y + end_y) / 2 - 14
 
 
+def _svg_text_units(value: str) -> int:
+    return sum(2 if unicodedata.east_asian_width(char) in {"W", "F", "A"} else 1 for char in value)
+
+
 def _wrap_svg_text(value: str, line_limit: int) -> tuple[str, ...]:
+    """Wrap Korean and long identifiers using conservative glyph-width units."""
     words = value.split()
     if not words:
         return ("",)
     lines: list[str] = []
-    current = words[0]
-    for word in words[1:]:
-        candidate = f"{current} {word}"
-        if len(candidate) <= line_limit:
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}" if current else word
+        if _svg_text_units(candidate) <= line_limit:
             current = candidate
-        else:
+            continue
+        if current:
             lines.append(current)
-            current = word
-    lines.append(current)
+            current = ""
+        for char in word:
+            if current and _svg_text_units(current + char) > line_limit:
+                lines.append(current)
+                current = ""
+            current += char
+    if current:
+        lines.append(current)
     return tuple(lines)
+
+
+def _limited_svg_lines(value: str, line_limit: int, max_lines: int) -> tuple[str, ...]:
+    lines = _wrap_svg_text(value, line_limit)
+    if len(lines) <= max_lines:
+        return lines
+    return (*lines[: max_lines - 1], _truncate_svg_text(lines[max_lines - 1] + "…", line_limit))
 
 
 def _svg_tspans(lines: tuple[str, ...], *, x: int, y: int, line_height: int) -> str:
@@ -336,7 +359,14 @@ def _svg_tspans(lines: tuple[str, ...], *, x: int, y: int, line_height: int) -> 
 
 def _truncate_svg_text(value: str, limit: int) -> str:
     clean = " ".join(value.split())
-    return clean if len(clean) <= limit else f"{clean[: limit - 3].rstrip()}..."
+    if _svg_text_units(clean) <= limit:
+        return clean
+    prefix = ""
+    for char in clean:
+        if _svg_text_units(prefix + char + "...") > limit:
+            break
+        prefix += char
+    return f"{prefix.rstrip()}..."
 
 
 def _require_unique(values: object, label: str) -> None:

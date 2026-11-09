@@ -11,6 +11,7 @@ for (const viewport of [
       const response = await route.fetch();
       const project = await response.json();
       project.systemMap = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 1h8" /></svg>';
+      project.systemMapData = { title: "테스트 구조", summary: "경로 확인", nodes: [], decision_links: [] };
       await route.fulfill({ response, contentType: "application/json", body: JSON.stringify(project) });
     });
     await page.setViewportSize(viewport);
