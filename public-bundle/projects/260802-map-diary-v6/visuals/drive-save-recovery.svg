@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 640" role="img" aria-labelledby="title desc">
+  <title id="title">주행 종료 후 저장과 원본 정리</title>
+  <desc id="desc">종료된 세션이 이미 기록함에 저장되어 있으면 중복 생성 없이 원본 정리를 재시도한다. 저장되지 않았다면 GPS 원본을 완전히 읽고 기록을 영구 저장한 뒤에만 원본을 정리한다. 읽기나 저장이 실패하면 원본을 보존한다.</desc>
+  <rect width="760" height="640" rx="14" fill="#f8faf9"/>
+  <g font-family="sans-serif" fill="#263f39">
+    <text x="30" y="37" font-size="18" font-weight="700">주행 종료 후 원본은 언제 지울까?</text>
+    <text x="30" y="61" font-size="12" fill="#526962">복구 가능한 종료 세션을 하나씩 처리하는 로컬 코드 기준</text>
+    <text x="330" y="101" text-anchor="middle" font-size="14" font-weight="700">종료된 주행 세션</text>
+    <path d="M330 113V130" stroke="#6d8980" stroke-width="2"/>
+    <path d="M330 130L455 167 330 204 205 167Z" fill="#eaf3f0" stroke="#4b8979" stroke-width="2"/>
+    <text x="330" y="163" text-anchor="middle" font-size="14" font-weight="700">같은 세션의 기록이</text>
+    <text x="330" y="181" text-anchor="middle" font-size="14" font-weight="700">이미 저장됐나?</text>
+    <path d="M455 167H507" fill="none" stroke="#4b8979" stroke-width="2"/><path d="M500 162l8 5-8 5" fill="none" stroke="#4b8979" stroke-width="2"/>
+    <text x="481" y="154" text-anchor="middle" font-size="12" fill="#39796b">예</text>
+    <text x="516" y="162" font-size="13" font-weight="700">중복 생성 없이</text><text x="516" y="181" font-size="13">원본 정리 재시도</text>
+    <path d="M330 204V235" fill="none" stroke="#728d84" stroke-width="2"/><path d="M325 227l5 8 5-8" fill="none" stroke="#728d84" stroke-width="2"/>
+    <text x="342" y="225" font-size="12" fill="#526962">아니오</text>
+    <path d="M330 240L455 277 330 314 205 277Z" fill="#edf3fa" stroke="#718daa" stroke-width="2"/>
+    <text x="330" y="273" text-anchor="middle" font-size="14" font-weight="700">GPS 원본을</text><text x="330" y="291" text-anchor="middle" font-size="14" font-weight="700">모두 읽었나?</text>
+    <path d="M455 277H507" fill="none" stroke="#ac785b" stroke-width="2"/><path d="M500 272l8 5-8 5" fill="none" stroke="#ac785b" stroke-width="2"/>
+    <text x="481" y="264" text-anchor="middle" font-size="12" fill="#925d46">실패</text><text x="516" y="272" font-size="13" font-weight="700" fill="#925d46">원본 보존</text><text x="516" y="291" font-size="13" fill="#925d46">다음 실행에 재시도</text>
+    <path d="M330 314V345" fill="none" stroke="#728d84" stroke-width="2"/><path d="M325 337l5 8 5-8" fill="none" stroke="#728d84" stroke-width="2"/>
+    <text x="342" y="335" font-size="12" fill="#526962">예 · 기록 생성</text>
+    <path d="M330 350L455 387 330 424 205 387Z" fill="#edf3fa" stroke="#718daa" stroke-width="2"/>
+    <text x="330" y="383" text-anchor="middle" font-size="14" font-weight="700">기록함의 영구 저장이</text><text x="330" y="401" text-anchor="middle" font-size="14" font-weight="700">성공했나?</text>
+    <path d="M455 387H507" fill="none" stroke="#ac785b" stroke-width="2"/><path d="M500 382l8 5-8 5" fill="none" stroke="#ac785b" stroke-width="2"/>
+    <text x="481" y="374" text-anchor="middle" font-size="12" fill="#925d46">실패</text><text x="516" y="382" font-size="13" font-weight="700" fill="#925d46">원본 보존</text><text x="516" y="401" font-size="13" fill="#925d46">다음 실행에 재시도</text>
+    <path d="M330 424V465" fill="none" stroke="#4b8979" stroke-width="2"/><path d="M325 457l5 8 5-8" fill="none" stroke="#4b8979" stroke-width="2"/>
+    <text x="342" y="450" font-size="12" fill="#39796b">성공</text>
+    <rect x="220" y="470" width="220" height="58" rx="9" fill="#e5f3ee" stroke="#4b8979"/>
+    <text x="330" y="494" text-anchor="middle" font-size="14" font-weight="700">기기 원본 정리</text><text x="330" y="514" text-anchor="middle" font-size="12">영구 저장 확인 이후에만</text>
+    <text x="30" y="585" font-size="12" fill="#526962">원본 정리가 실패하면 저장된 기록을 유지한다. 다음 실행에서 세션 ID를 확인해 중복 없이 다시 정리한다.</text>
+    <text x="30" y="608" font-size="12" fill="#526962">이 흐름의 검증은 로컬 테스트 기준이며 실제 기기 백그라운드 종료 검증과 구분한다.</text>
+  </g>
+</svg>
