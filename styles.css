@@ -413,6 +413,7 @@ svg { display: block; }
 .decision-article [data-article-section] { scroll-margin-top: calc(var(--reader-sticky-offset) + 8px); }
 .decision-article [data-article-section] > h2 { overflow-wrap: anywhere; }
 .article-figure { margin: 24px 0 32px; }
+.article-figure-scroll-hint { display: none; }
 .article-figure-media {
   display: grid;
   place-items: center;
@@ -437,6 +438,7 @@ svg { display: block; }
 .article-figure[data-diagram-id="drive-save-recovery"] svg,
 .article-figure[data-diagram-id="backup-acknowledgment"] svg { min-inline-size: 700px; }
 @media (max-width: 740px) {
+  .article-figure-scroll-hint { display: block; margin: 0 0 8px; color: var(--muted); font-size: 12px; }
   .article-figure[data-diagram-id="response-routing"] figcaption::after,
   .article-figure[data-diagram-id="cohort-results"] figcaption::after,
   .article-figure[data-diagram-id="conversation-case"] figcaption::after,

@@ -901,7 +901,9 @@ function renderArticleFigure(diagram, visuals) {
   const svg = sanitizeSvg(visuals?.[diagram.id]);
   if (!svg) return "";
   const alt = escapeHtml(diagram.alt || diagram.caption || diagram.id);
+  const wideDiagram = new Set(["response-routing", "cohort-results", "conversation-case", "policy-branch-proposal", "drive-save-recovery", "backup-acknowledgment"]).has(diagram.id);
   return `<figure class="article-figure" data-article-figure data-diagram-id="${escapeHtml(diagram.id)}">
+    ${wideDiagram ? '<p class="article-figure-scroll-hint">↔ 좌우로 이동해 전체 도식 보기</p>' : ""}
     <div class="article-figure-media" role="img" tabindex="0" aria-label="${alt}">${svg}</div>
     <figcaption>${escapeHtml(diagram.caption || diagram.id)}</figcaption>
   </figure>`;
