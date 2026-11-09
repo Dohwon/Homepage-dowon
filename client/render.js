@@ -102,7 +102,7 @@ function projectCard(project, index) {
   return `
     <article class="project-card" data-project-card>
       <div class="project-card-top">
-        <a class="project-card-index-link" data-route-link href="${href}" aria-label="${escapeHtml(project.name || project.id)} 열기"><span class="project-index">${String(index + 1).padStart(2, "0")}</span></a>
+        <a class="project-card-index-link" data-route-link href="${href}" aria-label="${escapeHtml(project.name || project.id)} 열기"><span class="project-index">${String(index + 1).padStart(2, "0")}</span><span class="project-work-date">${project.lastWorkDate ? `최근 기록 ${escapeHtml(project.lastWorkDate)}` : "작업일 확인 필요"}</span></a>
         <div class="project-card-actions">
           <span class="status-dot ${project.lifecycle === "active" ? "active" : ""}" aria-label="${project.lifecycle === "active" ? "진행 중" : "완료"}"></span>
           <span class="project-star ${pinned ? "is-pinned" : ""}" role="img" aria-label="${pinned ? "대표 프로젝트" : "일반 프로젝트"}" title="${pinned ? "대표 프로젝트" : "일반 프로젝트"}"><i data-lucide="star" aria-hidden="true"></i></span>

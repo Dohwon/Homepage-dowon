@@ -221,6 +221,8 @@ Worker는 로컬 workspace의 `projects/`와 `projects/finish/` 바로 아래 �
 
 Changelog는 본문 파일의 수정 시간이나 배포 시각으로 자동 생성되지 않는다. 프로젝트의 중요한 변경을 검토해 `project_memory/` 바로 아래 Markdown의 `## Build Story`, `## Decisions`, `## Rollbacks`에 날짜와 상황·선택·결과가 있는 `atlas:event` 관리 블록으로 기록해야 한다. 본문·근거를 갱신할 때 해당 변경의 이력도 함께 점검하고, 실제 근거가 확인된 날짜만 사용한다. 민감한 원문과 비밀값은 이벤트에 넣지 않는다. 기존 이력은 덮어쓰지 않으며, 각 블록의 형식은 `atlas_worker/history.py`의 `render_managed_event`를 따른다.
 
+프로젝트 목록은 대표 프로젝트를 먼저 둔 뒤, 공개 가능한 프로젝트에 직접 대응한 작업 세션 시각의 검토된 기준표 `data/atlas-project-recency.json`과 명시적인 Changelog 이벤트 중 더 최근인 시각으로 정렬한다. 기준표는 프로젝트 ID와 한국 시간의 시각만 담고 대화 내용과 로컬 경로는 포함하지 않는다. 예전 일괄 생성 이력의 일반 `curated-` 항목은 실제 최신 작업을 증명하지 않으므로 정렬 기준에서 제외한다. 날짜를 확인하지 못한 프로젝트는 뒤에 둔다. 앞으로 작업을 기록할 때 프로젝트의 실제 변경일로 Changelog를 갱신하면 순서에 반영된다.
+
 ### 설치
 
 Python 3.10+ 환경이 필요하다. service root에서 전용 virtual environment와 Atlas 의존성을 설치한다.

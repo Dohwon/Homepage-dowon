@@ -30,6 +30,24 @@ test("loads the v2 public bundle and omits heavy content from bootstrap", async 
   assert.equal(project.provenance, undefined);
 });
 
+test("sorts unpinned projects by reviewed work recency while preserving pins", async () => {
+  const recency = { alpha: "2026-10-20T09:00:00+09:00", beta: "2026-11-06T18:00:00+09:00" };
+  const options = { bundleDir: fixtureDir, loadRecency: async () => recency };
+  const unpinned = await createAtlasStore(options).bootstrap();
+  assert.deepEqual(unpinned.projects.map((item) => item.id), ["beta", "alpha"]);
+  assert.equal(unpinned.projects[0].lastWorkDate, "2026-11-06");
+  const pinned = await createAtlasStore({
+    ...options, loadCmsContent: async () => ({ projects: [{ id: "alpha", pinned: true }] })
+  }).bootstrap();
+  assert.deepEqual(pinned.projects.map((item) => item.id), ["alpha", "beta"]);
+  const newerEvent = await createAtlasStore({
+    bundleDir: fixtureDir,
+    loadRecency: async () => ({ alpha: "2026-01-01T00:00:00+09:00", beta: "invalid" })
+  }).bootstrap();
+  assert.deepEqual(newerEvent.projects.map((item) => item.id), ["alpha", "beta"]);
+  assert.equal(newerEvent.projects[0].lastWorkDate, "2026-08-24");
+});
+
 test("loads structured v2 public project content without legacy fields", async () => {
   const project = await createStore().project("alpha");
 
