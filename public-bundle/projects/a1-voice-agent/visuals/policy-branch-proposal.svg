@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 500" role="img" aria-labelledby="title desc">
+  <title id="title">대화 중 새 명령의 판단 분기 검토안</title>
+  <desc id="desc">안전 또는 오류 제한이 있으면 해당 안전 정책을 적용하고, 그렇지 않으면 실제 기능 상태와 명령 우선순위를 검토하여 허용, 거부, 사용자 확인으로 나눈다. 사용자 일시정지는 대화 종료만으로 해제하지 않는 방안을 별도로 제안한다.</desc>
+  <rect width="760" height="500" rx="14" fill="#f8faf9"/>
+  <g font-family="sans-serif" fill="#263f39">
+    <text x="30" y="37" font-size="18" font-weight="700">대화 중 새 명령이 들어오면?</text>
+    <text x="30" y="60" font-size="12" fill="#806d4e">검토안 · 제품 정책으로 확정되지 않음</text>
+    <text x="380" y="96" text-anchor="middle" font-size="13">입력: 새 명령 · 실제 기능 상태 · 안전 및 오류 상태</text>
+    <path d="M380 108V125" stroke="#728d84" stroke-width="2"/>
+    <path d="M380 125L510 165 380 205 250 165Z" fill="#fff4e9" stroke="#ae805d" stroke-width="2"/>
+    <text x="380" y="170" text-anchor="middle" font-size="15" font-weight="700">안전·오류 제한이 있나?</text>
+    <path d="M510 165H548" fill="none" stroke="#aa765b" stroke-width="2"/>
+    <path d="M541 160l8 5-8 5" fill="none" stroke="#aa765b" stroke-width="2"/>
+    <text x="526" y="153" text-anchor="middle" font-size="12" fill="#8e5c48">있음</text>
+    <text x="558" y="162" font-size="13" font-weight="700" fill="#8e5c48">해당 안전 정책</text>
+    <text x="558" y="181" font-size="13" font-weight="700" fill="#8e5c48">우선 적용</text>
+    <path d="M380 205V235" fill="none" stroke="#4b8979" stroke-width="2"/>
+    <path d="M375 227l5 8 5-8" fill="none" stroke="#4b8979" stroke-width="2"/>
+    <text x="393" y="224" font-size="12" fill="#3f796c">없음</text>
+    <path d="M380 240L510 282 380 324 250 282Z" fill="#eaf4f0" stroke="#5b9a89" stroke-width="2"/>
+    <text x="380" y="277" text-anchor="middle" font-size="14" font-weight="700">기능 상태와</text>
+    <text x="380" y="296" text-anchor="middle" font-size="14" font-weight="700">명령 우선순위 대조</text>
+    <path d="M380 324V347 M180 347H580 M180 347V370 M380 347V370 M580 347V370" fill="none" stroke="#728d84" stroke-width="2"/>
+    <text x="180" y="393" text-anchor="middle" font-size="15" font-weight="700" fill="#287867">허용</text>
+    <text x="380" y="393" text-anchor="middle" font-size="15" font-weight="700" fill="#9c644c">거부</text>
+    <text x="580" y="393" text-anchor="middle" font-size="15" font-weight="700" fill="#8c7137">사용자 확인</text>
+    <text x="30" y="448" font-size="12" fill="#526962">기존 사용자 일시정지는 대화 종료만으로 임의 재개하지 않는 방안을 별도 검토한다.</text>
+    <text x="30" y="471" font-size="12" fill="#526962">명령별 세부 조건과 팝업·시간 초과 처리는 후속 결정이 필요하다.</text>
+  </g>
+</svg>

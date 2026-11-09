@@ -1,0 +1,1 @@
+{"aliases":[],"id":"a1-voice-agent","lifecycle":"active","name":"A1 음성 AI와 기기 동작","outcome":"대화 상태와 실제 기기 기능 상태의 책임을 구분하고, 정적 분석과 실제 검증의 경계를 명확히 했습니다.","publication":"public","summary":"음성 대화와 기기 동작이 함께 진행될 때의 정책과 상태 제어를 검토하는 프로젝트 묶음입니다.","tags":{"domain":["Voice AI","Evaluation"],"outcome":["기준셋 운영 규칙"],"pattern":["상태 머신"],"problem":["라우팅 경계"],"technology":["Kotlin","Java"]}}

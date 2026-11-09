@@ -1,0 +1,1 @@
+[{"context":"음성 대화가 시작될 때 기기 기능을 일시정지하고 종료 시 재개하는 기존 흐름을 Live 환경에서 재검토해야 했습니다.","date":"2026-11-06","decision":"정책표와 AI Agent 및 Device Agent 로컬 코드의 호출, 상태 의존성과 재개 부수 효과를 함께 추적했습니다.","event_id":"live-pause-review-20261106","outcome":"발화용 호출만 제거하는 방식의 위험과 변경 제안을 정리했으며 실제 Live 구현과 실기기 검증은 남겼습니다.","stage":"revision","title":"Revision"}]
