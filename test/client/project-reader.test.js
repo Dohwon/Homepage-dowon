@@ -219,6 +219,7 @@ test("shows the reviewed system map in the article with a link to its details", 
   assert.match(result.html, /조건별 흐름입니다/);
   assert.match(result.html, /tab=system-map/);
   assert.ok(result.html.indexOf("data-article-system-map") < result.html.indexOf("data-article-orientation"));
+  assert.doesNotMatch(renderProjectContent(fixtureProject(), "decisions").html, /data-article-system-map/);
 });
 
 test("renders every article section in order and places figures after prose", async (t) => {
