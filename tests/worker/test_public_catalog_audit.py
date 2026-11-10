@@ -14,10 +14,10 @@ from scripts.audit_public_atlas_catalog import (
 from tests.worker.git_helpers import git, init_repo, write
 
 
-def test_catalog_requires_the_exact_33_project_ids():
+def test_catalog_requires_the_exact_37_project_ids():
     result = audit_project_id_set(EXPECTED_PROJECT_IDS)
 
-    assert len(result.project_ids) == 33
+    assert len(result.project_ids) == 37
     assert "finish" not in result.project_ids
     assert result.missing_project_ids == ()
     assert result.unexpected_project_ids == ()
